@@ -1,0 +1,72 @@
+<!--
+  MasterKPM.html
+  -------------
+  Small settings dialog for the document-numbering master data. It loads
+  current values from Apps Script, lets the user edit them, and sends the
+  values back without directly touching SpreadsheetApp in the browser.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  /* Keep this dialog intentionally simple because it is used as an admin
+     popup rather than as the main material-entry workflow. */
+  body { font-family: Arial; font-size: 13px; margin: 20px; }
+  label { display: block; margin-top: 12px; font-weight: bold; }
+  input[type=text], input[type=number] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  .btn { margin-top: 20px; padding: 8px 16px; background: #0b57d0; color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; }
+  .hint { font-size: 11px; color: #666; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+  <!-- {no} and {year} are placeholders interpreted by the server backend. -->
+  <label>Format Template KPM</label>
+  <input type="text" id="template" placeholder="{no}/...../LF/...../{year}">
+  <div class="hint">Gunakan <b>{year}</b> untuk tahun dan <b>{no}</b> untuk nomor otomatis.</div>
+
+  <!-- The attachment number has its own template but shares the sequence. -->
+  <label>Format Template No Lampiran KPM</label>
+  <input type="text" id="lampiranTemplate" placeholder="{no}/KPM/...../...../{year}">
+  <div class="hint">Gunakan <b>{year}</b> untuk tahun dan <b>{no}</b> untuk nomor otomatis.</div>
+
+  <!-- Starting sequence value used when the backend generates new numbers. -->
+  <label>Nomor Urut Mulai (Start No)</label>
+  <input type="number" id="startNo" placeholder="1">
+
+  <!-- The button is disabled visually by its status text while saving. -->
+  <button class="btn" onclick="saveSettings()" id="saveBtn">Simpan Pengaturan</button>
+  <div id="status" style="margin-top:10px; color:green; text-align:center; display:none;">Berhasil disimpan!</div>
+
+  <script>
+    // Populate the form from the server as soon as the dialog is opened.
+    // This prevents an administrator from overwriting settings with blanks
+    // simply because the initial page has not loaded them yet.
+    google.script.run.withSuccessHandler(function(settings) {
+      document.getElementById('template').value = settings.template;
+      document.getElementById('lampiranTemplate').value = settings.lampiranTemplate;
+      document.getElementById('startNo').value = settings.startNo;
+    }).getMasterSettings();
+
+    // Collect the three editable values and persist them through the Apps
+    // Script bridge. The dialog closes only after the save callback succeeds.
+    function saveSettings() {
+      var btn = document.getElementById('saveBtn');
+      btn.innerText = "Menyimpan...";
+      
+      var data = {
+        template: document.getElementById('template').value,
+        lampiranTemplate: document.getElementById('lampiranTemplate').value,
+        startNo: document.getElementById('startNo').value
+      };
+
+      google.script.run.withSuccessHandler(function() {
+        document.getElementById('status').style.display = 'block';
+        btn.innerText = "Simpan Pengaturan";
+        setTimeout(function() { google.script.host.close(); }, 1200);
+      }).saveMasterSettings(data);
+    }
+  </script>
+</body>
+</html>
