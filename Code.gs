@@ -38,6 +38,8 @@ function onOpen() {
     .createMenu('Menu KPM')
     .addItem('🆕 Buat KPM Baru', 'openKpmForm')
     .addItem('⚙️ Pengaturan Master', 'openMasterKpm')
+    .addSeparator()
+    .addItem('🖨️ Cetak KPM dari Monitor', 'printKpmM')
     .addToUi();
 }
 
@@ -54,8 +56,8 @@ function openMasterKpm() {
 function getMasterSettings() {
   var props = PropertiesService.getDocumentProperties();
   return {
-    template: props.getProperty('KPM_TEMPLATE') || '{no}/REKA/KPM/{month}/{year}',
-    lampiranTemplate: props.getProperty('KPM_LAMPIRAN_TEMPLATE') || '{no}/KPM-LAMP/{month}/{year}',
+    template: props.getProperty('KPM_TEMPLATE') || '{no}/PPO/LF/{month}/{year}',
+    lampiranTemplate: props.getProperty('KPM_LAMPIRAN_TEMPLATE') || '{no}/KPM/{month}/{year}',
     startNo: props.getProperty('KPM_START_NO') || '1'
   };
 }
