@@ -6,14 +6,16 @@ var PRINT = {
 };
 
 var MATERIALDB_SHEET_NAME = "DataBase";
-var MATERIALDB_START_ROW = 4; // data starts at row 4
+var MATERIALDB_HEADER_ROW = 4; // header labels on row 4
+var MATERIALDB_START_ROW = 5;  // data starts at row 5
 
-// DataBase columns (1-indexed):
-// A=No, B=Kode Material, C=Material Name, D=Material Group,
-// E=UoM, F=Plant, G=Update Date, H=Category, I=Lead Time
-var COL_KODE = 2;
-var COL_NAMA = 3;
-var COL_SATUAN = 5;
+// DataBase columns (1-indexed, A to L):
+// A=No., B=Kode Material, C=Deskripsi Material, D=Material Group,
+// E=BUn, F=Plant, G=Update Data, H=Kategori, I=Lead Time (hari),
+// J=Harga Satuan, K=2024, L=2025
+var COL_KODE = 2;   // Col B: Kode Material
+var COL_NAMA = 3;   // Col C: Deskripsi Material
+var COL_SATUAN = 5; // Col E: BUn (Base Unit)
 
 var PAGE_SIZE = 15; // Set page break to 15 items per page
 
@@ -117,7 +119,7 @@ function getMaterialByKode(kode) {
   if (lastRow < MATERIALDB_START_ROW) return null;
 
   var numRows = lastRow - MATERIALDB_START_ROW + 1;
-  var data = sheet.getRange(MATERIALDB_START_ROW, 1, numRows, 9).getValues();
+  var data = sheet.getRange(MATERIALDB_START_ROW, 1, numRows, 12).getValues();
 
   var kodeTrimmed = kode.toString().trim().toUpperCase();
 
