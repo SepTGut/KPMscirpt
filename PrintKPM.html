@@ -8,82 +8,274 @@
 -->
 <!DOCTYPE html>
 <html>
+
 <head>
-<base target="_top">
-<meta charset="UTF-8">
-<title>Preview KPM</title>
-<style>
-/* Print-first layout: physical millimetres are used so the preview matches
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Preview KPM</title>
+  <style>
+    /* Print-first layout: physical millimetres are used so the preview matches
    the letter-landscape paper size selected in @page. */
-*{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-html, body{ margin:0; padding:0; font-family:Arial, Helvetica, sans-serif; font-size:11px; background:#e8e8e8; }
-.toolbar{ width:279.4mm; margin:15px auto; text-align:right; }
-.toolbar button{ padding:8px 20px; border:none; color:white; font-weight:bold; cursor:pointer; }
-.btnPrint{ background:#0b57d0; }
-.btnClose{ background:#777; }
-.page{ width:279.4mm; min-height:203.2mm; margin:10px auto; padding:4mm; background:white; position:relative; page-break-after:always; }
-@page{ size:letter landscape; margin:8mm; }
-@media print{
-  html, body{ background:white !important; }
-  .toolbar{ display:none !important; }
-  .page{ width:auto; min-height:203.2mm; margin:0; padding:0; border:none !important; box-shadow:none !important; page-break-after:always; }
-  button{ display:none !important; }
-  table{ page-break-inside:avoid; }
-  tr{ page-break-inside:avoid; page-break-after:auto; }
-  thead{ display:table-header-group; }
-}
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
 
-/* Header Layout Penyesuaian Kolom Logo 15% */
-.header{ width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:5px; }
-.header td{ border:1px solid #000; padding:4px; vertical-align:middle; overflow: hidden; }
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      background: #e8e8e8;
+    }
 
-.logo{ width:15%; text-align:center; }
-.logo img{ width:95px; height:auto; display:block; margin:auto; }
+    .toolbar {
+      width: 279.4mm;
+      margin: 15px auto;
+      text-align: right;
+    }
 
-.company{ width:45%; text-align:center; }
-.company h1{ font-size:18px; margin:0; font-weight:bold; }
-.company h2{ font-size:14px; margin:2px 0; font-weight:bold; }
-.company p{ margin:0; font-size:10.5px; }
+    .toolbar button {
+      padding: 8px 20px;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
 
-.printDate{ width:14%; font-size:10.5px; line-height:16px; } 
-.barcode-cell{ width:26%; text-align:center; padding:2px !important; }
+    .btnPrint {
+      background: #0b57d0;
+    }
 
-.barcode-target {
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  display: block;
-  margin: 0 auto;
-}
+    .btnClose {
+      background: #777;
+    }
 
-/* Tabel Informasi Dokumen */
-.info{ width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:5px; }
-.info td{ border:1px solid #000; padding:4px 6px; height:21px; font-size:10.5px; }
-.label{ width:120px; background:#f7f7f7; font-weight:bold; }
-.batch-info{ width:100%; margin-bottom:5px; padding:4px 6px; border:1px solid #000; background:#fafafa; font-size:10.5px; font-weight:bold; text-align:right; }
+    .page {
+      width: 279.4mm;
+      min-height: 203.2mm;
+      margin: 10px auto;
+      padding: 4mm;
+      background: white;
+      position: relative;
+      page-break-after: always;
+    }
 
-/* Tabel Material (Font Header & Body Diperbesar) */
-.material{ width:100%; border-collapse:collapse; table-layout:fixed; }
-.material th{ border:1px solid #000; background:#f2f2f2; font-size:11px; padding:5px 4px; text-align:center; font-weight:bold; }
-.material td{ border:1px solid #000; font-size:10.5px; padding:4px 5px; height:20px; vertical-align:middle; word-wrap:break-word; }
-.material thead{ display:table-header-group; }
-.center{ text-align:center; }
+    @page {
+      size: letter landscape;
+      margin: 8mm;
+    }
 
-.sign{ width:100%; margin-top:12px; border-collapse:collapse; }
-.sign td{ text-align:center; height:45px; vertical-align:bottom; font-size:10.5px; padding-bottom:2px; }
-.doc-footer{ margin-top:5px; text-align:right; font-size:9.5px; }
-.page-last-space{ height:2mm; }
-</style>
+    @media print {
+
+      html,
+      body {
+        background: white !important;
+      }
+
+      .toolbar {
+        display: none !important;
+      }
+
+      .page {
+        width: auto;
+        min-height: 203.2mm;
+        margin: 0;
+        padding: 0;
+        border: none !important;
+        box-shadow: none !important;
+        page-break-after: always;
+      }
+
+      button {
+        display: none !important;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+    }
+
+    /* Header Layout Penyesuaian Kolom Logo 15% */
+    .header {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 5px;
+    }
+
+    .header td {
+      border: 1px solid #000;
+      padding: 4px;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+
+    .logo {
+      width: 15%;
+      text-align: center;
+    }
+
+    .logo img {
+      width: 95px;
+      height: auto;
+      display: block;
+      margin: auto;
+    }
+
+    .company {
+      width: 45%;
+      text-align: center;
+    }
+
+    .company h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: bold;
+    }
+
+    .company h2 {
+      font-size: 14px;
+      margin: 2px 0;
+      font-weight: bold;
+    }
+
+    .company p {
+      margin: 0;
+      font-size: 10.5px;
+    }
+
+    .printDate {
+      width: 14%;
+      font-size: 10.5px;
+      line-height: 16px;
+    }
+
+    .barcode-cell {
+      width: 26%;
+      text-align: center;
+      padding: 2px !important;
+    }
+
+    .barcode-target {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Tabel Informasi Dokumen */
+    .info {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 5px;
+    }
+
+    .info td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      height: 21px;
+      font-size: 10.5px;
+    }
+
+    .label {
+      width: 120px;
+      background: #f7f7f7;
+      font-weight: bold;
+    }
+
+    .batch-info {
+      width: 100%;
+      margin-bottom: 5px;
+      padding: 4px 6px;
+      border: 1px solid #000;
+      background: #fafafa;
+      font-size: 10.5px;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    /* Tabel Material (Font Header & Body Diperbesar) */
+    .material {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .material th {
+      border: 1px solid #000;
+      background: #f2f2f2;
+      font-size: 11px;
+      padding: 5px 4px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .material td {
+      border: 1px solid #000;
+      font-size: 10.5px;
+      padding: 4px 5px;
+      height: 20px;
+      vertical-align: middle;
+      word-wrap: break-word;
+    }
+
+    .material thead {
+      display: table-header-group;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .sign {
+      width: 100%;
+      margin-top: 12px;
+      border-collapse: collapse;
+    }
+
+    .sign td {
+      text-align: center;
+      height: 45px;
+      vertical-align: bottom;
+      font-size: 10.5px;
+      padding-bottom: 2px;
+    }
+
+    .doc-footer {
+      margin-top: 5px;
+      text-align: right;
+      font-size: 9.5px;
+    }
+
+    .page-last-space {
+      height: 2mm;
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- These controls are useful on screen and intentionally hidden for print. -->
-<div class="toolbar">
-  <button class="btnPrint" onclick="window.print()">PRINT</button>
-  <button class="btnClose" onclick="google.script.host.close()">TUTUP</button>
-</div>
+  <!-- These controls are useful on screen and intentionally hidden for print. -->
+  <div class="toolbar">
+    <button class="btnPrint" onclick="window.print()">PRINT</button>
+    <button class="btnClose" onclick="google.script.host.close()">TUTUP</button>
+  </div>
 
-<?
+  <?
 // The template receives one data object from Apps Script. Missing collections
 // are normalized to empty arrays so a partially populated request does not
 // make the template fail before it can render.
@@ -121,129 +313,164 @@ for(var g = 0; g < groups.length; g++){
       var pageMaterial = material.slice(mulai, sampai);
 ?>
 
-<div class="page">
-  <!-- Repeated document header: logo, title, print metadata, and barcode. -->
-  <table class="header">
-    <tr>
-      <td class="logo"><img src="<?!= data.logo ?>" class="logo-image"></td>
-      <td class="company">
-        <h1>PT REKAINDO GLOBAL JASA</h1>
-        <h2>KARTU PERMINTAAN MATERIAL (KPM)</h2>
-        <p>Dokumen Pengeluaran Material</p>
-      </td>
-      <td class="printDate">
-        Dicetak : <?= data.tanggalCetak ?><br>
-        Halaman : <?= pageNo ?> dari <?= data.totalPage ?>
-      </td>
-      <td class="barcode-cell">
-        <svg class="barcode-target" data-val="<?= barcodeData ?>"></svg>
-      </td>
-    </tr>
-  </table>
+  <div class="page">
+    <!-- Repeated document header: logo, title, print metadata, and barcode. -->
+    <table class="header">
+      <tr>
+        <td class="logo"><img src="<?!= data.logo ?>" class="logo-image"></td>
+        <td class="company">
+          <h1>PT REKAINDO GLOBAL JASA</h1>
+          <h2>KARTU PERMINTAAN MATERIAL (KPM)</h2>
+          <p>Dokumen Pengeluaran Material</p>
+        </td>
+        <td class="printDate">
+          Dicetak :
+          <?= data.tanggalCetak ?><br>
+          Halaman :
+          <?= pageNo ?> dari
+          <?= data.totalPage ?>
+        </td>
+        <td class="barcode-cell">
+          <svg class="barcode-target" data-val="<?= barcodeData ?>"></svg>
+        </td>
+      </tr>
+    </table>
 
-  <!-- Header fields prefer group-specific values and fall back to data.header. -->
-  <table class="info">
-    <tr>
-      <td class="label">No Ref. KPP</td>
-      <td><?= data.header.noRefKpp ?></td>
-      <td class="label">No. Reservasi</td>
-      <td><?= group.reservasi || "" ?></td>
-    </tr>
-    <tr>
-      <td class="label">Tanggal</td>
-      <td><?= group.tanggal || data.header.tanggal || "" ?></td>
-      <td class="label">Serial Number</td>
-      <td><?= group.serial || data.header.serial || "" ?></td>
-    </tr>
-    <tr>
-      <td class="label">Proyek</td>
-      <td><?= group.proyek || data.header.proyek || "" ?></td>
-      <td class="label">No Lampiran KPM</td>
-      <td><?= group.noLampiranKpm || data.header.noLampiranKpm || "" ?></td>
-    </tr>
-  </table>
+    <!-- Header fields prefer group-specific values and fall back to data.header. -->
+    <table class="info">
+      <tr>
+        <td class="label">No Ref. KPP</td>
+        <td>
+          <?= data.header.noRefKpp ?>
+        </td>
+        <td class="label">No. Reservasi</td>
+        <td>
+          <?= group.reservasi || "" ?>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Tanggal</td>
+        <td>
+          <?= group.tanggal || data.header.tanggal || "" ?>
+        </td>
+        <td class="label">Serial Number</td>
+        <td>
+          <?= group.serial || data.header.serial || "" ?>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Proyek</td>
+        <td>
+          <?= group.proyek || data.header.proyek || "" ?>
+        </td>
+        <td class="label">No Lampiran KPM</td>
+        <td>
+          <?= group.noLampiranKpm || data.header.noLampiranKpm || "" ?>
+        </td>
+      </tr>
+    </table>
 
-  <!-- Only show split/batch information when the request was actually split. -->
-  <? if(batch.totalBatch > 1){ ?>
-    <div class="batch-info">Pembagian : <?= batch.batchNo ?> dari <?= batch.totalBatch ?></div>
-  <? } ?>
+    <!-- Only show split/batch information when the request was actually split. -->
+    <? if(batch.totalBatch > 1){ ?>
+    <div class="batch-info">Pembagian :
+      <?= batch.batchNo ?> dari
+      <?= batch.totalBatch ?>
+    </div>
+    <? } ?>
 
-  <!-- The material table repeats its header on printed pages and leaves the
+    <!-- The material table repeats its header on printed pages and leaves the
        delivered quantity blank for the warehouse to complete. -->
-  <table class="material">
-    <thead>
+    <table class="material">
+      <thead>
+        <tr>
+          <th style="width:12mm;">No</th>
+          <th style="width:32mm;">Kode Material</th>
+          <th style="width:80mm;">Deskripsi / Spesifikasi</th>
+          <th style="width:18mm;">Qty Diminta</th>
+          <th style="width:20mm;">Qty Diserahkan</th>
+          <th style="width:15mm;">Sat</th>
+          <th style="width:26mm;">WS Awal</th>
+          <th style="width:26mm;">WS Tujuan</th>
+          <th style="width:32mm;">Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>
+        <? for(var i = 0; i < pageMaterial.length; i++){ var m = pageMaterial[i]; ?>
+        <tr>
+          <td class="center">
+            <?= mulai + i + 1 ?>
+          </td>
+          <td>
+            <?= m.kode ?>
+          </td>
+          <td>
+            <?= m.deskripsiSpesifikasi ?>
+          </td>
+          <td class="center">
+            <?= m.qty ?>
+          </td>
+          <td></td>
+          <td class="center">
+            <?= m.satuan ?>
+          </td>
+          <td>
+            <?= m.wsAwal ?>
+          </td>
+          <td>
+            <?= m.wsTujuan ?>
+          </td>
+          <td>
+            <?= m.keterangan || "" ?>
+          </td>
+        </tr>
+        <? } ?>
+      </tbody>
+    </table>
+
+    <!-- Signature lines are part of every rendered page in the current layout. -->
+    <table class="sign">
       <tr>
-        <th style="width:12mm;">No</th>
-        <th style="width:32mm;">Kode Material</th>
-        <th style="width:80mm;">Deskripsi / Spesifikasi</th>
-        <th style="width:18mm;">Qty Diminta</th>
-        <th style="width:20mm;">Qty Diserahkan</th>
-        <th style="width:15mm;">Sat</th>
-        <th style="width:26mm;">WS Awal</th>
-        <th style="width:26mm;">WS Tujuan</th>
-        <th style="width:32mm;">Keterangan</th>
+        <td>Pengendalian Produksi<br><br><br><br>_________________________</td>
+        <td>Gudang<br><br><br><br>_________________________</td>
+        <td>Yang Menerima<br><br><br><br>_________________________</td>
       </tr>
-    </thead>
-    <tbody>
-      <? for(var i = 0; i < pageMaterial.length; i++){ var m = pageMaterial[i]; ?>
-      <tr>
-        <td class="center"><?= mulai + i + 1 ?></td>
-        <td><?= m.kode ?></td>
-        <td><?= m.deskripsiSpesifikasi ?></td>
-        <td class="center"><?= m.qty ?></td>
-        <td></td>
-        <td class="center"><?= m.satuan ?></td>
-        <td><?= m.wsAwal ?></td>
-        <td><?= m.wsTujuan ?></td>
-        <td><?= m.keterangan || "" ?></td>
-      </tr>
-      <? } ?>
-    </tbody>
-  </table>
+    </table>
 
-  <!-- Signature lines are part of every rendered page in the current layout. -->
-  <table class="sign">
-    <tr>
-      <td>Pengendalian Produksi<br><br><br><br>_________________________</td>
-      <td>Gudang<br><br><br><br>_________________________</td>
-      <td>Yang Menerima<br><br><br><br>_________________________</td>
-    </tr>
-  </table>
+    <div class="doc-footer">FORM-KPM-PPO-000</div>
+    <div class="page-last-space"></div>
+  </div>
 
-  <div class="doc-footer">FORM-KPM-PPO-000</div>
-  <div class="page-last-space"></div>
-</div>
-
-<?
+  <?
     }
   }
 }
 ?>
 
-<!-- Barcode generation is client-side because JsBarcode needs the final DOM. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-<script>
-  // Convert every server-rendered SVG placeholder into a CODE128 barcode.
-  // data-val is used instead of visible text so the barcode value survives
-  // the template safely and can be displayed by JsBarcode.
-  var targets = document.querySelectorAll('.barcode-target');
-  targets.forEach(function(target) {
-    var val = target.getAttribute('data-val');
-    JsBarcode(target, val, {
-      format: "CODE128",
-      width: 1.4,
-      height: 35,
-      displayValue: true,
-      fontSize: 10,
-      margin: 2
+  <!-- Barcode generation is client-side because JsBarcode needs the final DOM. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+  <script>
+    // Convert every server-rendered SVG placeholder into a CODE128 barcode.
+    // data-val is used instead of visible text so the barcode value survives
+    // the template safely and can be displayed by JsBarcode.
+    var targets = document.querySelectorAll('.barcode-target');
+    targets.forEach(function (target) {
+      var val = target.getAttribute('data-val');
+      JsBarcode(target, val, {
+        format: "CODE128",
+        width: 1.4,
+        height: 35,
+        displayValue: true,
+        fontSize: 10,
+        margin: 2
+      });
     });
-  });
 
-  // Kept as a named helper for callers that want to trigger printing after
-  // the barcode library has finished drawing.
-  function printKPM(){
-    setTimeout(function(){ window.print(); }, 500);
-  }
-</script>
+    // Kept as a named helper for callers that want to trigger printing after
+    // the barcode library has finished drawing.
+    function printKPM() {
+      setTimeout(function () { window.print(); }, 500);
+    }
+  </script>
 </body>
+
 </html>

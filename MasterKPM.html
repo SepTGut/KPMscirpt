@@ -7,18 +7,51 @@
 -->
 <!DOCTYPE html>
 <html>
+
 <head>
-<base target="_top">
-<style>
-  /* Keep this dialog intentionally simple because it is used as an admin
+  <base target="_top">
+  <style>
+    /* Keep this dialog intentionally simple because it is used as an admin
      popup rather than as the main material-entry workflow. */
-  body { font-family: Arial; font-size: 13px; margin: 20px; }
-  label { display: block; margin-top: 12px; font-weight: bold; }
-  input[type=text], input[type=number] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
-  .btn { margin-top: 20px; padding: 8px 16px; background: #0b57d0; color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; }
-  .hint { font-size: 11px; color: #666; margin-top: 4px; }
-</style>
+    body {
+      font-family: Arial;
+      font-size: 13px;
+      margin: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    input[type=text],
+    input[type=number] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+
+    .btn {
+      margin-top: 20px;
+      padding: 8px 16px;
+      background: #0b57d0;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+  </style>
 </head>
+
 <body>
 
   <!-- {no} and {year} are placeholders interpreted by the server backend. -->
@@ -43,7 +76,7 @@
     // Populate the form from the server as soon as the dialog is opened.
     // This prevents an administrator from overwriting settings with blanks
     // simply because the initial page has not loaded them yet.
-    google.script.run.withSuccessHandler(function(settings) {
+    google.script.run.withSuccessHandler(function (settings) {
       document.getElementById('template').value = settings.template;
       document.getElementById('lampiranTemplate').value = settings.lampiranTemplate;
       document.getElementById('startNo').value = settings.startNo;
@@ -54,19 +87,20 @@
     function saveSettings() {
       var btn = document.getElementById('saveBtn');
       btn.innerText = "Menyimpan...";
-      
+
       var data = {
         template: document.getElementById('template').value,
         lampiranTemplate: document.getElementById('lampiranTemplate').value,
         startNo: document.getElementById('startNo').value
       };
 
-      google.script.run.withSuccessHandler(function() {
+      google.script.run.withSuccessHandler(function () {
         document.getElementById('status').style.display = 'block';
         btn.innerText = "Simpan Pengaturan";
-        setTimeout(function() { google.script.host.close(); }, 1200);
+        setTimeout(function () { google.script.host.close(); }, 1200);
       }).saveMasterSettings(data);
     }
   </script>
 </body>
+
 </html>
