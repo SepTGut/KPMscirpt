@@ -52,8 +52,8 @@ function openMasterKpm() {
 function getMasterSettings() {
   var props = PropertiesService.getDocumentProperties();
   return {
-    template: props.getProperty('KPM_TEMPLATE') || '{no}/...../LF/...../{year}',
-    lampiranTemplate: props.getProperty('KPM_LAMPIRAN_TEMPLATE') || '{no}/KPM/...../...../{year}',
+    template: props.getProperty('KPM_TEMPLATE') || '{no}/REKA/KPM/{month}/{year}',
+    lampiranTemplate: props.getProperty('KPM_LAMPIRAN_TEMPLATE') || '{no}/KPM-LAMP/{month}/{year}',
     startNo: props.getProperty('KPM_START_NO') || '1'
   };
 }
@@ -68,17 +68,29 @@ function saveMasterSettings(settings) {
 
 function getGeneratedKpmNumbers() {
   var settings = getMasterSettings();
-  var year = new Date().getFullYear();
+  var date = new Date();
+  var year = date.getFullYear();
+  var monthIndex = date.getMonth(); // 0-indexed (0 = Jan, 7 = Aug)
+  
+  var romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+  var monthRoman = romanMonths[monthIndex];
+  var monthNum = String(monthIndex + 1).padStart(2, '0');
   
   var currentNo = parseInt(settings.startNo, 10) || 1;
   var formattedNo = String(currentNo).padStart(3, '0');
   
-  var kpmFormat = settings.template.replace('{year}', year).replace('{no}', formattedNo);
-  var lampiranFormat = settings.lampiranTemplate.replace('{year}', year).replace('{no}', formattedNo);
-  
+  function applyTemplate(tpl) {
+    if (!tpl) return "";
+    return tpl
+      .replace(/\{no\}/g, formattedNo)
+      .replace(/\{year\}/g, year)
+      .replace(/\{month\}/g, monthRoman)
+      .replace(/\{monthNum\}/g, monthNum);
+  }
+
   return {
-    kpmNo: kpmFormat,
-    lampiranNo: lampiranFormat
+    kpmNo: applyTemplate(settings.template),
+    lampiranNo: applyTemplate(settings.lampiranTemplate)
   };
 }
 
