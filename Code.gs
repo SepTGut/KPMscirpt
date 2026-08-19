@@ -15,7 +15,7 @@ var COL_KODE = 2;
 var COL_NAMA = 3;
 var COL_SATUAN = 5;
 
-var PAGE_SIZE = 20; // Set page break to 20 items per page
+var PAGE_SIZE = 15; // Set page break to 15 items per page
 
 // ============================================
 // DEBUG
@@ -209,12 +209,18 @@ function openPrintView(data) {
 // LOGO
 // ============================================
 function getLogoSafe() {
-  if (!PRINT.LOGO_ID) {
-    throw new Error("LOGO_ID kosong.");
+  var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='50' viewBox='0 0 120 50'><rect width='120' height='50' fill='%2316233B' rx='4'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='%23FFFFFF'>REKAINDO</text></svg>";
+  if (!PRINT.LOGO_ID || PRINT.LOGO_ID === "PASTE_YOUR_LOGO_FILE_ID_HERE") {
+    return defaultLogo;
   }
-  var file = DriveApp.getFileById(PRINT.LOGO_ID);
-  var blob = file.getBlob();
-  var contentType = blob.getContentType();
-  var base64 = Utilities.base64Encode(blob.getBytes());
-  return "data:" + contentType + ";base64," + base64;
+  try {
+    var file = DriveApp.getFileById(PRINT.LOGO_ID);
+    var blob = file.getBlob();
+    var contentType = blob.getContentType();
+    var base64 = Utilities.base64Encode(blob.getBytes());
+    return "data:" + contentType + ";base64," + base64;
+  } catch (err) {
+    Logger.log("getLogoSafe warning: " + err.message);
+    return defaultLogo;
+  }
 }

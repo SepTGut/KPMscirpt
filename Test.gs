@@ -53,7 +53,8 @@ function generateTestData(itemCount) {
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
     header: {
-      nokpm: "TEST-KPM-000",
+      noRefKpp: "TEST-KPM-000",
+      noLampiranKpm: "TEST-LAMP-000",
       tanggal: today,
       serial: "SN-TEST",
       proyek: "Proyek Kalibrasi",
@@ -110,7 +111,8 @@ function testPrintKPMBlank() {
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
     header: {
-      nokpm: "",
+      noRefKpp: "",
+      noLampiranKpm: "",
       tanggal: "",
       serial: "",
       proyek: "",
