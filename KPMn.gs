@@ -253,15 +253,14 @@ function onEdit(e) {
       if (itemVal === 1) {
         var prev = getPreviousActiveRow(sheet, row);
         rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(100);
-        modified = true;
       } else if (itemVal > 1) {
         var prev = getPreviousActiveRow(sheet, row);
         if (prev && prev.noLf) {
           rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
-          modified = true;
         }
       }
       inheritGroupMetadataInMemory(sheet, row, rowData);
+      modified = true;
     }
   }
 
@@ -283,9 +282,6 @@ function onEdit(e) {
   // Case D: Editing "Kode Material" (Column 5 / Col E)
   if (col === MONITOR_COL_KODE) {
     if (cellStr === "") {
-      rowData[MONITOR_COL_KODE - 1] = "";
-      rowData[MONITOR_COL_SPEK - 1] = "";
-      rowData[MONITOR_COL_UOM - 1] = "";
       clearRowDataInMemory(rowData);
       rowRange.setValues([rowData]);
       return;
@@ -295,7 +291,6 @@ function onEdit(e) {
     if (mat) {
       rowData[MONITOR_COL_SPEK - 1] = mat.nama;
       if (mat.satuan) rowData[MONITOR_COL_UOM - 1] = mat.satuan;
-      modified = true;
     }
 
     ensureItemAndNoLfInMemory(sheet, row, rowData);
@@ -303,12 +298,11 @@ function onEdit(e) {
 
     if (!rowData[MONITOR_COL_NO - 1]) {
       rowData[MONITOR_COL_NO - 1] = autoNoValue;
-      modified = true;
     }
     if (!rowData[MONITOR_COL_POST_DATE - 1]) {
       rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-      modified = true;
     }
+    modified = true;
   }
 
   // Case E: Editing "Spesifikasi" (Column 6 / Col F) directly
@@ -319,12 +313,11 @@ function onEdit(e) {
 
       if (!rowData[MONITOR_COL_NO - 1]) {
         rowData[MONITOR_COL_NO - 1] = autoNoValue;
-        modified = true;
       }
       if (!rowData[MONITOR_COL_POST_DATE - 1]) {
         rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-        modified = true;
       }
+      modified = true;
     } else if (currentKode === "") {
       clearRowDataInMemory(rowData);
       rowRange.setValues([rowData]);
