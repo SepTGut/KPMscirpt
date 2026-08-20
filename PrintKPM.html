@@ -3,8 +3,8 @@
   ------------
   Server-rendered Apps Script HTML template for the printable KPM document.
   The scriptlet blocks run while the template is evaluated, producing one
-  page per chunk of material. The browser-side script then turns each SVG
-  placeholder into a CODE128 barcode and provides print/close controls.
+  page per chunk of material. The browser-side script renders a QR Code
+  for the No. Ref KPP / No. LF on each page and provides print/close controls.
 -->
 <!DOCTYPE html>
 <html>
@@ -135,7 +135,7 @@
     }
 
     .company {
-      width: 45%;
+      width: 48%;
       text-align: center;
     }
 
@@ -157,23 +157,47 @@
     }
 
     .printDate {
-      width: 14%;
+      width: 19%;
       font-size: 10.5px;
       line-height: 16px;
     }
 
-    .barcode-cell {
-      width: 26%;
+    .qrcode-cell {
+      width: 18%;
       text-align: center;
+      vertical-align: middle;
       padding: 2px !important;
     }
 
-    .barcode-target {
-      width: 100% !important;
-      max-width: 100% !important;
-      height: auto !important;
+    .qrcode-wrapper {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qrcode-target {
+      display: inline-block;
+      margin: 0 auto;
+    }
+
+    .qrcode-target img,
+    .qrcode-target canvas {
+      width: 52px !important;
+      height: 52px !important;
       display: block;
       margin: 0 auto;
+    }
+
+    .qrcode-label {
+      font-size: 8.5px;
+      font-weight: bold;
+      margin-top: 2px;
+      color: #111;
+      text-align: center;
+      word-break: break-all;
+      max-width: 100px;
+      line-height: 10px;
     }
 
     /* Tabel Informasi Dokumen */
@@ -330,8 +354,11 @@ for(var g = 0; g < groups.length; g++){
           <?= pageNo ?> dari
           <?= data.totalPage ?>
         </td>
-        <td class="barcode-cell">
-          <svg class="barcode-target" data-val="<?= barcodeData ?>"></svg>
+        <td class="qrcode-cell">
+          <div class="qrcode-wrapper">
+            <div class="qrcode-target" data-val="<?= barcodeData ?>"></div>
+            <div class="qrcode-label"><?= barcodeData ?></div>
+          </div>
         </td>
       </tr>
     </table>
@@ -448,27 +475,24 @@ for(var g = 0; g < groups.length; g++){
 }
 ?>
 
-  <!-- Barcode generation is client-side because JsBarcode needs the final DOM. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+  <!-- QR Code generation is client-side using QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    // Convert every server-rendered SVG placeholder into a CODE128 barcode.
-    // data-val is used instead of visible text so the barcode value survives
-    // the template safely and can be displayed by JsBarcode.
-    var targets = document.querySelectorAll('.barcode-target');
+    // Convert every QR placeholder into a clear, scannable QR Code
+    var targets = document.querySelectorAll('.qrcode-target');
     targets.forEach(function (target) {
-      var val = target.getAttribute('data-val');
-      JsBarcode(target, val, {
-        format: "CODE128",
-        width: 1.4,
-        height: 35,
-        displayValue: true,
-        fontSize: 10,
-        margin: 2
+      var val = target.getAttribute('data-val') || "DUMMY-KPP-000";
+      new QRCode(target, {
+        text: val,
+        width: 52,
+        height: 52,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
       });
     });
 
-    // Kept as a named helper for callers that want to trigger printing after
-    // the barcode library has finished drawing.
+    // Kept as a named helper for callers that want to trigger printing
     function printKPM() {
       setTimeout(function () { window.print(); }, 500);
     }

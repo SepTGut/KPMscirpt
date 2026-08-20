@@ -1,5 +1,5 @@
 // ============================================
-// CONFIG
+// CONFIG & CONSTANTS
 // ============================================
 var PRINT = {
   LOGO_ID: "PASTE_YOUR_LOGO_FILE_ID_HERE"
@@ -36,10 +36,9 @@ function debugListSheetNames() {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Menu KPM')
-    .addItem('🆕 Buat KPM Baru', 'openKpmForm')
-    .addItem('⚙️ Pengaturan Master', 'openMasterKpm')
+    .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addSeparator()
-    .addItem('🖨️ Cetak KPM dari Monitor', 'printKpmM')
+    .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addToUi();
 }
 
@@ -99,17 +98,7 @@ function getGeneratedKpmNumbers() {
 }
 
 // ============================================
-// Open the popup form
-// ============================================
-function openKpmForm() {
-  var html = HtmlService.createHtmlOutputFromFile('KpmForm')
-    .setWidth(500)
-    .setHeight(650);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Buat KPM Baru');
-}
-
-// ============================================
-// Fast Cached Lookup for Kode Material
+// FAST CACHED LOOKUP FOR KODE MATERIAL
 // ============================================
 var _materialMemoryCache = {};
 
@@ -152,7 +141,6 @@ function getMaterialByKode(kode) {
   if (lastRow < MATERIALDB_START_ROW) return null;
 
   var numRows = lastRow - MATERIALDB_START_ROW + 1;
-  // Read Cols B to E (4 columns: Kode, Deskripsi, Group, Satuan)
   var data = sheet.getRange(MATERIALDB_START_ROW, 2, numRows, 4).getValues();
 
   var found = null;
@@ -178,7 +166,7 @@ function getMaterialByKode(kode) {
     }
   }
 
-  // Cache materials for fast subsequent lookups (up to 6 hours)
+  // Cache materials for fast subsequent lookups
   try {
     cache.putAll(batchToCache, 21600);
   } catch(e) {}
@@ -187,74 +175,7 @@ function getMaterialByKode(kode) {
 }
 
 // ============================================
-// Submit KPM Form
-// ============================================
-function submitKpmForm(formData) {
-  if (!formData.noRefKpp) {
-    throw new Error('No Ref. KPP wajib diisi.');
-  }
-  if (!formData.items || formData.items.length === 0) {
-    throw new Error('Belum ada material yang ditambahkan.');
-  }
-
-  var props = PropertiesService.getDocumentProperties();
-  var currentNo = parseInt(props.getProperty('KPM_START_NO') || '1', 10);
-  props.setProperty('KPM_START_NO', (currentNo + 1).toString());
-
-  var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
-
-  var material = formData.items.map(function(item) {
-    var desc = item.nama;
-    if (item.spesifikasi) desc += " - " + item.spesifikasi;
-    return {
-      kode: item.kode,
-      deskripsiSpesifikasi: desc,
-      qty: item.qty,
-      satuan: item.satuan,
-      wsAwal: item.wsAwal,
-      wsTujuan: item.wsTujuan,
-      keterangan: ""
-    };
-  });
-
-  var totalPage = Math.max(1, Math.ceil(material.length / PAGE_SIZE));
-
-  var data = {
-    logo: getLogoSafe(),
-    tanggalCetak: today,
-    totalPage: totalPage,
-    pageSize: PAGE_SIZE,
-    header: {
-      noRefKpp: formData.noRefKpp,
-      noLampiranKpm: formData.noLampiranKpm,
-      tanggal: today,
-      serial: formData.serial,
-      proyek: formData.proyek
-    },
-    groups: [
-      {
-        reservasi: formData.reservasi || "",
-        tanggal: today,
-        serial: formData.serial,
-        proyek: formData.proyek,
-        noLampiranKpm: formData.noLampiranKpm,
-        isSplit: false,
-        batches: [
-          {
-            totalBatch: 1,
-            batchNo: 1,
-            material: material
-          }
-        ]
-      }
-    ]
-  };
-
-  return data;
-}
-
-// ============================================
-// Opens the print-ready preview
+// OPENS THE PRINT-READY PREVIEW
 // ============================================
 function openPrintView(data) {
   var template = HtmlService.createTemplateFromFile('PrintKPM');
