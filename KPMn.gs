@@ -187,6 +187,7 @@ function clearRowDataInMemory(rowData) {
 // HIGH-SPEED BATCH ON EDIT TRIGGER
 // ============================================
 function onEdit(e) {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) return;
   if (!e || !e.range) return;
 
   var sheet = e.range.getSheet();
@@ -347,6 +348,11 @@ function onEdit(e) {
  * and opens the printable KPM document dialog (PrintKPM.html).
  */
 function printKpmM() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan atau telah diubah.");
+    return;
+  }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getActiveSheet();
   var ui = SpreadsheetApp.getUi();

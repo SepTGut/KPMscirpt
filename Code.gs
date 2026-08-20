@@ -34,11 +34,17 @@ function debugListSheetNames() {
 // MENU
 // ============================================
 function onOpen() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    Logger.log("Sistem dinonaktifkan: Modul About.gs tidak valid atau telah diubah.");
+    return;
+  }
+
   SpreadsheetApp.getUi()
     .createMenu('Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addSeparator()
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
+    .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
     .addToUi();
 }
 
@@ -46,6 +52,11 @@ function onOpen() {
 // MASTER KPM SETTINGS
 // ============================================
 function openMasterKpm() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan.");
+    return;
+  }
+
   var html = HtmlService.createHtmlOutputFromFile('MasterKpm')
     .setWidth(450)
     .setHeight(380);
