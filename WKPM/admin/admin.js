@@ -1,5 +1,6 @@
 // Google Apps Script web-app endpoint used by the admin deployment.
 const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
+const ADMIN_API_TOKEN = 'kpm_admin_secret_2026';
 const REQUEST_TIMEOUT_MS = 15000;
 
 let dataMonitoringGlobal = [];
@@ -101,16 +102,19 @@ generateForm.addEventListener('submit', async event => {
   const rows = [...wadahBarang.querySelectorAll('.item-box')];
   if (!rows.length) { alert('Silakan tambah minimal 1 barang sebelum menyimpan!'); return; }
 
-  const daftarBarang = rows.map(row => {
-    const nama = row.querySelector('.input-barang').value.trim();
-    const qty = row.querySelector('.input-qty').value.trim();
-    const uom = row.querySelector('.input-uom').value.trim();
-    return `${nama}~${qty}~${uom}`;
-  });
+  const daftarBarang = rows.map(row => ({
+    nama: row.querySelector('.input-barang').value.trim(),
+    qty: row.querySelector('.input-qty').value.trim(),
+    uom: row.querySelector('.input-uom').value.trim()
+  })).filter(item => item.nama !== '');
+
+  if (!daftarBarang.length) { alert('Silakan isi nama barang dengan benar!'); return; }
+
   const params = new URLSearchParams(new FormData(generateForm));
   params.append('action', 'createKpm');
+  params.append('apiToken', ADMIN_API_TOKEN);
   params.append('lokasiWorkshop', `${document.getElementById('lokasiBerangkat').value} ➔ ${document.getElementById('lokasiTiba').value}`);
-  params.append('daftarBarang', daftarBarang.join('|'));
+  params.append('daftarBarang', JSON.stringify(daftarBarang));
 
   btnSubmitGen.disabled = true; btnTambah.disabled = true; btnSubmitGen.innerText = 'Memproses Database...';
   try {
@@ -145,7 +149,7 @@ function renderKartu() {
   if (!dataTampil.length) { wadahMonitoring.replaceChildren(); empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  // Fixed markup is combined only with escaped spreadsheet values.
+  // All spreadsheet and timestamp values are strictly escaped before DOM insertion
   wadahMonitoring.innerHTML = dataTampil.map(raw => {
     const kpm = normalizedKpm(raw);
     const badge = getBadgeConfig(kpm.statusCode);
@@ -153,12 +157,12 @@ function renderKartu() {
     const items = kpm.daftarBarang.map(item => `<div class="list-item"><span>📦 ${escapeHtml(item?.nama ?? '-')}</span><strong>${escapeHtml(item?.qty ?? '')} ${escapeHtml(item?.uom ?? '')}</strong></div>`).join('');
 
     return `<div class="kpm-card">
-      <div class="kpm-header"><h3>${escapeHtml(kpm.nomor)}</h3><span class="badge ${badge.className}">${badge.label}</span></div>
+      <div class="kpm-header"><h3>${escapeHtml(kpm.nomor)}</h3><span class="badge ${badge.className}">${escapeHtml(badge.label)}</span></div>
       <div class="kpm-detail"><p><strong>Proyek:</strong> ${escapeHtml(kpm.proyek)}</p><p><strong>Rute:</strong> ${escapeHtml(kpm.lokasi)}</p><p><strong>PIC:</strong> ${escapeHtml(kpm.pic)}</p></div>
-      <div class="timeline"><div class="timeline-bg"><div class="timeline-fill" style="height: ${kpm.fillPercent}%;"></div></div>
-        <div class="timeline-step active"><div class="timeline-icon">📝</div><div class="timeline-info"><span class="timeline-title">KPM Dibuat</span><span class="timeline-time">${kpm.formattedCreated}</span></div></div>
-        <div class="timeline-step ${kpm.isDeparted ? 'active' : ''}"><div class="timeline-icon">🚚</div><div class="timeline-info"><span class="timeline-title">Perjalanan Berangkat</span><span class="timeline-time">${kpm.isDeparted ? kpm.formattedDeparted : 'Menunggu update...'}</span></div></div>
-        <div class="timeline-step ${kpm.isArrived ? 'active' : ''}"><div class="timeline-icon">✅</div><div class="timeline-info"><span class="timeline-title">Tiba di Tujuan</span><span class="timeline-time">${kpm.isArrived ? kpm.formattedArrived : 'Menunggu update...'}</span></div></div></div>
+      <div class="timeline"><div class="timeline-bg"><div class="timeline-fill" style="height: ${escapeHtml(kpm.fillPercent)}%;"></div></div>
+        <div class="timeline-step active"><div class="timeline-icon">📝</div><div class="timeline-info"><span class="timeline-title">KPM Dibuat</span><span class="timeline-time">${escapeHtml(kpm.formattedCreated)}</span></div></div>
+        <div class="timeline-step ${kpm.isDeparted ? 'active' : ''}"><div class="timeline-icon">🚚</div><div class="timeline-info"><span class="timeline-title">Perjalanan Berangkat</span><span class="timeline-time">${kpm.isDeparted ? escapeHtml(kpm.formattedDeparted) : 'Menunggu update...'}</span></div></div>
+        <div class="timeline-step ${kpm.isArrived ? 'active' : ''}"><div class="timeline-icon">✅</div><div class="timeline-info"><span class="timeline-title">Tiba di Tujuan</span><span class="timeline-time">${kpm.isArrived ? escapeHtml(kpm.formattedArrived) : 'Menunggu update...'}</span></div></div></div>
       <details><summary>Lihat Rincian Barang (${kpm.daftarBarang.length} Item)</summary>${items || '<p>Tidak ada rincian barang.</p>'}</details>
       <div class="card-actions">${photoDeparted ? `<a href="${photoDeparted}" target="_blank" rel="noopener noreferrer" class="btn-foto-berangkat">📷 Berangkat</a>` : ''}${photoArrived ? `<a href="${photoArrived}" target="_blank" rel="noopener noreferrer" class="btn-foto-tiba">📷 Tiba</a>` : ''}${kpm.isArrived ? `<button type="button" class="btn-arsip" data-action="archive" data-nomor="${escapeHtml(kpm.nomor)}">🧹 Sembunyikan (Selesai)</button>` : ''}</div>
     </div>`;
@@ -170,17 +174,22 @@ async function tarikDataMonitoring() {
   const requestId = ++monitoringRequestId;
   wadahMonitoring.replaceChildren(); loading.style.display = 'block'; empty.style.display = 'none'; loading.innerText = 'Mengambil data dari server...';
   try {
-    const response = await fetchWithTimeout(`${scriptURL}?action=getMonitoring`, { cache: 'no-store' });
+    const response = await fetchWithTimeout(`${scriptURL}?action=getMonitoring&apiToken=${encodeURIComponent(ADMIN_API_TOKEN)}`, { cache: 'no-store' });
     const result = await response.json();
     if (requestId !== monitoringRequestId) return; // Ignore stale refresh results.
 
-    const items = Array.isArray(result) ? result : (result?.data && Array.isArray(result.data)) ? result.data : [];
+    if (!result || !result.success) {
+      throw new Error(result?.error?.message || 'Gagal memuat data monitoring dari server.');
+    }
+
+    const items = Array.isArray(result.data) ? result.data : [];
     dataMonitoringGlobal = items.map(normalizedKpm);
     loading.style.display = 'none';
     renderKartu();
   } catch (error) {
     if (requestId !== monitoringRequestId) return;
-    console.error('Monitoring load failed:', error); loading.innerText = 'Koneksi internet bermasalah. Gagal memuat data.';
+    console.error('Monitoring load failed:', error);
+    loading.innerText = 'Gagal memuat data: ' + error.message;
   }
 }
 
@@ -194,21 +203,25 @@ async function arsipkanKPM(nomor, button) {
   if (!confirm(`Sembunyikan KPM ${nomor} dari pantauan? (Data tetap aman di Spreadsheet)`)) return;
   button.innerText = 'Menyembunyikan...'; button.disabled = true;
   try {
-    await fetchWithTimeout(scriptURL, {
+    const response = await fetchWithTimeout(scriptURL, {
       method: 'POST',
-      body: new URLSearchParams({ action: 'archiveKpm', nomorKPM: nomor, statusKPM: 'Selesai' }),
-      mode: 'no-cors'
+      body: new URLSearchParams({ action: 'archiveKpm', apiToken: ADMIN_API_TOKEN, nomorKPM: nomor, statusKPM: 'Selesai' })
     });
+    const result = await response.json();
+    if (!result || !result.success) {
+      throw new Error(result?.error?.message || 'Gagal menyembunyikan KPM di server.');
+    }
     await tarikDataMonitoring();
   } catch (error) {
-    console.error('Archive failed:', error); button.innerText = '🧹 Sembunyikan (Selesai)'; button.disabled = false;
-    alert('Gagal menyembunyikan KPM. Silakan coba lagi.');
+    console.error('Archive failed:', error);
+    button.innerText = '🧹 Sembunyikan (Selesai)'; button.disabled = false;
+    alert('Gagal menyembunyikan KPM: ' + error.message);
   }
 }
 
 async function muatMasterData() {
   try {
-    const response = await fetchWithTimeout(`${scriptURL}?action=getMasterData`, { cache: 'no-store' });
+    const response = await fetchWithTimeout(`${scriptURL}?action=getMasterData&apiToken=${encodeURIComponent(ADMIN_API_TOKEN)}`, { cache: 'no-store' });
     const result = await response.json();
     const data = result?.data || result;
     if (data && Array.isArray(data.workshops) && Array.isArray(data.pics)) {

@@ -1,5 +1,6 @@
 // Google Apps Script web-app endpoint shared with the admin deployment.
 const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
+const DRIVER_API_TOKEN = 'kpm_driver_secret_2026';
 const REQUEST_TIMEOUT_MS = 30000;
 const MAX_IMAGE_WIDTH = 1000;
 
@@ -52,11 +53,15 @@ async function muatDataKPM() {
   statusTeks.innerText = 'Mencari KPM terbaru...';
   btnRefreshData.disabled = true;
   try {
-    const response = await fetchWithTimeout(`${scriptURL}?action=getDeliveries`, { cache: 'no-store' });
+    const response = await fetchWithTimeout(`${scriptURL}?action=getDeliveries&apiToken=${encodeURIComponent(DRIVER_API_TOKEN)}`, { cache: 'no-store' });
     const result = await response.json();
     if (requestId !== dataRequestId) return; // Ignore an older refresh response.
 
-    const list = Array.isArray(result) ? result : (result?.data && Array.isArray(result.data)) ? result.data : [];
+    if (!result || !result.success) {
+      throw new Error(result?.error?.message || 'Gagal memuat data pengiriman dari server.');
+    }
+
+    const list = Array.isArray(result.data) ? result.data : [];
     dataKPMGlobal = list;
     selectKPM.innerHTML = '<option value="">-- Pilih KPM yang tersedia --</option>';
 
@@ -79,7 +84,7 @@ async function muatDataKPM() {
     if (requestId !== dataRequestId) return;
     console.error('KPM load failed:', error);
     selectKPM.innerHTML = '<option value="">-- Gagal memuat KPM --</option>';
-    statusTeks.innerText = 'Koneksi internet bermasalah.';
+    statusTeks.innerText = 'Gagal memuat: ' + error.message;
   } finally {
     if (requestId === dataRequestId) btnRefreshData.disabled = false;
   }
@@ -163,19 +168,26 @@ updateForm.addEventListener('submit', async event => {
 
     const formData = new FormData(updateForm);
     formData.append('action', 'updateStatus');
+    formData.append('apiToken', DRIVER_API_TOKEN);
 
-    await fetchWithTimeout(scriptURL, {
+    const response = await fetchWithTimeout(scriptURL, {
       method: 'POST',
-      body: new URLSearchParams(formData),
-      mode: 'no-cors'
+      body: new URLSearchParams(formData)
     });
+    const result = await response.json();
+
+    if (!result || !result.success) {
+      throw new Error(result?.error?.message || 'Server menolak pembaruan status.');
+    }
+
+    statusKompresi.innerText = 'Pembaruan berhasil!';
     document.getElementById('pesanUpdate').innerText = 'TUNTAS! Data berhasil diupdate.';
     setTimeout(() => location.reload(), 2000);
   } catch (error) {
     console.error('Status update failed:', error);
     submitButton.innerText = 'Simpan ke Database';
     submitButton.disabled = false;
-    statusKompresi.innerText = 'Gagal memproses foto atau menyimpan data.';
+    statusKompresi.innerText = 'Gagal menyimpan: ' + error.message;
     alert('Gagal menyimpan data: ' + error.message);
   }
 });

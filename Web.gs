@@ -7,7 +7,11 @@ var WEB_CONFIG = {
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],
   PICS: ["Aang", "Eko", "Ruli", "Vany", "Taufiq"],
-  UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"]
+  UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
+  MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
+  ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+  DEFAULT_ADMIN_TOKEN: "kpm_admin_secret_2026",
+  DEFAULT_DRIVER_TOKEN: "kpm_driver_secret_2026"
 };
 
 // ============================================
@@ -66,7 +70,55 @@ function jsonOutput(obj) {
 }
 
 // ============================================
-// 3. MASTER DATA SERVICE
+// 3. AUTHENTICATION & AUTHORIZATION SERVICE
+// ============================================
+
+/**
+ * Resolves configured tokens from ScriptProperties or default configuration.
+ */
+function getApiTokens() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    adminToken: props.getProperty("ADMIN_TOKEN") || WEB_CONFIG.DEFAULT_ADMIN_TOKEN,
+    driverToken: props.getProperty("DRIVER_TOKEN") || WEB_CONFIG.DEFAULT_DRIVER_TOKEN
+  };
+}
+
+/**
+ * Validates the API token and enforces role-based authorization for an action.
+ */
+function authenticateRequest(params, action) {
+  var tokens = getApiTokens();
+  var submittedToken = (params && (params.apiToken || params.token)) ? String(params.apiToken || params.token).trim() : "";
+
+  var role = "";
+  if (submittedToken && submittedToken === tokens.adminToken) {
+    role = "ADMIN";
+  } else if (submittedToken && submittedToken === tokens.driverToken) {
+    role = "DRIVER";
+  }
+
+  var adminOnlyActions = ["createKpm", "archiveKpm", "getMonitoring"];
+
+  if (!role) {
+    throw {
+      code: "UNAUTHORIZED",
+      message: "Akses ditolak: Token API tidak valid atau tidak disertakan."
+    };
+  }
+
+  if (adminOnlyActions.indexOf(action) !== -1 && role !== "ADMIN") {
+    throw {
+      code: "FORBIDDEN",
+      message: "Akses ditolak: Peran Driver tidak diizinkan untuk melakukan tindakan '" + action + "'."
+    };
+  }
+
+  return { role: role, authenticated: true };
+}
+
+// ============================================
+// 4. MASTER DATA SERVICE
 // ============================================
 
 /**
@@ -88,7 +140,7 @@ function getMasterData() {
 }
 
 // ============================================
-// 4. TIME & FORMATTING HELPERS
+// 5. TIME & FORMATTING HELPERS
 // ============================================
 
 /**
@@ -151,8 +203,36 @@ function extractHyperlinkUrl(dispVal, formulaVal, rawVal) {
   return "";
 }
 
+/**
+ * Validates route/workshop string against WEB_CONFIG.WORKSHOPS.
+ */
+function validateWorkshopRoute(routeStr) {
+  if (!routeStr || typeof routeStr !== "string") {
+    throw { code: "INVALID_LOCATION", message: "Lokasi workshop / rute wajib diisi." };
+  }
+  var cleanStr = routeStr.trim();
+  var separator = cleanStr.indexOf("➔") !== -1 ? "➔" : (cleanStr.indexOf("->") !== -1 ? "->" : "");
+  if (separator) {
+    var parts = cleanStr.split(separator);
+    var origin = (parts[0] || "").trim();
+    var dest = (parts[1] || "").trim();
+    if (!origin || WEB_CONFIG.WORKSHOPS.indexOf(origin) === -1) {
+      throw { code: "INVALID_LOCATION", message: "Lokasi workshop awal '" + origin + "' tidak terdaftar dalam konfigurasi sistem." };
+    }
+    if (!dest || WEB_CONFIG.WORKSHOPS.indexOf(dest) === -1) {
+      throw { code: "INVALID_LOCATION", message: "Lokasi workshop tujuan '" + dest + "' tidak terdaftar dalam konfigurasi sistem." };
+    }
+    return origin + " ➔ " + dest;
+  } else {
+    if (WEB_CONFIG.WORKSHOPS.indexOf(cleanStr) === -1) {
+      throw { code: "INVALID_LOCATION", message: "Lokasi workshop '" + cleanStr + "' tidak terdaftar dalam konfigurasi sistem." };
+    }
+    return cleanStr;
+  }
+}
+
 // ============================================
-// 5. MONITORING DOMAIN SERVICE (ADMIN VIEW)
+// 6. MONITORING DOMAIN SERVICE (ADMIN VIEW)
 // ============================================
 
 /**
@@ -257,7 +337,7 @@ function getKpmMonitoringData(includeArchived) {
 }
 
 // ============================================
-// 6. DELIVERY DOMAIN SERVICE (DRIVER/USER VIEW)
+// 7. DELIVERY DOMAIN SERVICE (DRIVER/USER VIEW)
 // ============================================
 
 /**
@@ -269,7 +349,6 @@ function getAvailableDeliveries() {
 
   for (var i = 0; i < allKpm.length; i++) {
     var item = allKpm[i];
-    // Driver can only interact with KPMs that are not finished or arrived
     if (item.status !== KPM_STATUS.TIBA && item.status !== KPM_STATUS.SELESAI) {
       var allowedNext = STATUS_TRANSITIONS[item.status] || [];
       var nextAction = allowedNext.length > 0 ? allowedNext[0] : "";
@@ -298,20 +377,97 @@ function getAvailableDeliveries() {
 }
 
 // ============================================
-// 7. CREATION SERVICE (KPM CREATION)
+// 8. CREATION SERVICE (KPM CREATION)
 // ============================================
 
 /**
+ * Parses material item array from JSON string or legacy delimited format.
+ * Strictly throws INVALID_MATERIAL on malformed JSON rather than falling through.
+ */
+function parseMaterialItems(rawInput) {
+  if (!rawInput) return [];
+  var rawStr = String(rawInput).trim();
+  if (!rawStr) return [];
+
+  // Strict JSON detection and parsing
+  if (rawStr.indexOf("[") === 0 || rawStr.indexOf("{") === 0) {
+    try {
+      var jsonArray = JSON.parse(rawStr);
+      if (!Array.isArray(jsonArray)) {
+        jsonArray = [jsonArray];
+      }
+      var parsed = [];
+      for (var i = 0; i < jsonArray.length; i++) {
+        var itm = jsonArray[i];
+        if (itm && (itm.nama || itm.spek || itm.kode)) {
+          var namaVal = String(itm.nama || itm.spek || itm.kode || "").trim();
+          var qtyVal = String(itm.qty || itm.jumlah || "1").trim();
+          var uomVal = String(itm.uom || itm.satuan || "").trim();
+          if (namaVal !== "") {
+            parsed.push({ nama: namaVal, qty: qtyVal, uom: uomVal });
+          }
+        }
+      }
+      return parsed;
+    } catch(e) {
+      throw { code: "INVALID_MATERIAL", message: "Format JSON daftar barang tidak valid: " + e.message };
+    }
+  }
+
+  // Fallback to legacy string format: item~qty~uom|item~qty~uom
+  var rawItems = rawStr.split("|");
+  var list = [];
+  for (var j = 0; j < rawItems.length; j++) {
+    var chunk = rawItems[j].trim();
+    if (chunk) {
+      var parts = chunk.split("~");
+      var n = (parts[0] || "").trim();
+      var q = (parts[1] || "1").trim();
+      var u = (parts[2] || "").trim();
+      if (n !== "") {
+        list.push({ nama: n, qty: q, uom: u });
+      }
+    }
+  }
+  return list;
+}
+
+/**
  * Validates and batch-creates new KPM rows.
+ * Server strictly enforces 'Baru Dibuat' as initial status.
  */
 function validateAndCreateKpm(params) {
   if (!params) {
     throw { code: "INVALID_REQUEST", message: "Parameter tidak ditemukan." };
   }
+
   var rawBarang = params.daftarBarang || "";
-  if (!rawBarang.trim()) {
-    throw { code: "INVALID_MATERIAL", message: "Daftar barang tidak boleh kosong." };
+  var items = parseMaterialItems(rawBarang);
+
+  if (items.length === 0) {
+    throw { code: "INVALID_MATERIAL", message: "Daftar barang minimal harus memiliki 1 item barang valid." };
   }
+
+  // Validate quantities and UOMs
+  for (var v = 0; v < items.length; v++) {
+    var itemCheck = items[v];
+    var parsedQty = parseFloat(itemCheck.qty);
+    if (isNaN(parsedQty) || parsedQty <= 0) {
+      throw { code: "INVALID_QUANTITY", message: "Kuantitas untuk material '" + itemCheck.nama + "' harus berupa angka positif (> 0)." };
+    }
+  }
+
+  var namaPIC = (params.namaPIC || "").trim();
+  if (!namaPIC) {
+    throw { code: "INVALID_INPUT", message: "Nama PIC / Petugas wajib diisi." };
+  }
+  if (WEB_CONFIG.PICS.indexOf(namaPIC) === -1) {
+    throw { code: "INVALID_INPUT", message: "Nama PIC '" + namaPIC + "' tidak terdaftar dalam konfigurasi sistem." };
+  }
+
+  // Validate route
+  var lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
+  var namaProyek = (params.namaProyek || "").trim();
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
@@ -320,11 +476,9 @@ function validateAndCreateKpm(params) {
   }
 
   var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-  var items = rawBarang.split("|");
-  var lokasiWorkshop = params.lokasiWorkshop || "";
-  var statusKPM = params.statusKPM || KPM_STATUS.BARU_DIBUAT;
-  var namaPIC = params.namaPIC || "";
-  var namaProyek = params.namaProyek || "";
+
+  // SECURITY: Unconditionally force initial status to 'Baru Dibuat'
+  var statusKPM = KPM_STATUS.BARU_DIBUAT;
 
   var lastRow = sheet.getLastRow();
   var numDataRows = Math.max(0, lastRow - MONITOR_START_ROW + 1);
@@ -359,43 +513,39 @@ function validateAndCreateKpm(params) {
   }
 
   var rowsToInsert = [];
-  var itemIndex = 1;
 
   for (var j = 0; j < items.length; j++) {
-    if (items[j].trim() !== "") {
-      var detail = items[j].split("~");
-      var rowData = new Array(MONITOR_TOTAL_COLS);
-      for (var c = 0; c < MONITOR_TOTAL_COLS; c++) {
-        rowData[c] = "";
-      }
-
-      var currentRowNo = (barisKosong + rowsToInsert.length) - MONITOR_START_ROW + 1;
-
-      rowData[MONITOR_COL_NO - 1] = currentRowNo;
-      rowData[MONITOR_COL_POST_DATE - 1] = waktuSekarang;
-      rowData[MONITOR_COL_NOLF - 1] = nomorBaruStr;
-      rowData[MONITOR_COL_ITEM - 1] = itemIndex;
-
-      var spekNama = detail[0] || "";
-      var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
-      if (mat) {
-        rowData[MONITOR_COL_KODE - 1] = mat.kode;
-        rowData[MONITOR_COL_SPEK - 1] = mat.nama;
-        rowData[MONITOR_COL_UOM - 1] = mat.satuan || detail[2] || "";
-      } else {
-        rowData[MONITOR_COL_SPEK - 1] = spekNama;
-        rowData[MONITOR_COL_UOM - 1] = detail[2] || "";
-      }
-
-      rowData[MONITOR_COL_PROYEK - 1] = namaProyek;
-      rowData[MONITOR_COL_QTY - 1] = detail[1] || 1;
-      rowData[MONITOR_COL_PIC - 1] = namaPIC;
-      rowData[MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
-      rowData[MONITOR_COL_STATUS - 1] = statusKPM;
-
-      rowsToInsert.push(rowData);
-      itemIndex++;
+    var itemObj = items[j];
+    var rowData = new Array(MONITOR_TOTAL_COLS);
+    for (var c = 0; c < MONITOR_TOTAL_COLS; c++) {
+      rowData[c] = "";
     }
+
+    var currentRowNo = (barisKosong + rowsToInsert.length) - MONITOR_START_ROW + 1;
+
+    rowData[MONITOR_COL_NO - 1] = currentRowNo;
+    rowData[MONITOR_COL_POST_DATE - 1] = waktuSekarang;
+    rowData[MONITOR_COL_NOLF - 1] = nomorBaruStr;
+    rowData[MONITOR_COL_ITEM - 1] = j + 1;
+
+    var spekNama = itemObj.nama;
+    var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
+    if (mat) {
+      rowData[MONITOR_COL_KODE - 1] = mat.kode;
+      rowData[MONITOR_COL_SPEK - 1] = mat.nama;
+      rowData[MONITOR_COL_UOM - 1] = mat.satuan || itemObj.uom || "";
+    } else {
+      rowData[MONITOR_COL_SPEK - 1] = spekNama;
+      rowData[MONITOR_COL_UOM - 1] = itemObj.uom || "";
+    }
+
+    rowData[MONITOR_COL_PROYEK - 1] = namaProyek;
+    rowData[MONITOR_COL_QTY - 1] = parseFloat(itemObj.qty) || 1;
+    rowData[MONITOR_COL_PIC - 1] = namaPIC;
+    rowData[MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
+    rowData[MONITOR_COL_STATUS - 1] = statusKPM;
+
+    rowsToInsert.push(rowData);
   }
 
   if (rowsToInsert.length > 0) {
@@ -412,35 +562,53 @@ function validateAndCreateKpm(params) {
 }
 
 // ============================================
-// 8. STATUS UPDATE & PHOTO SERVICE (STATE MACHINE)
+// 9. STATUS UPDATE & PHOTO SERVICE (STATE MACHINE)
 // ============================================
 
 /**
- * Handles Base64 image upload to Google Drive.
+ * Handles Base64 image upload to Google Drive with strict MIME & size validation.
  */
 function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
-  if (!fotoData || fotoData.indexOf(",") === -1) return "";
+  if (!fotoData || typeof fotoData !== "string") {
+    throw { code: "INVALID_IMAGE", message: "Data foto tidak valid atau kosong." };
+  }
+  if (fotoData.indexOf(",") === -1 || fotoData.indexOf("data:") !== 0) {
+    throw { code: "INVALID_IMAGE", message: "Format Base64 data foto tidak valid." };
+  }
+  if (fotoData.length > WEB_CONFIG.MAX_PHOTO_BASE64_BYTES) {
+    throw { code: "INVALID_IMAGE", message: "Ukuran file foto melebihi batas maksimum (~5MB)." };
+  }
+
+  var parts = fotoData.split(',');
+  var header = parts[0];
+  var base64 = parts[1];
+
+  var mimeMatch = header.match(/data:([^;]+);base64/);
+  var mimeType = mimeMatch ? mimeMatch[1].toLowerCase() : "";
+
+  if (WEB_CONFIG.ALLOWED_IMAGE_MIMES.indexOf(mimeType) === -1) {
+    throw { code: "INVALID_IMAGE", message: "Tipe file '" + mimeType + "' tidak didukung. Harap gunakan format JPEG, PNG, atau WebP." };
+  }
+
   try {
     var folderName = WEB_CONFIG.DRIVE_FOLDER_NAME;
     var folders = DriveApp.getFoldersByName(folderName);
     var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 
-    var mimePart = fotoData.split(';')[0];
-    var type = (mimePart && mimePart.indexOf(':') !== -1) ? mimePart.split(':')[1] : "image/jpeg";
-    var base64 = fotoData.split(',')[1];
-
     var safeNomor = (nomorKPM || "KPM").replace(/\//g, "_");
     var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "ddMMyy_HHmm");
-    var namaFile = safeNomor + "_" + (statusKPM || "Foto") + "_" + timestamp + ".jpg";
+    var extension = mimeType === "image/png" ? ".png" : mimeType === "image/webp" ? ".webp" : ".jpg";
+    var namaFile = safeNomor + "_" + (statusKPM || "Foto") + "_" + timestamp + extension;
 
-    var blob = Utilities.newBlob(Utilities.base64Decode(base64), type, namaFile);
+    var decodedBytes = Utilities.base64Decode(base64);
+    var blob = Utilities.newBlob(decodedBytes, mimeType, namaFile);
     var file = folder.createFile(blob);
 
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return file.getUrl();
   } catch (err) {
     Logger.log("uploadProofPhoto error: " + err.message);
-    return "";
+    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal menyimpan foto ke Google Drive: " + err.message };
   }
 }
 
@@ -505,18 +673,36 @@ function validateAndUpdateStatus(params) {
 
   // Photo requirement validation for Berangkat / Tiba (unless bypassing for archive)
   var requiresPhoto = (targetStatus === KPM_STATUS.BERANGKAT || targetStatus === KPM_STATUS.TIBA);
-  var hasPhotoData = (params.fotoData && params.fotoData.indexOf(",") !== -1);
-  if (requiresPhoto && !hasPhotoData && !params.bypassPhoto) {
-    throw {
-      code: "PHOTO_REQUIRED",
-      message: "Foto bukti pengiriman wajib dilampirkan untuk status '" + targetStatus + "'."
-    };
+  var urlFoto = "";
+
+  if (requiresPhoto && !params.bypassPhoto) {
+    if (!params.fotoData || params.fotoData.indexOf(",") === -1) {
+      throw {
+        code: "PHOTO_REQUIRED",
+        message: "Foto bukti pengiriman wajib dilampirkan untuk status '" + targetStatus + "'."
+      };
+    }
+    // Upload photo; throws PHOTO_UPLOAD_FAILED or INVALID_IMAGE on error
+    urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, targetStatus);
+    if (!urlFoto) {
+      throw {
+        code: "PHOTO_UPLOAD_FAILED",
+        message: "Gagal mengunggah foto bukti ke Google Drive. Status tidak diperbarui."
+      };
+    }
   }
 
-  var urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, targetStatus);
   var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-  var namaPIC = params.namaPIC || "";
-  var lokasiWorkshop = params.lokasiWorkshop || "";
+  
+  var namaPIC = (params.namaPIC || "").trim();
+  if (namaPIC && WEB_CONFIG.PICS.indexOf(namaPIC) === -1) {
+    throw { code: "INVALID_INPUT", message: "Nama PIC '" + namaPIC + "' tidak terdaftar dalam konfigurasi sistem." };
+  }
+
+  var lokasiWorkshop = "";
+  if (params.lokasiWorkshop) {
+    lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
+  }
 
   for (var idx = 0; idx < matchingRows.length; idx++) {
     var rIndex = matchingRows[idx];
@@ -563,7 +749,7 @@ function validateAndUpdateStatus(params) {
 }
 
 // ============================================
-// 9. ARCHIVE SERVICE
+// 10. ARCHIVE SERVICE
 // ============================================
 
 /**
@@ -581,15 +767,21 @@ function archiveKpm(nomorKPM) {
 }
 
 // ============================================
-// 10. REST API ROUTING (doGet & doPost)
+// 11. REST API ROUTING (doGet & doPost)
 // ============================================
 
 /**
- * Handles all GET requests. Returns unified { success, action, data, error } envelope.
+ * Handles all GET requests with API token authentication.
+ * Returns unified { success, action, data, error } envelope.
  */
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action).trim() : "getMonitoring";
   try {
+    var params = (e && e.parameter) ? e.parameter : {};
+    
+    // Authenticate GET request
+    authenticateRequest(params, action);
+
     var responseData;
 
     if (action === "getMasterData") {
@@ -597,10 +789,9 @@ function doGet(e) {
     } else if (action === "getDeliveries") {
       responseData = getAvailableDeliveries();
     } else if (action === "getMonitoring") {
-      var includeArchived = (e && e.parameter && e.parameter.includeArchived === "true");
+      var includeArchived = (params.includeArchived === "true");
       responseData = getKpmMonitoringData(includeArchived);
     } else {
-      // Default: returns monitoring data
       action = "getMonitoring";
       responseData = getKpmMonitoringData(false);
     }
@@ -614,7 +805,7 @@ function doGet(e) {
 }
 
 /**
- * Handles all POST requests with LockService concurrency protection.
+ * Handles all POST requests with LockService concurrency protection and token authentication.
  * Returns unified { success, action, data, error } envelope.
  */
 function doPost(e) {
@@ -632,6 +823,9 @@ function doPost(e) {
 
   try {
     lock.waitLock(15000); // 15-second concurrency lock
+
+    // Authenticate POST request
+    authenticateRequest(params, action);
 
     var resultData;
 
@@ -656,7 +850,7 @@ function doPost(e) {
 }
 
 // ============================================
-// 11. SETUP TRACKING HEADERS UTILITY
+// 12. SETUP TRACKING HEADERS UTILITY
 // ============================================
 
 /**

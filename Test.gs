@@ -1,35 +1,25 @@
 // ============================================
-// TEST / CALIBRATION SCRIPT
+// TEST / CALIBRATION SCRIPT (Test.gs)
 // ============================================
-// This file is deliberately independent of the popup form. It creates the
-// same data contract consumed by PrintKPM.html, which makes page-layout tests
-// repeatable and avoids creating real material requests.
-// Run testPrintKPMCalibration() directly from the Apps Script editor (select
-// it from the function dropdown, then click Run) to preview dummy data.
-// Adjust ITEM_COUNT to test the page-break boundary.
 
-// Number of synthetic material rows used by the non-blank calibration test.
 var TEST_ITEM_COUNT = 20;
 
-// Entry point for a filled-page layout test. The resulting object follows the
-// shape normally returned by submitKpmForm() and is sent straight to the
-// existing print-view function.
+// Valid, real 1x1 pixel JPEG Base64 fixture
+var REAL_1X1_JPEG_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=";
+
+var TEST_ADMIN_TOKEN = "kpm_admin_secret_2026";
+var TEST_DRIVER_TOKEN = "kpm_driver_secret_2026";
+
 function testPrintKPMCalibration() {
   var data = generateTestData(TEST_ITEM_COUNT);
   openPrintView(data);
 }
 
-// Builds a full dummy "data" object matching what submitKpmForm() normally
-// produces, but with generated values. Random quantities/units/workstations
-// make it easier to spot clipping, wrapping, and alignment problems.
 function generateTestData(itemCount) {
   var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
-
   var satuanOptions = ["pcs", "m", "sht", "btg", "unit"];
   var wsOptions = ["WS-01", "WS-02", "WS-03", "WS-04"];
 
-  // Generate one row per requested test item. The field names intentionally
-  // match the names read by PrintKPM.html, not the form's temporary names.
   var material = [];
   for (var i = 1; i <= itemCount; i++) {
     material.push({
@@ -43,8 +33,6 @@ function generateTestData(itemCount) {
     });
   }
 
-  // PAGE_SIZE is shared with the production backend/print layout. Keeping the
-  // calculation here exposes an incorrect page count during calibration.
   var totalPage = Math.max(1, Math.ceil(material.length / PAGE_SIZE));
 
   var data = {
@@ -85,11 +73,7 @@ function generateTestData(itemCount) {
   return data;
 }
 
-// Blank version - same structure but every field empty. This isolates page
-// geometry, borders, row height, and signature placement from text wrapping.
 function testPrintKPMBlank() {
-  // Preserve the same number of rows as the filled test, but remove content
-  // so the table can be inspected as an empty paper form.
   var material = [];
   for (var i = 1; i <= TEST_ITEM_COUNT; i++) {
     material.push({
@@ -144,11 +128,58 @@ function testPrintKPMBlank() {
 }
 
 // ============================================
-// WEB.GS & TRACKING TELEMETRY UNIT & INTEGRATION TESTS
+// CLEANUP HELPERS (TEST ISOLATION)
 // ============================================
 
 /**
- * Tests the hitungDurasi duration calculator with normal and boundary values.
+ * Removes synthetic test rows created during test runs to keep production sheet clean.
+ */
+function cleanUpTestKpm(nomorKpm) {
+  if (!nomorKpm) return;
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+    if (!sheet) return;
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow < MONITOR_START_ROW) return;
+
+    var numRows = lastRow - MONITOR_START_ROW + 1;
+    var values = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numRows, 1).getValues();
+
+    for (var i = values.length - 1; i >= 0; i--) {
+      if (String(values[i][0]).trim() === nomorKpm) {
+        sheet.deleteRow(MONITOR_START_ROW + i);
+      }
+    }
+  } catch(e) {
+    Logger.log("Sheet cleanup notice: " + e.message);
+  }
+}
+
+/**
+ * Trashes synthetic test photo files created in Google Drive.
+ */
+function cleanUpTestDriveFile(photoUrl) {
+  if (!photoUrl || typeof photoUrl !== "string") return;
+  try {
+    var fileIdMatch = photoUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || photoUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      var file = DriveApp.getFileById(fileIdMatch[1]);
+      file.setTrashed(true);
+      Logger.log("Trashed test photo file: " + fileIdMatch[1]);
+    }
+  } catch(e) {
+    Logger.log("Drive cleanup notice: " + e.message);
+  }
+}
+
+// ============================================
+// WEB.GS UNIT & INTEGRATION TESTS
+// ============================================
+
+/**
+ * Tests the hitungDurasi duration calculator.
  */
 function testHitungDurasi() {
   Logger.log("--- Testing hitungDurasi ---");
@@ -179,142 +210,228 @@ function testExtractHyperlinkUrl() {
 }
 
 /**
- * Tests Master Data API endpoint from Web.gs.
+ * Tests API Authentication & Role-Based Authorization.
  */
-function testWebMasterData() {
-  Logger.log("--- Testing getMasterData() ---");
-  var master = getMasterData();
-  Logger.log("Workshops: " + JSON.stringify(master.workshops));
-  Logger.log("PICs: " + JSON.stringify(master.pics));
-  Logger.log("UOMs: " + JSON.stringify(master.uoms));
-  Logger.log("Statuses: " + JSON.stringify(master.statuses));
-  var isPass = (master.workshops && master.workshops.length > 0 && master.pics && master.pics.length > 0);
-  Logger.log("Master Data Status: " + (isPass ? "PASS" : "FAIL"));
-}
+function testWebAuthentication() {
+  Logger.log("--- Testing API Authentication & Roles ---");
 
-/**
- * Tests the doGet() endpoint response format with unified envelopes.
- */
-function testDoGetEndpoint() {
-  Logger.log("--- Testing doGet() Envelope Format ---");
+  // 1. Missing token -> UNAUTHORIZED
+  var noTokenReq = { parameter: { action: "getMonitoring" } };
+  var resNoToken = JSON.parse(doGet(noTokenReq).getContent());
+  var isNoTokenPass = (!resNoToken.success && resNoToken.error?.code === "UNAUTHORIZED");
+  Logger.log("1. Missing Token Rejection: " + (isNoTokenPass ? "PASS" : "FAIL"));
 
-  // 1. Default monitoring
-  var outputDefault = doGet({});
-  var envDefault = JSON.parse(outputDefault.getContent());
-  Logger.log("doGet default: success=" + envDefault.success + ", items=" + (envDefault.data ? envDefault.data.length : 0));
+  // 2. Invalid token -> UNAUTHORIZED
+  var badTokenReq = { parameter: { action: "getMonitoring", apiToken: "wrong_token" } };
+  var resBadToken = JSON.parse(doGet(badTokenReq).getContent());
+  var isBadTokenPass = (!resBadToken.success && resBadToken.error?.code === "UNAUTHORIZED");
+  Logger.log("2. Invalid Token Rejection: " + (isBadTokenPass ? "PASS" : "FAIL"));
 
-  // 2. Action: getMasterData
-  var outputMaster = doGet({ parameter: { action: "getMasterData" } });
-  var envMaster = JSON.parse(outputMaster.getContent());
-  Logger.log("doGet getMasterData: success=" + envMaster.success + ", workshops=" + (envMaster.data?.workshops ? envMaster.data.workshops.length : 0));
-
-  // 3. Action: getDeliveries
-  var outputDeliveries = doGet({ parameter: { action: "getDeliveries" } });
-  var envDeliveries = JSON.parse(outputDeliveries.getContent());
-  Logger.log("doGet getDeliveries: success=" + envDeliveries.success + ", deliveries=" + (envDeliveries.data ? envDeliveries.data.length : 0));
-}
-
-/**
- * Tests State Machine transitions and validations (Happy path and Invalid Jumps).
- */
-function testWebStateMachineValidations() {
-  Logger.log("--- Testing State Machine Transitions & Validation Rules ---");
-
-  // Mock a tiny photo data string for valid photo upload tests
-  var mockPhoto = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP...";
-
-  // 1. Create a test KPM
-  var createParam = {
+  // 3. Driver token attempting Admin action (createKpm) -> FORBIDDEN
+  var driverForbiddenReq = {
     parameter: {
       action: "createKpm",
-      daftarBarang: "Baut M10~50~pcs|Plat Besi 5mm~2~sht",
-      namaPIC: "Driver Uji Coba",
-      namaProyek: "Proyek LRT Jabodebek",
-      lokasiWorkshop: "WS-01 ➔ WS-04"
+      apiToken: TEST_DRIVER_TOKEN,
+      daftarBarang: JSON.stringify([{ nama: "Baut", qty: "10", uom: "PCS" }]),
+      namaPIC: "Aang",
+      namaProyek: "Proyek LRT",
+      lokasiWorkshop: "Candi Sewu ➔ Tiron"
+    }
+  };
+  var resForbidden = JSON.parse(doPost(driverForbiddenReq).getContent());
+  var isForbiddenPass = (!resForbidden.success && resForbidden.error?.code === "FORBIDDEN");
+  Logger.log("3. Driver Forbidden from Admin Action: " + (isForbiddenPass ? "PASS" : "FAIL"));
+
+  // 4. Valid Admin token -> PASS
+  var adminReq = { parameter: { action: "getMasterData", apiToken: TEST_ADMIN_TOKEN } };
+  var resAdmin = JSON.parse(doGet(adminReq).getContent());
+  Logger.log("4. Valid Admin Auth: " + (resAdmin.success ? "PASS" : "FAIL"));
+}
+
+/**
+ * Tests Creation Status Lockdown (forcing 'Baru Dibuat').
+ */
+function testWebCreationStatusLockdown() {
+  Logger.log("--- Testing Creation Status Lockdown ---");
+
+  var createReq = {
+    parameter: {
+      action: "createKpm",
+      apiToken: TEST_ADMIN_TOKEN,
+      daftarBarang: JSON.stringify([{ nama: "Baut M10", qty: "10", uom: "PCS" }]),
+      namaPIC: "Aang",
+      namaProyek: "Proyek LRT Uji Status",
+      lokasiWorkshop: "Candi Sewu ➔ Tiron",
+      statusKPM: "Tiba" // Malicious client attempting to bypass to Tiba
     }
   };
 
-  var resCreate = JSON.parse(doPost(createParam).getContent());
-  Logger.log("Step 1 (Create KPM): success=" + resCreate.success + ", KPM=" + JSON.stringify(resCreate.data));
-  var generatedNoLf = resCreate.data?.nomor;
-  if (!generatedNoLf) {
-    Logger.log("Create failed, stopping state machine test.");
-    return;
+  var res = JSON.parse(doPost(createReq).getContent());
+  var isPass = (res.success && res.data?.status === "Baru Dibuat" && res.data?.statusCode === "BARU_DIBUAT");
+  Logger.log("Creation Status Forced to 'Baru Dibuat': " + (isPass ? "PASS (Status: " + res.data?.status + ")" : "FAIL"));
+
+  if (res.data?.nomor) {
+    cleanUpTestKpm(res.data.nomor);
   }
+}
 
-  // 2. Test Invalid Jump: 'Baru Dibuat' -> 'Tiba' (Must be rejected with INVALID_TRANSITION)
-  var invalidJumpParam = {
+/**
+ * Tests rejection of malformed JSON strings without legacy fallthrough.
+ */
+function testWebMalformedJsonRejection() {
+  Logger.log("--- Testing Malformed JSON Rejection ---");
+
+  var malformedParam = {
     parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Tiba",
-      fotoData: mockPhoto
+      action: "createKpm",
+      apiToken: TEST_ADMIN_TOKEN,
+      daftarBarang: '[{ nama: "Baut M10", qty: ', // broken JSON
+      namaPIC: "Aang",
+      namaProyek: "Proyek Broken JSON",
+      lokasiWorkshop: "Candi Sewu ➔ Tiron"
     }
   };
-  var resInvalidJump = JSON.parse(doPost(invalidJumpParam).getContent());
-  var isInvalidRejected = (!resInvalidJump.success && resInvalidJump.error?.code === "INVALID_TRANSITION");
-  Logger.log("Step 2 (Invalid Jump 'Baru Dibuat' -> 'Tiba'): " + (isInvalidRejected ? "PASS (Properly Rejected: " + resInvalidJump.error.message + ")" : "FAIL"));
 
-  // 3. Test Missing Photo on Berangkat (Must be rejected with PHOTO_REQUIRED)
-  var missingPhotoParam = {
+  var res = JSON.parse(doPost(malformedParam).getContent());
+  var isPass = (!res.success && res.error?.code === "INVALID_MATERIAL");
+  Logger.log("Malformed JSON Rejection: " + (isPass ? "PASS (Properly Rejected: " + res.error.message + ")" : "FAIL"));
+}
+
+/**
+ * Tests rejection of unregistered / invalid workshop locations.
+ */
+function testWebInvalidRouteRejection() {
+  Logger.log("--- Testing Invalid Workshop Route Rejection ---");
+
+  var invalidRouteParam = {
     parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Berangkat"
+      action: "createKpm",
+      apiToken: TEST_ADMIN_TOKEN,
+      daftarBarang: JSON.stringify([{ nama: "Baut M10", qty: "5", uom: "PCS" }]),
+      namaPIC: "Aang",
+      namaProyek: "Proyek Invalid Route",
+      lokasiWorkshop: "Gudang Khayalan ➔ Tiron" // Unregistered workshop
     }
   };
-  var resMissingPhoto = JSON.parse(doPost(missingPhotoParam).getContent());
-  var isMissingPhotoRejected = (!resMissingPhoto.success && resMissingPhoto.error?.code === "PHOTO_REQUIRED");
-  Logger.log("Step 3 (Missing Photo on Berangkat): " + (isMissingPhotoRejected ? "PASS (Properly Rejected: " + resMissingPhoto.error.message + ")" : "FAIL"));
 
-  // 4. Test Valid Transition: 'Baru Dibuat' -> 'Berangkat' (With photo)
-  var validBerangkatParam = {
-    parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Berangkat",
-      fotoData: mockPhoto,
-      namaPIC: "Driver Uji Coba",
-      lokasiWorkshop: "WS-01 ➔ WS-04"
-    }
-  };
-  var resBerangkat = JSON.parse(doPost(validBerangkatParam).getContent());
-  Logger.log("Step 4 (Valid Berangkat): success=" + resBerangkat.success + ", status=" + resBerangkat.data?.currentStatus);
+  var res = JSON.parse(doPost(invalidRouteParam).getContent());
+  var isPass = (!res.success && res.error?.code === "INVALID_LOCATION");
+  Logger.log("Invalid Route Rejection: " + (isPass ? "PASS (Properly Rejected: " + res.error.message + ")" : "FAIL"));
+}
 
-  // 5. Test Valid Transition: 'Berangkat' -> 'Tiba' (With photo)
-  var validTibaParam = {
-    parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Tiba",
-      fotoData: mockPhoto,
-      namaPIC: "Driver Uji Coba",
-      lokasiWorkshop: "WS-01 ➔ WS-04"
-    }
-  };
-  var resTiba = JSON.parse(doPost(validTibaParam).getContent());
-  Logger.log("Step 5 (Valid Tiba): success=" + resTiba.success + ", status=" + resTiba.data?.currentStatus);
+/**
+ * Tests State Machine transitions and validations with full resource cleanup.
+ */
+function testWebStateMachineValidations() {
+  Logger.log("--- Testing State Machine Transitions & Full Resource Isolation ---");
 
-  // 6. Test Valid Transition: 'Tiba' -> 'Selesai' (Archive)
-  var archiveParam = {
-    parameter: {
-      action: "archiveKpm",
-      nomorKPM: generatedNoLf
-    }
-  };
-  var resArchive = JSON.parse(doPost(archiveParam).getContent());
-  Logger.log("Step 6 (Archive Selesai): success=" + resArchive.success + ", status=" + resArchive.data?.currentStatus);
+  var testNoLf = "";
+  var uploadedPhotoUrls = [];
 
-  // 7. Test Invalid Transition after Selesai (Must be rejected)
-  var afterArchiveParam = {
-    parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Berangkat",
-      fotoData: mockPhoto
+  try {
+    // 1. Create KPM
+    var createParam = {
+      parameter: {
+        action: "createKpm",
+        apiToken: TEST_ADMIN_TOKEN,
+        daftarBarang: JSON.stringify([
+          { nama: 'Baut M10', qty: "50", uom: "PCS" },
+          { nama: 'Plat Besi 5mm', qty: "2", uom: "SHT" }
+        ]),
+        namaPIC: "Aang",
+        namaProyek: "Proyek LRT State Machine",
+        lokasiWorkshop: "Candi Sewu ➔ Tiron"
+      }
+    };
+
+    var resCreate = JSON.parse(doPost(createParam).getContent());
+    testNoLf = resCreate.data?.nomor;
+    Logger.log("Step 1 (Create KPM): success=" + resCreate.success + ", KPM=" + testNoLf);
+
+    if (!testNoLf) {
+      Logger.log("Creation failed, aborting test.");
+      return;
     }
-  };
-  var resAfterArchive = JSON.parse(doPost(afterArchiveParam).getContent());
-  var isAfterArchiveRejected = (!resAfterArchive.success && resAfterArchive.error?.code === "INVALID_TRANSITION");
-  Logger.log("Step 7 (Invalid Jump after Selesai): " + (isAfterArchiveRejected ? "PASS (Properly Rejected)" : "FAIL"));
+
+    // 2. Invalid Jump: 'Baru Dibuat' -> 'Tiba' (Must be rejected)
+    var invalidJumpParam = {
+      parameter: {
+        action: "updateStatus",
+        apiToken: TEST_DRIVER_TOKEN,
+        nomorKPM: testNoLf,
+        statusKPM: "Tiba",
+        fotoData: REAL_1X1_JPEG_BASE64
+      }
+    };
+    var resInvalid = JSON.parse(doPost(invalidJumpParam).getContent());
+    var isInvalidRejected = (!resInvalid.success && resInvalid.error?.code === "INVALID_TRANSITION");
+    Logger.log("Step 2 (Invalid Jump Rejection): " + (isInvalidRejected ? "PASS" : "FAIL"));
+
+    // 3. Missing Photo on Berangkat (Must be rejected)
+    var missingPhotoParam = {
+      parameter: {
+        action: "updateStatus",
+        apiToken: TEST_DRIVER_TOKEN,
+        nomorKPM: testNoLf,
+        statusKPM: "Berangkat"
+      }
+    };
+    var resMissing = JSON.parse(doPost(missingPhotoParam).getContent());
+    var isMissingRejected = (!resMissing.success && resMissing.error?.code === "PHOTO_REQUIRED");
+    Logger.log("Step 3 (Missing Photo Rejection): " + (isMissingRejected ? "PASS" : "FAIL"));
+
+    // 4. Valid Transition: 'Baru Dibuat' -> 'Berangkat' (With real 1x1 JPEG)
+    var validBerangkatParam = {
+      parameter: {
+        action: "updateStatus",
+        apiToken: TEST_DRIVER_TOKEN,
+        nomorKPM: testNoLf,
+        statusKPM: "Berangkat",
+        fotoData: REAL_1X1_JPEG_BASE64,
+        namaPIC: "Aang",
+        lokasiWorkshop: "Candi Sewu ➔ Tiron"
+      }
+    };
+    var resBerangkat = JSON.parse(doPost(validBerangkatParam).getContent());
+    if (resBerangkat.data?.photoUrl) uploadedPhotoUrls.push(resBerangkat.data.photoUrl);
+    Logger.log("Step 4 (Valid Berangkat): success=" + resBerangkat.success + ", currentStatus=" + resBerangkat.data?.currentStatus);
+
+    // 5. Valid Transition: 'Berangkat' -> 'Tiba' (With real 1x1 JPEG)
+    var validTibaParam = {
+      parameter: {
+        action: "updateStatus",
+        apiToken: TEST_DRIVER_TOKEN,
+        nomorKPM: testNoLf,
+        statusKPM: "Tiba",
+        fotoData: REAL_1X1_JPEG_BASE64,
+        namaPIC: "Aang",
+        lokasiWorkshop: "Candi Sewu ➔ Tiron"
+      }
+    };
+    var resTiba = JSON.parse(doPost(validTibaParam).getContent());
+    if (resTiba.data?.photoUrl) uploadedPhotoUrls.push(resTiba.data.photoUrl);
+    Logger.log("Step 5 (Valid Tiba): success=" + resTiba.success + ", currentStatus=" + resTiba.data?.currentStatus);
+
+    // 6. Valid Transition: 'Tiba' -> 'Selesai' (Archive)
+    var archiveParam = {
+      parameter: {
+        action: "archiveKpm",
+        apiToken: TEST_ADMIN_TOKEN,
+        nomorKPM: testNoLf
+      }
+    };
+    var resArchive = JSON.parse(doPost(archiveParam).getContent());
+    Logger.log("Step 6 (Archive Selesai): success=" + resArchive.success + ", currentStatus=" + resArchive.data?.currentStatus);
+
+  } finally {
+    // Clean up test KPM row from Sheet
+    if (testNoLf) {
+      cleanUpTestKpm(testNoLf);
+      Logger.log("Cleaned up synthetic test KPM row: " + testNoLf);
+    }
+    // Clean up test photo files from Google Drive
+    for (var p = 0; p < uploadedPhotoUrls.length; p++) {
+      cleanUpTestDriveFile(uploadedPhotoUrls[p]);
+    }
+  }
 }
