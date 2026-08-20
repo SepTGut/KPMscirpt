@@ -9,6 +9,8 @@ node_modules/
 # Frontend build output
 dist/
 WKPM/combined-app/dist/
+WKPM/admin/config.js
+WKPM/user/config.js
 
 # Local Graphify artifacts
 .graphify-venv/

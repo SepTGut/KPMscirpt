@@ -7,8 +7,8 @@ var TEST_ITEM_COUNT = 20;
 // Valid, real 1x1 pixel JPEG Base64 fixture
 var REAL_1X1_JPEG_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=";
 
-var TEST_ADMIN_TOKEN = "kpm_admin_secret_2026";
-var TEST_DRIVER_TOKEN = "kpm_driver_secret_2026";
+function getTestAdminToken() { return getApiTokens().adminToken; }
+function getTestDriverToken() { return getApiTokens().driverToken; }
 
 function testPrintKPMCalibration() {
   var data = generateTestData(TEST_ITEM_COUNT);
@@ -227,11 +227,17 @@ function testWebAuthentication() {
   var isBadTokenPass = (!resBadToken.success && resBadToken.error?.code === "UNAUTHORIZED");
   Logger.log("2. Invalid Token Rejection: " + (isBadTokenPass ? "PASS" : "FAIL"));
 
+  // 2b. Driver must not receive monitoring data through an unknown GET action.
+  var unknownActionReq = { parameter: { action: "unknownAction", apiToken: getTestDriverToken() } };
+  var resUnknownAction = JSON.parse(doGet(unknownActionReq).getContent());
+  var isUnknownActionRejected = (!resUnknownAction.success && resUnknownAction.error?.code === "INVALID_REQUEST");
+  Logger.log("2b. Unknown GET Action Rejection: " + (isUnknownActionRejected ? "PASS" : "FAIL"));
+
   // 3. Driver token attempting Admin action (createKpm) -> FORBIDDEN
   var driverForbiddenReq = {
     parameter: {
       action: "createKpm",
-      apiToken: TEST_DRIVER_TOKEN,
+      apiToken: getTestDriverToken(),
       daftarBarang: JSON.stringify([{ nama: "Baut", qty: "10", uom: "PCS" }]),
       namaPIC: "Aang",
       namaProyek: "Proyek LRT",
@@ -243,7 +249,7 @@ function testWebAuthentication() {
   Logger.log("3. Driver Forbidden from Admin Action: " + (isForbiddenPass ? "PASS" : "FAIL"));
 
   // 4. Valid Admin token -> PASS
-  var adminReq = { parameter: { action: "getMasterData", apiToken: TEST_ADMIN_TOKEN } };
+  var adminReq = { parameter: { action: "getMasterData", apiToken: getTestAdminToken() } };
   var resAdmin = JSON.parse(doGet(adminReq).getContent());
   Logger.log("4. Valid Admin Auth: " + (resAdmin.success ? "PASS" : "FAIL"));
 }
@@ -257,7 +263,7 @@ function testWebCreationStatusLockdown() {
   var createReq = {
     parameter: {
       action: "createKpm",
-      apiToken: TEST_ADMIN_TOKEN,
+      apiToken: getTestAdminToken(),
       daftarBarang: JSON.stringify([{ nama: "Baut M10", qty: "10", uom: "PCS" }]),
       namaPIC: "Aang",
       namaProyek: "Proyek LRT Uji Status",
@@ -284,7 +290,7 @@ function testWebMalformedJsonRejection() {
   var malformedParam = {
     parameter: {
       action: "createKpm",
-      apiToken: TEST_ADMIN_TOKEN,
+      apiToken: getTestAdminToken(),
       daftarBarang: '[{ nama: "Baut M10", qty: ', // broken JSON
       namaPIC: "Aang",
       namaProyek: "Proyek Broken JSON",
@@ -306,7 +312,7 @@ function testWebInvalidRouteRejection() {
   var invalidRouteParam = {
     parameter: {
       action: "createKpm",
-      apiToken: TEST_ADMIN_TOKEN,
+      apiToken: getTestAdminToken(),
       daftarBarang: JSON.stringify([{ nama: "Baut M10", qty: "5", uom: "PCS" }]),
       namaPIC: "Aang",
       namaProyek: "Proyek Invalid Route",
@@ -333,7 +339,7 @@ function testWebStateMachineValidations() {
     var createParam = {
       parameter: {
         action: "createKpm",
-        apiToken: TEST_ADMIN_TOKEN,
+        apiToken: getTestAdminToken(),
         daftarBarang: JSON.stringify([
           { nama: 'Baut M10', qty: "50", uom: "PCS" },
           { nama: 'Plat Besi 5mm', qty: "2", uom: "SHT" }
@@ -357,7 +363,7 @@ function testWebStateMachineValidations() {
     var invalidJumpParam = {
       parameter: {
         action: "updateStatus",
-        apiToken: TEST_DRIVER_TOKEN,
+        apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
         statusKPM: "Tiba",
         fotoData: REAL_1X1_JPEG_BASE64
@@ -371,7 +377,7 @@ function testWebStateMachineValidations() {
     var missingPhotoParam = {
       parameter: {
         action: "updateStatus",
-        apiToken: TEST_DRIVER_TOKEN,
+        apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
         statusKPM: "Berangkat"
       }
@@ -384,7 +390,7 @@ function testWebStateMachineValidations() {
     var validBerangkatParam = {
       parameter: {
         action: "updateStatus",
-        apiToken: TEST_DRIVER_TOKEN,
+        apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
         statusKPM: "Berangkat",
         fotoData: REAL_1X1_JPEG_BASE64,
@@ -400,7 +406,7 @@ function testWebStateMachineValidations() {
     var validTibaParam = {
       parameter: {
         action: "updateStatus",
-        apiToken: TEST_DRIVER_TOKEN,
+        apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
         statusKPM: "Tiba",
         fotoData: REAL_1X1_JPEG_BASE64,

@@ -1,6 +1,6 @@
 // Google Apps Script web-app endpoint shared with the admin deployment.
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
-const DRIVER_API_TOKEN = 'kpm_driver_secret_2026';
+const scriptURL = globalThis.KPM_CONFIG?.scriptUrl || '';
+const DRIVER_API_TOKEN = globalThis.KPM_CONFIG?.driverToken || '';
 const REQUEST_TIMEOUT_MS = 30000;
 const MAX_IMAGE_WIDTH = 1000;
 

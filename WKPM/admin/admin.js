@@ -1,6 +1,6 @@
 // Google Apps Script web-app endpoint used by the admin deployment.
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
-const ADMIN_API_TOKEN = 'kpm_admin_secret_2026';
+const scriptURL = globalThis.KPM_CONFIG?.scriptUrl || '';
+const ADMIN_API_TOKEN = globalThis.KPM_CONFIG?.adminToken || '';
 const REQUEST_TIMEOUT_MS = 15000;
 
 let dataMonitoringGlobal = [];

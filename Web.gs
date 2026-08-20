@@ -10,8 +10,9 @@ var WEB_CONFIG = {
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-  DEFAULT_ADMIN_TOKEN: "kpm_admin_secret_2026",
-  DEFAULT_DRIVER_TOKEN: "kpm_driver_secret_2026"
+  // Tokens must be configured in Apps Script Script Properties.
+  DEFAULT_ADMIN_TOKEN: "",
+  DEFAULT_DRIVER_TOKEN: ""
 };
 
 // ============================================
@@ -78,10 +79,14 @@ function jsonOutput(obj) {
  */
 function getApiTokens() {
   var props = PropertiesService.getScriptProperties();
-  return {
+  var tokens = {
     adminToken: props.getProperty("ADMIN_TOKEN") || WEB_CONFIG.DEFAULT_ADMIN_TOKEN,
     driverToken: props.getProperty("DRIVER_TOKEN") || WEB_CONFIG.DEFAULT_DRIVER_TOKEN
   };
+  if (!tokens.adminToken || !tokens.driverToken || tokens.adminToken === tokens.driverToken) {
+    throw { code: "CONFIGURATION_ERROR", message: "API authentication is not configured." };
+  }
+  return tokens;
 }
 
 /**
@@ -214,6 +219,9 @@ function validateWorkshopRoute(routeStr) {
   var separator = cleanStr.indexOf("➔") !== -1 ? "➔" : (cleanStr.indexOf("->") !== -1 ? "->" : "");
   if (separator) {
     var parts = cleanStr.split(separator);
+    if (parts.length !== 2) {
+      throw { code: "INVALID_LOCATION", message: "Rute workshop harus memiliki tepat satu lokasi awal dan satu lokasi tujuan." };
+    }
     var origin = (parts[0] || "").trim();
     var dest = (parts[1] || "").trim();
     if (!origin || WEB_CONFIG.WORKSHOPS.indexOf(origin) === -1) {
@@ -401,7 +409,8 @@ function parseMaterialItems(rawInput) {
         var itm = jsonArray[i];
         if (itm && (itm.nama || itm.spek || itm.kode)) {
           var namaVal = String(itm.nama || itm.spek || itm.kode || "").trim();
-          var qtyVal = String(itm.qty || itm.jumlah || "1").trim();
+          var rawQty = itm.qty !== undefined && itm.qty !== null ? itm.qty : itm.jumlah;
+          var qtyVal = String(rawQty === undefined || rawQty === null ? "1" : rawQty).trim();
           var uomVal = String(itm.uom || itm.satuan || "").trim();
           if (namaVal !== "") {
             parsed.push({ nama: namaVal, qty: qtyVal, uom: uomVal });
@@ -447,13 +456,23 @@ function validateAndCreateKpm(params) {
   if (items.length === 0) {
     throw { code: "INVALID_MATERIAL", message: "Daftar barang minimal harus memiliki 1 item barang valid." };
   }
+  if (items.length > 100) {
+    throw { code: "INVALID_MATERIAL", message: "Daftar barang tidak boleh melebihi 100 item." };
+  }
 
   // Validate quantities and UOMs
   for (var v = 0; v < items.length; v++) {
     var itemCheck = items[v];
-    var parsedQty = parseFloat(itemCheck.qty);
-    if (isNaN(parsedQty) || parsedQty <= 0) {
+    var qtyText = String(itemCheck.qty || "").trim();
+    var parsedQty = Number(qtyText);
+    if (!/^\d+(?:\.\d+)?$/.test(qtyText) || !isFinite(parsedQty) || parsedQty <= 0) {
       throw { code: "INVALID_QUANTITY", message: "Kuantitas untuk material '" + itemCheck.nama + "' harus berupa angka positif (> 0)." };
+    }
+    if (String(itemCheck.nama || "").trim().length > 200) {
+      throw { code: "INVALID_MATERIAL", message: "Nama material terlalu panjang." };
+    }
+    if (itemCheck.uom && WEB_CONFIG.UOMS.indexOf(String(itemCheck.uom).trim().toUpperCase()) === -1) {
+      throw { code: "INVALID_INPUT", message: "Satuan material tidak terdaftar dalam konfigurasi sistem." };
     }
   }
 
@@ -468,6 +487,9 @@ function validateAndCreateKpm(params) {
   // Validate route
   var lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
   var namaProyek = (params.namaProyek || "").trim();
+  if (!namaProyek || namaProyek.length > 200) {
+    throw { code: "INVALID_INPUT", message: "Nama proyek wajib diisi dan maksimal 200 karakter." };
+  }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
@@ -604,11 +626,10 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
     var blob = Utilities.newBlob(decodedBytes, mimeType, namaFile);
     var file = folder.createFile(blob);
 
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return file.getUrl();
   } catch (err) {
     Logger.log("uploadProofPhoto error: " + err.message);
-    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal menyimpan foto ke Google Drive: " + err.message };
+    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal menyimpan foto ke Google Drive." };
   }
 }
 
@@ -778,6 +799,10 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action).trim() : "getMonitoring";
   try {
     var params = (e && e.parameter) ? e.parameter : {};
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring"];
+    if (allowedGetActions.indexOf(action) === -1) {
+      throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
+    }
     
     // Authenticate GET request
     authenticateRequest(params, action);
@@ -791,9 +816,6 @@ function doGet(e) {
     } else if (action === "getMonitoring") {
       var includeArchived = (params.includeArchived === "true");
       responseData = getKpmMonitoringData(includeArchived);
-    } else {
-      action = "getMonitoring";
-      responseData = getKpmMonitoringData(false);
     }
 
     return jsonOutput(createSuccessResponse(action, responseData));
@@ -822,6 +844,9 @@ function doPost(e) {
   }
 
   try {
+    if (["createKpm", "archiveKpm", "updateStatus"].indexOf(action) === -1) {
+      throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
+    }
     lock.waitLock(15000); // 15-second concurrency lock
 
     // Authenticate POST request
