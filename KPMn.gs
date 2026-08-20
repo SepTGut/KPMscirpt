@@ -63,7 +63,7 @@ function getPreviousActiveRow(sheet, currentRow) {
  * Example: "100/PPO/LF/VIII/2026" -> "101/PPO/LF/VIII/2026"
  */
 function incrementNoLf(noLfStr) {
-  if (!noLfStr) return getDefaultNoLf(100);
+  if (!noLfStr) return getDefaultNoLf(0);
 
   var match = noLfStr.match(/^(.*?)(\d+)(.*)$/);
   if (match) {
@@ -71,7 +71,8 @@ function incrementNoLf(noLfStr) {
     var numStr = match[2];
     var suffix = match[3];
     var nextNum = parseInt(numStr, 10) + 1;
-    var paddedNum = String(nextNum).padStart(numStr.length, '0');
+    var targetLength = Math.max(numStr.length, 3);
+    var paddedNum = String(nextNum).padStart(targetLength, '0');
     return prefix + paddedNum + suffix;
   }
   return noLfStr;
@@ -79,6 +80,7 @@ function incrementNoLf(noLfStr) {
 
 /**
  * Formats a default No LF string based on Master Settings or default template.
+ * Starts from "000" by default (e.g. 000/PPO/LF/VIII/2026).
  */
 function getDefaultNoLf(startSeq) {
   var settings = typeof getMasterSettings === 'function' ? getMasterSettings() : {};
@@ -89,8 +91,8 @@ function getDefaultNoLf(startSeq) {
   var monthRoman = romanMonths[monthIndex];
   var monthNum = String(monthIndex + 1).padStart(2, '0');
 
-  var seq = startSeq || 100;
-  var formattedNo = String(seq);
+  var seq = (startSeq !== undefined && startSeq !== null) ? startSeq : 0;
+  var formattedNo = String(seq).padStart(3, '0');
 
   var tpl = settings.template || settings.lampiranTemplate || "{no}/PPO/LF/{month}/{year}";
   return tpl
@@ -145,11 +147,11 @@ function ensureItemAndNoLfInMemory(sheet, row, rowData) {
       if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
     } else {
       rowData[MONITOR_COL_ITEM - 1] = 1;
-      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = getDefaultNoLf(100);
+      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = getDefaultNoLf(0);
     }
   } else if (currentItem === 1 && !currentNoLf) {
     var prev = getPreviousActiveRow(sheet, row);
-    rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(100);
+    rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(0);
   }
 }
 
@@ -252,7 +254,7 @@ function onEdit(e) {
     if (!isNaN(itemVal)) {
       if (itemVal === 1) {
         var prev = getPreviousActiveRow(sheet, row);
-        rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(100);
+        rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(0);
       } else if (itemVal > 1) {
         var prev = getPreviousActiveRow(sheet, row);
         if (prev && prev.noLf) {
