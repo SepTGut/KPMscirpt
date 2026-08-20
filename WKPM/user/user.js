@@ -1,151 +1,182 @@
-// =====================================
-      // PASTE URL MASTER YANG BARU DI SINI
-      // =====================================
-      const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
+// Google Apps Script web-app endpoint shared with the admin deployment.
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzRb4Xk87pfdll6hHTxm5DXT65YJmqmjhB9MCC9eYrHW45pRjMm0rRiri3gtZEshyXf/exec';
+const REQUEST_TIMEOUT_MS = 30000;
+const MAX_IMAGE_WIDTH = 1000;
 
-      const selectKPM = document.getElementById('nomorKPM');
-      const statusTeks = document.getElementById('statusTeks');
-      const wadahListBarang = document.getElementById('wadahListBarang');
-      const btnRefreshData = document.getElementById('btnRefreshData');
-      const wadahFoto = document.getElementById('wadahFoto');
-      const inputFoto = document.getElementById('inputFoto');
-      const labelFoto = document.getElementById('labelFoto');
-      const statusKompresi = document.getElementById('statusKompresi');
-      let dataKPMGlobal = []; 
+const selectKPM = document.getElementById('nomorKPM');
+const statusTeks = document.getElementById('statusTeks');
+const wadahListBarang = document.getElementById('wadahListBarang');
+const btnRefreshData = document.getElementById('btnRefreshData');
+const wadahFoto = document.getElementById('wadahFoto');
+const inputFoto = document.getElementById('inputFoto');
+const labelFoto = document.getElementById('labelFoto');
+const statusKompresi = document.getElementById('statusKompresi');
+const updateForm = document.getElementById('updateForm');
+const submitButton = document.getElementById('btnSubmitUpd');
+let dataKPMGlobal = [];
+let dataRequestId = 0;
 
-      function muatDataKPM() {
-        selectKPM.innerHTML = '<option value="">-- Sedang mengambil data... --</option>';
-        statusTeks.innerText = "Mencari KPM terbaru...";
-        btnRefreshData.disabled = true;
+// A timeout prevents the refresh or upload button from staying disabled forever.
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (response.type !== 'opaque' && !response.ok) throw new Error(`Server returned ${response.status}`);
+    return response;
+  } finally { clearTimeout(timer); }
+}
 
-        fetch(scriptURL).then(res => res.json()).then(data => {
-            dataKPMGlobal = data; 
-            selectKPM.innerHTML = '<option value="">-- Pilih KPM yang tersedia --</option>';
-            
-            let jumlahTersedia = 0;
-            data.forEach(item => {
-              if (item.status !== "Tiba" && item.status !== "Selesai") {
-                const option = document.createElement('option');
-                option.value = item.nomor; 
-                option.text = item.nomor;
-                selectKPM.appendChild(option);
-                jumlahTersedia++;
-              }
-            });
+// KPM/material text comes from the spreadsheet, so never inject it raw into HTML.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+}
 
-            if (jumlahTersedia > 0) {
-              statusTeks.innerText = "Data KPM berhasil diperbarui.";
-            } else {
-              statusTeks.innerText = "Tidak ada KPM yang perlu diantar/diupdate.";
-              selectKPM.innerHTML = '<option value="">-- Semua KPM Sudah Tiba --</option>';
-            }
-            btnRefreshData.disabled = false;
-          }).catch(err => {
-            selectKPM.innerHTML = '<option value="">-- Gagal memuat KPM --</option>';
-            statusTeks.innerText = "Koneksi internet bermasalah.";
-            btnRefreshData.disabled = false;
-          });
-      }
+function showDefaultDetails() {
+  document.getElementById('lokasiWorkshop').value = '';
+  document.getElementById('namaPIC').value = '';
+  document.getElementById('namaProyek').value = '';
+  wadahListBarang.innerHTML = '<p>Pilih Nomor KPM di atas untuk melihat barang...</p>';
+  wadahFoto.style.display = 'none';
+  inputFoto.required = false;
+  inputFoto.value = '';
+  document.getElementById('fotoData').value = '';
+  document.querySelectorAll('.radio-status').forEach(radio => { radio.checked = false; });
+}
 
-      muatDataKPM();
-      btnRefreshData.addEventListener('click', muatDataKPM);
+async function muatDataKPM() {
+  const requestId = ++dataRequestId;
+  selectKPM.innerHTML = '<option value="">-- Sedang mengambil data... --</option>';
+  statusTeks.innerText = 'Mencari KPM terbaru...';
+  btnRefreshData.disabled = true;
+  try {
+    const response = await fetchWithTimeout(`${scriptURL}?action=getDeliveries`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!Array.isArray(data)) throw new Error('Unexpected server response');
+    if (requestId !== dataRequestId) return; // Ignore an older refresh response.
+    dataKPMGlobal = data;
+    selectKPM.innerHTML = '<option value="">-- Pilih KPM yang tersedia --</option>';
+    
+    data.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.nomor ?? '';
+      option.textContent = `${item.nomor ?? '-'} (${item.nextStatus ?? 'Update'})`;
+      selectKPM.appendChild(option);
+    });
 
-      // Ubah teks label sesuai status yang diklik
-      document.querySelectorAll('.radio-status').forEach(radio => {
-        radio.addEventListener('change', function() {
-          wadahFoto.style.display = 'block';
-          inputFoto.required = true;
-          if (this.value === 'Berangkat') {
-            labelFoto.innerText = "📷 Unggah Bukti Foto Keberangkatan (Wajib):";
-          } else {
-            labelFoto.innerText = "📷 Unggah Bukti Foto Ketibaan (Wajib):";
-          }
-        });
-      });
+    if (data.length) {
+      statusTeks.innerText = `Ditemukan ${data.length} KPM yang perlu diantar/diupdate.`;
+    } else {
+      statusTeks.innerText = 'Tidak ada KPM yang perlu diantar/diupdate.';
+      selectKPM.innerHTML = '<option value="">-- Semua KPM Sudah Tiba --</option>';
+    }
+  } catch (error) {
+    if (requestId !== dataRequestId) return;
+    console.error('KPM load failed:', error);
+    selectKPM.innerHTML = '<option value="">-- Gagal memuat KPM --</option>';
+    statusTeks.innerText = 'Koneksi internet bermasalah.';
+  } finally {
+    if (requestId === dataRequestId) btnRefreshData.disabled = false;
+  }
+}
 
-      selectKPM.addEventListener('change', function() {
-        const kpmPilihan = this.value;
-        const dataCocok = dataKPMGlobal.find(item => item.nomor === kpmPilihan);
+function updatePhotoRequirement(status, customLabel) {
+  wadahFoto.style.display = 'block';
+  inputFoto.required = true;
+  labelFoto.innerText = customLabel || (status === 'Berangkat'
+    ? '📷 Unggah Bukti Foto Keberangkatan (Wajib):'
+    : '📷 Unggah Bukti Foto Ketibaan (Wajib):');
+}
 
-        if (dataCocok) {
-          document.getElementById('lokasiWorkshop').value = dataCocok.lokasi;
-          document.getElementById('namaPIC').value = dataCocok.pic;
-          document.getElementById('namaProyek').value = dataCocok.proyek;
-          
-          wadahFoto.style.display = 'block';
-          inputFoto.required = true;
+document.querySelectorAll('.radio-status').forEach(radio => {
+  radio.addEventListener('change', () => updatePhotoRequirement(radio.value));
+});
 
-          if (dataCocok.status === "Baru Dibuat") {
-            document.querySelector('input[value="Berangkat"]').checked = true;
-            labelFoto.innerText = "📷 Unggah Bukti Foto Keberangkatan (Wajib):";
-          } else if (dataCocok.status === "Berangkat") {
-            document.querySelector('input[value="Tiba"]').checked = true;
-            labelFoto.innerText = "📷 Unggah Bukti Foto Ketibaan (Wajib):";
-          }
+selectKPM.addEventListener('change', () => {
+  const selected = dataKPMGlobal.find(item => String(item?.nomor) === selectKPM.value);
+  if (!selected) { showDefaultDetails(); return; }
 
-          if (dataCocok.daftarBarang && dataCocok.daftarBarang.length > 0) {
-            let htmlBarang = '';
-            dataCocok.daftarBarang.forEach(b => {
-              htmlBarang += `<div class="list-item"><span>📦 ${b.nama}</span><strong>${b.qty} ${b.uom}</strong></div>`;
-            });
-            wadahListBarang.innerHTML = htmlBarang;
-          } else {
-            wadahListBarang.innerHTML = '<p>Tidak ada rincian barang.</p>';
-          }
-        } else {
-          document.getElementById('updateForm').reset();
-          wadahListBarang.innerHTML = '<p>Pilih Nomor KPM di atas untuk melihat barang...</p>';
-          wadahFoto.style.display = 'none';
-          inputFoto.required = false;
-        }
-      });
+  document.getElementById('lokasiWorkshop').value = selected.lokasi ?? '';
+  document.getElementById('namaPIC').value = selected.pic ?? '';
+  document.getElementById('namaProyek').value = selected.proyek ?? '';
+  
+  // Use server-directed next status and photo label
+  const nextStatus = selected.nextStatus || (selected.currentStatus === 'Berangkat' ? 'Tiba' : 'Berangkat');
+  const targetRadio = document.querySelector(`input[name="statusKPM"][value="${nextStatus}"]`);
+  if (targetRadio) targetRadio.checked = true;
+  
+  updatePhotoRequirement(nextStatus, selected.photoLabel);
 
-      document.getElementById('updateForm').addEventListener('submit', e => {
-        e.preventDefault(); 
-        if (selectKPM.value === "") { alert("Pilih KPM terlebih dahulu!"); return; }
-        if (!inputFoto.files[0]) { alert("Harap lampirkan/ambil bukti foto!"); return; }
+  const items = Array.isArray(selected.daftarBarang) ? selected.daftarBarang : [];
+  wadahListBarang.innerHTML = items.length
+    ? items.map(item => `<div class="list-item"><span>📦 ${escapeHtml(item?.nama ?? '-')}</span><strong>${escapeHtml(item?.qty ?? '')} ${escapeHtml(item?.uom ?? '')}</strong></div>`).join('')
+    : '<p>Tidak ada rincian barang.</p>';
+});
 
-        const btn = document.getElementById('btnSubmitUpd');
-        btn.innerText = "Mengunggah Data & Foto (Tunggu sebentar)..."; 
-        btn.disabled = true;
-        
-        document.getElementById('lokasiWorkshop').disabled = false;
-        document.getElementById('namaPIC').disabled = false;
-        document.getElementById('namaProyek').disabled = false;
+// Convert the camera image to a smaller JPEG before sending it to Apps Script.
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.onload = event => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('Invalid image'));
+      image.onload = () => {
+        const scale = Math.min(1, MAX_IMAGE_WIDTH / image.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) { reject(new Error('Canvas is unavailable')); return; }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.72)); }
+        catch (error) { reject(error); }
+      };
+      image.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
-        function kirimData() {
-          fetch(scriptURL, { method: 'POST', body: new URLSearchParams(new FormData(document.getElementById('updateForm'))), mode: 'no-cors' })
-          .then(() => {
-              document.getElementById('pesanUpdate').innerText = "TUNTAS! Data berhasil diupdate.";
-              setTimeout(() => location.reload(), 2000); 
-          });
-        }
+updateForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!updateForm.reportValidity()) return;
+  if (!selectKPM.value) { alert('Pilih KPM terlebih dahulu!'); return; }
+  const file = inputFoto.files[0];
+  if (!file || !file.type.startsWith('image/')) { alert('Harap lampirkan file foto yang valid!'); return; }
 
-        statusKompresi.style.display = 'block';
-        const file = inputFoto.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-          const img = new Image();
-          img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; 
-            const scaleSize = MAX_WIDTH / img.width;
-            if (img.width > MAX_WIDTH) {
-              canvas.width = MAX_WIDTH;
-              canvas.height = img.height * scaleSize;
-            } else {
-              canvas.width = img.width;
-              canvas.height = img.height;
-            }
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            document.getElementById('fotoData').value = canvas.toDataURL('image/jpeg', 0.7);
-            statusKompresi.innerText = "Kompresi selesai. Sedang menyimpan ke database...";
-            kirimData();
-          }
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
+  submitButton.innerText = 'Memproses Foto & Menyimpan...';
+  submitButton.disabled = true;
+  statusKompresi.style.display = 'block';
+  statusKompresi.innerText = 'Memproses ukuran foto...';
+  // Readonly fields are intentionally enabled only while constructing FormData.
+  ['lokasiWorkshop', 'namaPIC', 'namaProyek'].forEach(id => { document.getElementById(id).readOnly = false; });
+
+  try {
+    document.getElementById('fotoData').value = await compressImage(file);
+    statusKompresi.innerText = 'Kompresi selesai. Sedang menyimpan ke database...';
+    
+    const formData = new FormData(updateForm);
+    formData.append('action', 'updateStatus');
+
+    await fetchWithTimeout(scriptURL, {
+      method: 'POST',
+      body: new URLSearchParams(formData),
+      mode: 'no-cors'
+    });
+    document.getElementById('pesanUpdate').innerText = 'TUNTAS! Data berhasil diupdate.';
+    setTimeout(() => location.reload(), 2000);
+  } catch (error) {
+    console.error('Status update failed:', error);
+    submitButton.innerText = 'Simpan ke Database';
+    submitButton.disabled = false;
+    statusKompresi.innerText = 'Gagal memproses foto atau menyimpan data.';
+    alert('Gagal menyimpan data. Periksa koneksi dan coba lagi.');
+  }
+});
+
+btnRefreshData.addEventListener('click', muatDataKPM);
+showDefaultDetails();
+muatDataKPM();

@@ -144,7 +144,7 @@ function testPrintKPMBlank() {
 }
 
 // ============================================
-// TRACKING TELEMETRY UNIT & INTEGRATION TESTS
+// WEB.GS & TRACKING TELEMETRY UNIT & INTEGRATION TESTS
 // ============================================
 
 /**
@@ -179,22 +179,43 @@ function testExtractHyperlinkUrl() {
 }
 
 /**
- * Tests the doGet() endpoint response format against KPM Monitor 2026.
+ * Tests Master Data API endpoint from Web.gs.
  */
-function testDoGetEndpoint() {
-  Logger.log("--- Testing doGet() endpoint ---");
-  var output = doGet({});
-  var rawJson = output.getContent();
-  var parsed = JSON.parse(rawJson);
-
-  Logger.log("doGet returned " + (Array.isArray(parsed) ? parsed.length + " active KPMs" : "Error"));
-  if (Array.isArray(parsed) && parsed.length > 0) {
-    Logger.log("Sample KPM item: " + JSON.stringify(parsed[0]));
-  }
+function testWebMasterData() {
+  Logger.log("--- Testing getMasterData() ---");
+  var master = getMasterData();
+  Logger.log("Workshops: " + JSON.stringify(master.workshops));
+  Logger.log("PICs: " + JSON.stringify(master.pics));
+  Logger.log("UOMs: " + JSON.stringify(master.uoms));
+  Logger.log("Statuses: " + JSON.stringify(master.statuses));
+  var isPass = (master.workshops && master.workshops.length > 0 && master.pics && master.pics.length > 0);
+  Logger.log("Master Data Status: " + (isPass ? "PASS" : "FAIL"));
 }
 
 /**
- * Tests full KPM lifecycle via doPost(): Creation -> Berangkat -> Tiba.
+ * Tests the doGet() endpoint response format with various actions.
+ */
+function testDoGetEndpoint() {
+  Logger.log("--- Testing doGet() endpoint ---");
+
+  // 1. Default monitoring
+  var outputDefault = doGet({});
+  var parsedDefault = JSON.parse(outputDefault.getContent());
+  Logger.log("doGet default returned " + (Array.isArray(parsedDefault) ? parsedDefault.length + " active KPMs" : "Error"));
+
+  // 2. Action: getMasterData
+  var outputMaster = doGet({ parameter: { action: "getMasterData" } });
+  var parsedMaster = JSON.parse(outputMaster.getContent());
+  Logger.log("doGet action=getMasterData: " + (parsedMaster.workshops ? "PASS" : "FAIL"));
+
+  // 3. Action: getDeliveries
+  var outputDeliveries = doGet({ parameter: { action: "getDeliveries" } });
+  var parsedDeliveries = JSON.parse(outputDeliveries.getContent());
+  Logger.log("doGet action=getDeliveries returned " + (Array.isArray(parsedDeliveries) ? parsedDeliveries.length + " pending deliveries" : "Error"));
+}
+
+/**
+ * Tests full KPM lifecycle via doPost(): Creation -> Berangkat -> Tiba -> Archive.
  */
 function testDoPostCreationAndTracking() {
   Logger.log("--- Testing doPost() Lifecycle ---");
@@ -202,10 +223,11 @@ function testDoPostCreationAndTracking() {
   // Step 1: Create new KPM
   var createParam = {
     parameter: {
+      action: "createKpm",
       daftarBarang: "Baut M10~50~pcs|Plat Besi 5mm~2~sht",
       namaPIC: "Driver Uji Coba",
       namaProyek: "Proyek LRT Jabodebek",
-      lokasiWorkshop: "WS-01",
+      lokasiWorkshop: "WS-01 ➔ WS-04",
       statusKPM: "Baru Dibuat"
     }
   };
@@ -222,10 +244,11 @@ function testDoPostCreationAndTracking() {
   // Step 2: Update status to 'Berangkat'
   var berangkatParam = {
     parameter: {
+      action: "updateStatus",
       nomorKPM: generatedNoLf,
       statusKPM: "Berangkat",
       namaPIC: "Driver Uji Coba",
-      lokasiWorkshop: "WS-01"
+      lokasiWorkshop: "WS-01 ➔ WS-04"
     }
   };
 
@@ -235,13 +258,25 @@ function testDoPostCreationAndTracking() {
   // Step 3: Update status to 'Tiba'
   var tibaParam = {
     parameter: {
+      action: "updateStatus",
       nomorKPM: generatedNoLf,
       statusKPM: "Tiba",
       namaPIC: "Driver Uji Coba",
-      lokasiWorkshop: "WS-04"
+      lokasiWorkshop: "WS-01 ➔ WS-04"
     }
   };
 
   var resTiba = doPost(tibaParam);
   Logger.log("Step 3 (Tiba): Result = " + resTiba.getContent());
+
+  // Step 4: Archive KPM (Selesai)
+  var archiveParam = {
+    parameter: {
+      action: "archiveKpm",
+      nomorKPM: generatedNoLf
+    }
+  };
+
+  var resArchive = doPost(archiveParam);
+  Logger.log("Step 4 (Archive): Result = " + resArchive.getContent());
 }
