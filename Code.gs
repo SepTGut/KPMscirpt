@@ -42,6 +42,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
+    .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
     .addSeparator()
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')

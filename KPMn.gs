@@ -218,7 +218,7 @@ function onEdit(e) {
       var kode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
       var spek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
 
-      // If both Kode and Spek are empty on this row, wipe all metadata cleanly
+      // If no material on this row, wipe all metadata cleanly
       if (kode === "" && spek === "") {
         clearRowDataInMemory(rowData);
         hasModifications = true;
@@ -249,6 +249,22 @@ function onEdit(e) {
   var currentKode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
   var currentSpek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
 
+  // -------------------------------------------------------------
+  // INSTANT DELETION / CLEAR HANDLERS
+  // -------------------------------------------------------------
+  if (cellStr === "") {
+    if (col === MONITOR_COL_ITEM || col === MONITOR_COL_KODE || col === MONITOR_COL_NOLF) {
+      clearRowDataInMemory(rowData);
+      rowRange.setValues([rowData]);
+      return;
+    }
+    if (col === MONITOR_COL_SPEK && currentKode === "") {
+      clearRowDataInMemory(rowData);
+      rowRange.setValues([rowData]);
+      return;
+    }
+  }
+
   // Case A: Editing "Item" (Column 4 / Col D)
   if (col === MONITOR_COL_ITEM) {
     var itemVal = parseInt(cellStr, 10);
@@ -263,6 +279,13 @@ function onEdit(e) {
         }
       }
       inheritGroupMetadataInMemory(sheet, row, rowData);
+
+      if (!rowData[MONITOR_COL_NO - 1]) {
+        rowData[MONITOR_COL_NO - 1] = autoNoValue;
+      }
+      if (!rowData[MONITOR_COL_POST_DATE - 1]) {
+        rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      }
       modified = true;
     }
   }
@@ -271,8 +294,14 @@ function onEdit(e) {
   if (col === MONITOR_COL_NOLF && cellStr !== "") {
     if (!rowData[MONITOR_COL_ITEM - 1]) {
       rowData[MONITOR_COL_ITEM - 1] = 1;
-      modified = true;
     }
+    if (!rowData[MONITOR_COL_NO - 1]) {
+      rowData[MONITOR_COL_NO - 1] = autoNoValue;
+    }
+    if (!rowData[MONITOR_COL_POST_DATE - 1]) {
+      rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+    }
+    modified = true;
   }
 
   // Case C: Editing Group Metadata fields
@@ -284,12 +313,6 @@ function onEdit(e) {
 
   // Case D: Editing "Kode Material" (Column 5 / Col E)
   if (col === MONITOR_COL_KODE) {
-    if (cellStr === "") {
-      clearRowDataInMemory(rowData);
-      rowRange.setValues([rowData]);
-      return;
-    }
-
     var mat = getMaterialByKode(cellStr);
     if (mat) {
       rowData[MONITOR_COL_SPEK - 1] = mat.nama;
@@ -321,15 +344,15 @@ function onEdit(e) {
         rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
       }
       modified = true;
-    } else if (currentKode === "") {
-      clearRowDataInMemory(rowData);
-      rowRange.setValues([rowData]);
-      return;
     }
   }
 
-  // If both Kode and Spek are empty, guarantee complete cleanup
-  if (cellStr === "" && currentKode === "" && currentSpek === "" && col !== MONITOR_COL_ITEM && col !== MONITOR_COL_NOLF) {
+  // Guard: If both Kode and Spek are empty AND Item is empty, wipe row completely
+  var finalKode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
+  var finalSpek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
+  var finalItem = rowData[MONITOR_COL_ITEM - 1] ? rowData[MONITOR_COL_ITEM - 1].toString().trim() : "";
+
+  if (finalKode === "" && finalSpek === "" && finalItem === "") {
     clearRowDataInMemory(rowData);
     modified = true;
   }
@@ -338,6 +361,53 @@ function onEdit(e) {
   if (modified) {
     rowRange.setValues([rowData]);
   }
+}
+
+/**
+ * Sweeps the entire "KPM Monitor 2026" sheet and purges any orphaned rows
+ * that have lingering metadata without active material codes or descriptions.
+ */
+function cleanOrphanedRows() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) return;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  if (!sheet) return;
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < MONITOR_START_ROW) return;
+
+  var numRows = lastRow - MONITOR_START_ROW + 1;
+  var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
+  var allRows = range.getValues();
+  var cleanedCount = 0;
+
+  for (var i = 0; i < allRows.length; i++) {
+    var rowData = allRows[i];
+    var kode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
+    var spek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
+    var item = rowData[MONITOR_COL_ITEM - 1] ? rowData[MONITOR_COL_ITEM - 1].toString().trim() : "";
+
+    if (kode === "" && spek === "") {
+      var hasLingering = false;
+      for (var c = 0; c < rowData.length; c++) {
+        if (rowData[c] !== "") {
+          hasLingering = true;
+          break;
+        }
+      }
+      if (hasLingering) {
+        clearRowDataInMemory(rowData);
+        cleanedCount++;
+      }
+    }
+  }
+
+  if (cleanedCount > 0) {
+    range.setValues(allRows);
+  }
+
+  SpreadsheetApp.getUi().alert("Pembersihan Selesai: " + cleanedCount + " baris tanpa material telah dibersihkan.");
 }
 
 // ============================================
