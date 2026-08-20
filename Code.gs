@@ -114,8 +114,18 @@ function openKpmForm() {
 function getMaterialByKode(kode) {
   if (!kode) return null;
 
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MATERIALDB_SHEET_NAME);
-  if (!sheet) throw new Error('Sheet "' + MATERIALDB_SHEET_NAME + '" tidak ditemukan.');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(MATERIALDB_SHEET_NAME);
+  if (!sheet) {
+    var sheets = ss.getSheets();
+    for (var s = 0; s < sheets.length; s++) {
+      if (sheets[s].getName().trim().toLowerCase() === MATERIALDB_SHEET_NAME.trim().toLowerCase()) {
+        sheet = sheets[s];
+        break;
+      }
+    }
+  }
+  if (!sheet) return null;
 
   var lastRow = sheet.getLastRow();
   if (lastRow < MATERIALDB_START_ROW) return null;

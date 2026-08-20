@@ -7,7 +7,7 @@ var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
 
-// Column mapping (1-indexed, A to Q):
+// Column mapping (1-indexed, A to R):
 var MONITOR_COL_NO = 1;        // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2; // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;      // Column C: No LF (Counting Manual/Auto)
@@ -18,13 +18,14 @@ var MONITOR_COL_WBS = 7;       // Column G: WBS
 var MONITOR_COL_PROYEK = 8;    // Column H: Proyek
 var MONITOR_COL_TYPECAR = 9;   // Column I: Type Car
 var MONITOR_COL_BATCH = 10;    // Column J: TS/Batch/Set
-var MONITOR_COL_QTY = 11;      // Column K: Qty
-var MONITOR_COL_UOM = 12;      // Column L: UoM/stn (Optional Auto-fill)
-var MONITOR_COL_SN = 13;       // Column M: SN
-var MONITOR_COL_PIC = 14;      // Column N: PIC KPM
-var MONITOR_COL_WSAWAL = 15;   // Column O: Dari/ws awal
-var MONITOR_COL_WSTUJUAN = 16; // Column P: Tujuan/ws tujuan
-var MONITOR_COL_KET = 17;      // Column Q: Keterangan
+var MONITOR_COL_QTY = 11;      // Column K: Qty Diminta
+var MONITOR_COL_QTYDISERAHKAN = 12; // Column L: Qty Diserahkan
+var MONITOR_COL_UOM = 13;      // Column M: UoM/stn (Optional Auto-fill)
+var MONITOR_COL_SN = 14;       // Column N: SN
+var MONITOR_COL_PIC = 15;      // Column O: PIC KPM
+var MONITOR_COL_WSAWAL = 16;   // Column P: Dari/ws awal
+var MONITOR_COL_WSTUJUAN = 17; // Column Q: Tujuan/ws tujuan
+var MONITOR_COL_KET = 18;      // Column R: Keterangan
 
 // ============================================
 // HELPER FUNCTIONS FOR NO LF, ITEM & GROUP DATA
@@ -107,11 +108,11 @@ function ensureGroupMetadata(sheet, row) {
     if (prev && prev.noLf === currentNoLf.toString().trim()) {
       var prevRow = prev.row;
       var groupCols = [
-        MONITOR_COL_WSAWAL,   // Col O: 15
-        MONITOR_COL_WSTUJUAN, // Col P: 16
+        MONITOR_COL_WSAWAL,   // Col P: 16
+        MONITOR_COL_WSTUJUAN, // Col Q: 17
         MONITOR_COL_PROYEK,   // Col H: 8
         MONITOR_COL_WBS,      // Col G: 7
-        MONITOR_COL_PIC,      // Col N: 14
+        MONITOR_COL_PIC,      // Col O: 15
         MONITOR_COL_TYPECAR   // Col I: 9
       ];
 
@@ -180,11 +181,15 @@ function onEdit(e) {
 
   var autoNoValue = row - MONITOR_START_ROW + 1; // Row 10 = 1, Row 11 = 2, etc.
 
+  // Safely retrieve the edited cell's value (handles typing, pasting, dropdowns, and range edits)
+  var cellVal = (e && e.value !== undefined) ? e.value : e.range.getValue();
+  var cellStr = (cellVal !== null && cellVal !== undefined) ? cellVal.toString().trim() : "";
+
   // -------------------------------------------------------------
   // Case A: Editing "Item" (Column 4 / Col D)
   // -------------------------------------------------------------
   if (col === MONITOR_COL_ITEM) {
-    var itemVal = parseInt(e.value, 10);
+    var itemVal = parseInt(cellStr, 10);
     if (!isNaN(itemVal)) {
       if (itemVal === 1) {
         // New group! Increment No LF from previous active row
@@ -209,8 +214,7 @@ function onEdit(e) {
   // Case B: Editing "No LF" (Column 3 / Col C) directly
   // -------------------------------------------------------------
   if (col === MONITOR_COL_NOLF) {
-    var customNoLf = e.value;
-    if (customNoLf && customNoLf.toString().trim() !== "") {
+    if (cellStr !== "") {
       if (!itemCell.getValue()) {
         itemCell.setValue(1);
       }
@@ -218,26 +222,25 @@ function onEdit(e) {
   }
 
   // -------------------------------------------------------------
-  // Case C: Editing Group Metadata fields (WS Awal, WS Tujuan, Proyek, WBS, PIC)
+  // Case C: Editing Group Metadata fields (WS Awal, WS Tujuan, Proyek, WBS, PIC, Type Car)
   // -------------------------------------------------------------
   if (col === MONITOR_COL_WSAWAL || col === MONITOR_COL_WSTUJUAN ||
       col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
       col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR) {
-    syncDownstreamGroupMetadata(sheet, row, col, e.value || "");
+    syncDownstreamGroupMetadata(sheet, row, col, cellVal);
   }
 
   // -------------------------------------------------------------
   // Case D: Editing "Kode Material" (Column 5 / Col E)
   // -------------------------------------------------------------
   if (col === MONITOR_COL_KODE) {
-    var val = e.value;
-
     // If Kode Material is cleared/deleted
-    if (!val || val.toString().trim() === "") {
+    if (cellStr === "") {
       spekCell.clearContent();
       uomCell.clearContent();
       // If Spesifikasi is also empty, clear all row metadata
-      if (!spekCell.getValue() || spekCell.getValue().toString().trim() === "") {
+      var currentSpek = spekCell.getValue();
+      if (!currentSpek || currentSpek.toString().trim() === "") {
         noCell.clearContent();
         postDateCell.clearContent();
         itemCell.clearContent();
@@ -252,7 +255,7 @@ function onEdit(e) {
       return;
     }
 
-    var mat = getMaterialByKode(val);
+    var mat = getMaterialByKode(cellStr);
     if (mat) {
       spekCell.setValue(mat.nama);
       if (mat.satuan) {
@@ -282,10 +285,10 @@ function onEdit(e) {
   // Case E: Editing "Spesifikasi" (Column 6 / Col F) directly
   // -------------------------------------------------------------
   if (col === MONITOR_COL_SPEK) {
-    var spekVal = e.value;
-    var kodeVal = kodeCell.getValue();
+    var currentKode = kodeCell.getValue();
+    var kodeStr = (currentKode !== null && currentKode !== undefined) ? currentKode.toString().trim() : "";
 
-    if (spekVal && spekVal.toString().trim() !== "") {
+    if (cellStr !== "") {
       // Process Item & No LF assignment & Group Metadata inheritance
       ensureItemAndNoLf(sheet, row, itemCell, nolfCell);
       ensureGroupMetadata(sheet, row);
@@ -304,7 +307,7 @@ function onEdit(e) {
       }
     } else {
       // If Spesifikasi is cleared and Kode Material is also empty, clear row metadata
-      if (!kodeVal || kodeVal.toString().trim() === "") {
+      if (kodeStr === "") {
         noCell.clearContent();
         postDateCell.clearContent();
         itemCell.clearContent();
@@ -429,6 +432,7 @@ function printKpmM() {
         var kode = sheet.getRange(r, MONITOR_COL_KODE).getValue();
         var spek = sheet.getRange(r, MONITOR_COL_SPEK).getValue();
         var qty = sheet.getRange(r, MONITOR_COL_QTY).getValue();
+        var qtyDiserahkan = sheet.getRange(r, MONITOR_COL_QTYDISERAHKAN).getValue();
         var satuan = sheet.getRange(r, MONITOR_COL_UOM).getValue();
         var wsAwal = sheet.getRange(r, MONITOR_COL_WSAWAL).getValue();
         var wsTujuan = sheet.getRange(r, MONITOR_COL_WSTUJUAN).getValue();
@@ -439,6 +443,7 @@ function printKpmM() {
             kode: kode ? kode.toString().trim() : "",
             deskripsiSpesifikasi: spek ? spek.toString().trim() : "",
             qty: qty || 1,
+            qtyDiserahkan: (qtyDiserahkan !== null && qtyDiserahkan !== undefined) ? qtyDiserahkan.toString().trim() : "",
             satuan: satuan ? satuan.toString().trim() : "",
             wsAwal: wsAwal ? wsAwal.toString().trim() : "",
             wsTujuan: wsTujuan ? wsTujuan.toString().trim() : "",
