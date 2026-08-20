@@ -142,3 +142,106 @@ function testPrintKPMBlank() {
 
   openPrintView(data);
 }
+
+// ============================================
+// TRACKING TELEMETRY UNIT & INTEGRATION TESTS
+// ============================================
+
+/**
+ * Tests the hitungDurasi duration calculator with normal and boundary values.
+ */
+function testHitungDurasi() {
+  Logger.log("--- Testing hitungDurasi ---");
+
+  var test1 = hitungDurasi("20/08/2026 08:00:00", "20/08/2026 09:15:30");
+  Logger.log("Test 1 (08:00:00 -> 09:15:30): Expected '01:15:30', Got: '" + test1 + "' -> " + (test1 === "01:15:30" ? "PASS" : "FAIL"));
+
+  var test2 = hitungDurasi("20/08/2026 23:00:00", "21/08/2026 01:30:00");
+  Logger.log("Test 2 (Overnight 23:00 -> 01:30): Expected '02:30:00', Got: '" + test2 + "' -> " + (test2 === "02:30:00" ? "PASS" : "FAIL"));
+
+  var test3 = hitungDurasi("invalid", "20/08/2026 09:00:00");
+  Logger.log("Test 3 (Invalid format): Expected '', Got: '" + test3 + "' -> " + (test3 === "" ? "PASS" : "FAIL"));
+}
+
+/**
+ * Tests extractHyperlinkUrl with formula and raw URL values.
+ */
+function testExtractHyperlinkUrl() {
+  Logger.log("--- Testing extractHyperlinkUrl ---");
+
+  var formula = '=HYPERLINK("https://drive.google.com/open?id=12345", "[Link]")';
+  var extracted = extractHyperlinkUrl("[Link]", formula, formula);
+  Logger.log("Formula extraction: " + (extracted === "https://drive.google.com/open?id=12345" ? "PASS" : "FAIL (" + extracted + ")"));
+
+  var raw = "https://drive.google.com/open?id=67890";
+  var extractedRaw = extractHyperlinkUrl(raw, "", raw);
+  Logger.log("Raw extraction: " + (extractedRaw === "https://drive.google.com/open?id=67890" ? "PASS" : "FAIL (" + extractedRaw + ")"));
+}
+
+/**
+ * Tests the doGet() endpoint response format against KPM Monitor 2026.
+ */
+function testDoGetEndpoint() {
+  Logger.log("--- Testing doGet() endpoint ---");
+  var output = doGet({});
+  var rawJson = output.getContent();
+  var parsed = JSON.parse(rawJson);
+
+  Logger.log("doGet returned " + (Array.isArray(parsed) ? parsed.length + " active KPMs" : "Error"));
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    Logger.log("Sample KPM item: " + JSON.stringify(parsed[0]));
+  }
+}
+
+/**
+ * Tests full KPM lifecycle via doPost(): Creation -> Berangkat -> Tiba.
+ */
+function testDoPostCreationAndTracking() {
+  Logger.log("--- Testing doPost() Lifecycle ---");
+
+  // Step 1: Create new KPM
+  var createParam = {
+    parameter: {
+      daftarBarang: "Baut M10~50~pcs|Plat Besi 5mm~2~sht",
+      namaPIC: "Driver Uji Coba",
+      namaProyek: "Proyek LRT Jabodebek",
+      lokasiWorkshop: "WS-01",
+      statusKPM: "Baru Dibuat"
+    }
+  };
+
+  var resCreate = doPost(createParam);
+  var generatedNoLf = resCreate.getContent();
+  Logger.log("Step 1 (Create KPM): Generated No LF = " + generatedNoLf);
+
+  if (!generatedNoLf || generatedNoLf.indexOf("Error") === 0) {
+    Logger.log("Creation failed: " + generatedNoLf);
+    return;
+  }
+
+  // Step 2: Update status to 'Berangkat'
+  var berangkatParam = {
+    parameter: {
+      nomorKPM: generatedNoLf,
+      statusKPM: "Berangkat",
+      namaPIC: "Driver Uji Coba",
+      lokasiWorkshop: "WS-01"
+    }
+  };
+
+  var resBerangkat = doPost(berangkatParam);
+  Logger.log("Step 2 (Berangkat): Result = " + resBerangkat.getContent());
+
+  // Step 3: Update status to 'Tiba'
+  var tibaParam = {
+    parameter: {
+      nomorKPM: generatedNoLf,
+      statusKPM: "Tiba",
+      namaPIC: "Driver Uji Coba",
+      lokasiWorkshop: "WS-04"
+    }
+  };
+
+  var resTiba = doPost(tibaParam);
+  Logger.log("Step 3 (Tiba): Result = " + resTiba.getContent());
+}

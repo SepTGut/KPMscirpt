@@ -6,9 +6,9 @@
 var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
-var MONITOR_TOTAL_COLS = 18;   // Total 18 columns (A to R)
+var MONITOR_TOTAL_COLS = 24;   // Total 24 columns (A to X)
 
-// Column mapping (1-indexed, A to R):
+// Column mapping (1-indexed, A to X):
 var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
@@ -27,6 +27,12 @@ var MONITOR_COL_PIC = 15;           // Column O: PIC KPM
 var MONITOR_COL_KET = 16;           // Column P: Keterangan
 var MONITOR_COL_WSAWAL = 17;        // Column Q: Dari/ws awal
 var MONITOR_COL_WSTUJUAN = 18;      // Column R: Tujuan/ws tujuan
+var MONITOR_COL_WKT_BERANGKAT = 19; // Column S: Waktu Berangkat
+var MONITOR_COL_WKT_TIBA = 20;      // Column T: Waktu Tiba
+var MONITOR_COL_DURASI = 21;        // Column U: Durasi Perjalanan
+var MONITOR_COL_STATUS = 22;        // Column V: Status Tracking
+var MONITOR_COL_FOTO_BER = 23;      // Column W: Foto Berangkat (URL Drive)
+var MONITOR_COL_FOTO_TIB = 24;      // Column X: Foto Tiba (URL Drive)
 
 // ============================================
 // FAST IN-MEMORY HELPERS FOR NO LF, ITEM & GROUP
@@ -165,7 +171,9 @@ function inheritGroupMetadataInMemory(sheet, row, rowData) {
       var prevRowData = sheet.getRange(prev.row, 1, 1, MONITOR_TOTAL_COLS).getValues()[0];
       var groupCols = [
         MONITOR_COL_WSAWAL, MONITOR_COL_WSTUJUAN, MONITOR_COL_PROYEK,
-        MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR
+        MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR,
+        MONITOR_COL_STATUS, MONITOR_COL_WKT_BERANGKAT, MONITOR_COL_WKT_TIBA,
+        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB
       ];
       for (var i = 0; i < groupCols.length; i++) {
         var cIdx = groupCols[i] - 1;
@@ -307,7 +315,10 @@ function onEdit(e) {
   // Case C: Editing Group Metadata fields
   if (col === MONITOR_COL_WSAWAL || col === MONITOR_COL_WSTUJUAN ||
       col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
-      col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR) {
+      col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR ||
+      col === MONITOR_COL_STATUS || col === MONITOR_COL_WKT_BERANGKAT ||
+      col === MONITOR_COL_WKT_TIBA || col === MONITOR_COL_DURASI ||
+      col === MONITOR_COL_FOTO_BER || col === MONITOR_COL_FOTO_TIB) {
     syncDownstreamGroupMetadata(sheet, row, col, cellVal);
   }
 
