@@ -1,49 +1,55 @@
 // ============================================
-// KPM MONITOR 2026 AUTOMATION (KPMn.gs)
+// KPM MONITOR 2026 HIGH-PERFORMANCE ENGINE (KPMn.gs)
 // ============================================
 
 // KPM Monitor Sheet Config
 var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
+var MONITOR_TOTAL_COLS = 18;   // Total 18 columns (A to R)
 
 // Column mapping (1-indexed, A to R):
-var MONITOR_COL_NO = 1;        // Column A: NO (Oto)
-var MONITOR_COL_POST_DATE = 2; // Column B: Post Date (Otomatis)
-var MONITOR_COL_NOLF = 3;      // Column C: No LF (Counting Manual/Auto)
-var MONITOR_COL_ITEM = 4;      // Column D: Item (1, 2, 3...)
-var MONITOR_COL_KODE = 5;      // Column E: Kode Material
-var MONITOR_COL_SPEK = 6;      // Column F: Spesifikasi (Semi-Otomatis)
-var MONITOR_COL_WBS = 7;       // Column G: WBS
-var MONITOR_COL_PROYEK = 8;    // Column H: Proyek
-var MONITOR_COL_TYPECAR = 9;   // Column I: Type Car
-var MONITOR_COL_BATCH = 10;    // Column J: TS/Batch/Set
-var MONITOR_COL_QTY = 11;      // Column K: Qty Diminta
+var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
+var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
+var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
+var MONITOR_COL_ITEM = 4;           // Column D: Item (1, 2, 3...)
+var MONITOR_COL_KODE = 5;           // Column E: Kode Material
+var MONITOR_COL_SPEK = 6;           // Column F: Spesifikasi (Semi-Otomatis)
+var MONITOR_COL_WBS = 7;            // Column G: WBS
+var MONITOR_COL_PROYEK = 8;         // Column H: Proyek
+var MONITOR_COL_TYPECAR = 9;        // Column I: Type Car
+var MONITOR_COL_BATCH = 10;         // Column J: TS/Batch/Set
+var MONITOR_COL_QTY = 11;           // Column K: Qty Diminta
 var MONITOR_COL_QTYDISERAHKAN = 12; // Column L: Qty Diserahkan
-var MONITOR_COL_UOM = 13;      // Column M: UoM/stn (Optional Auto-fill)
-var MONITOR_COL_SN = 14;       // Column N: SN
-var MONITOR_COL_PIC = 15;      // Column O: PIC KPM
-var MONITOR_COL_WSAWAL = 16;   // Column P: Dari/ws awal
-var MONITOR_COL_WSTUJUAN = 17; // Column Q: Tujuan/ws tujuan
-var MONITOR_COL_KET = 18;      // Column R: Keterangan
+var MONITOR_COL_UOM = 13;           // Column M: UoM/stn (Optional Auto-fill)
+var MONITOR_COL_SN = 14;            // Column N: SN
+var MONITOR_COL_PIC = 15;           // Column O: PIC KPM
+var MONITOR_COL_KET = 16;           // Column P: Keterangan
+var MONITOR_COL_WSAWAL = 17;        // Column Q: Dari/ws awal
+var MONITOR_COL_WSTUJUAN = 18;      // Column R: Tujuan/ws tujuan
 
 // ============================================
-// HELPER FUNCTIONS FOR NO LF, ITEM & GROUP DATA
+// FAST IN-MEMORY HELPERS FOR NO LF, ITEM & GROUP
 // ============================================
 
 /**
- * Searches upwards from currentRow - 1 to find the most recent active row.
+ * FAST IN-MEMORY SEARCH: Reads preceding data block in 1 batch call and scans in RAM.
  */
 function getPreviousActiveRow(sheet, currentRow) {
-  for (var r = currentRow - 1; r >= MONITOR_START_ROW; r--) {
-    var itemVal = sheet.getRange(r, MONITOR_COL_ITEM).getValue();
-    var nolfVal = sheet.getRange(r, MONITOR_COL_NOLF).getValue();
-    var kodeVal = sheet.getRange(r, MONITOR_COL_KODE).getValue();
-    var spekVal = sheet.getRange(r, MONITOR_COL_SPEK).getValue();
+  var lookback = Math.min(currentRow - MONITOR_START_ROW, 20);
+  if (lookback <= 0) return null;
+
+  var startR = currentRow - lookback;
+  var block = sheet.getRange(startR, 1, lookback, 6).getValues();
+  for (var i = block.length - 1; i >= 0; i--) {
+    var itemVal = block[i][MONITOR_COL_ITEM - 1];
+    var nolfVal = block[i][MONITOR_COL_NOLF - 1];
+    var kodeVal = block[i][MONITOR_COL_KODE - 1];
+    var spekVal = block[i][MONITOR_COL_SPEK - 1];
 
     if (itemVal || nolfVal || kodeVal || spekVal) {
       return {
-        row: r,
+        row: startR + i,
         item: parseInt(itemVal, 10) || 1,
         noLf: nolfVal ? nolfVal.toString().trim() : ""
       };
@@ -55,7 +61,6 @@ function getPreviousActiveRow(sheet, currentRow) {
 /**
  * Increments the numeric sequence portion inside any No LF string.
  * Example: "100/PPO/LF/VIII/2026" -> "101/PPO/LF/VIII/2026"
- * Example: "102/ppo/lf/VIII/2026" -> "103/ppo/lf/VIII/2026"
  */
 function incrementNoLf(noLfStr) {
   if (!noLfStr) return getDefaultNoLf(100);
@@ -96,261 +101,246 @@ function getDefaultNoLf(startSeq) {
 }
 
 /**
- * Auto-copies group header fields (WS Awal, WS Tujuan, Proyek, WBS, PIC)
- * from previous row in the same No LF group into a continuation row.
+ * FAST BATCH GROUP SYNC: Updates downstream rows in 1 single setValues call.
  */
-function ensureGroupMetadata(sheet, row) {
-  var itemVal = parseInt(sheet.getRange(row, MONITOR_COL_ITEM).getValue(), 10);
+function syncDownstreamGroupMetadata(sheet, row, col, newValue) {
+  var maxLookahead = 25;
+  var maxRow = sheet.getLastRow();
+  var count = Math.min(maxRow - row, maxLookahead);
+  if (count <= 0) return;
+
   var currentNoLf = sheet.getRange(row, MONITOR_COL_NOLF).getValue();
+  if (!currentNoLf) return;
+  var targetNoLf = currentNoLf.toString().trim();
+
+  // Read downstream slice in 1 batch call
+  var dataNolf = sheet.getRange(row + 1, MONITOR_COL_NOLF, count, 1).getValues();
+  var dataTarget = sheet.getRange(row + 1, col, count, 1).getValues();
+  var hasChanges = false;
+
+  for (var i = 0; i < count; i++) {
+    var rNoLf = dataNolf[i][0] ? dataNolf[i][0].toString().trim() : "";
+    if (rNoLf === targetNoLf) {
+      dataTarget[i][0] = newValue;
+      hasChanges = true;
+    } else if (rNoLf !== "") {
+      break; // Stop when next group begins
+    }
+  }
+
+  if (hasChanges) {
+    sheet.getRange(row + 1, col, count, 1).setValues(dataTarget);
+  }
+}
+
+// In-memory helper functions for onEdit
+function ensureItemAndNoLfInMemory(sheet, row, rowData) {
+  var currentItem = parseInt(rowData[MONITOR_COL_ITEM - 1], 10);
+  var currentNoLf = rowData[MONITOR_COL_NOLF - 1];
+
+  if (!currentItem) {
+    var prev = getPreviousActiveRow(sheet, row);
+    if (prev) {
+      rowData[MONITOR_COL_ITEM - 1] = prev.item + 1;
+      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
+    } else {
+      rowData[MONITOR_COL_ITEM - 1] = 1;
+      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = getDefaultNoLf(100);
+    }
+  } else if (currentItem === 1 && !currentNoLf) {
+    var prev = getPreviousActiveRow(sheet, row);
+    rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(100);
+  }
+}
+
+function inheritGroupMetadataInMemory(sheet, row, rowData) {
+  var itemVal = parseInt(rowData[MONITOR_COL_ITEM - 1], 10);
+  var currentNoLf = rowData[MONITOR_COL_NOLF - 1];
 
   if (itemVal > 1 && currentNoLf) {
     var prev = getPreviousActiveRow(sheet, row);
     if (prev && prev.noLf === currentNoLf.toString().trim()) {
-      var prevRow = prev.row;
+      var prevRowData = sheet.getRange(prev.row, 1, 1, MONITOR_TOTAL_COLS).getValues()[0];
       var groupCols = [
-        MONITOR_COL_WSAWAL,   // Col P: 16
-        MONITOR_COL_WSTUJUAN, // Col Q: 17
-        MONITOR_COL_PROYEK,   // Col H: 8
-        MONITOR_COL_WBS,      // Col G: 7
-        MONITOR_COL_PIC,      // Col O: 15
-        MONITOR_COL_TYPECAR   // Col I: 9
+        MONITOR_COL_WSAWAL, MONITOR_COL_WSTUJUAN, MONITOR_COL_PROYEK,
+        MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR
       ];
-
       for (var i = 0; i < groupCols.length; i++) {
-        var c = groupCols[i];
-        var currentCell = sheet.getRange(row, c);
-        var prevVal = sheet.getRange(prevRow, c).getValue();
-        if (prevVal && (!currentCell.getValue() || currentCell.getValue().toString().trim() === "")) {
-          currentCell.setValue(prevVal);
+        var cIdx = groupCols[i] - 1;
+        if (prevRowData[cIdx] && (!rowData[cIdx] || rowData[cIdx].toString().trim() === "")) {
+          rowData[cIdx] = prevRowData[cIdx];
         }
       }
     }
   }
 }
 
-/**
- * Syncs updated group header fields (WS Awal, WS Tujuan, etc.)
- * downstream to all rows sharing the same No LF group.
- */
-function syncDownstreamGroupMetadata(sheet, row, col, newValue) {
-  var currentNoLf = sheet.getRange(row, MONITOR_COL_NOLF).getValue();
-  if (!currentNoLf) return;
-
-  var noLfStr = currentNoLf.toString().trim();
-  var maxRow = sheet.getLastRow();
-
-  for (var r = row + 1; r <= maxRow; r++) {
-    var rNoLf = sheet.getRange(r, MONITOR_COL_NOLF).getValue();
-    if (rNoLf && rNoLf.toString().trim() === noLfStr) {
-      sheet.getRange(r, col).setValue(newValue);
-    } else if (rNoLf) {
-      break;
-    }
+function clearRowDataInMemory(rowData) {
+  for (var c = 0; c < rowData.length; c++) {
+    rowData[c] = "";
   }
 }
 
 // ============================================
-// ON EDIT TRIGGER (KPM Monitor 2026 Sheet)
+// HIGH-SPEED BATCH ON EDIT TRIGGER
 // ============================================
 function onEdit(e) {
   if (!e || !e.range) return;
 
   var sheet = e.range.getSheet();
-  // Check if edit is on KPM Monitor 2026 sheet (case-insensitive and trimmed)
   if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME.trim().toLowerCase()) return;
 
-  var row = e.range.getRow();
-  var col = e.range.getColumn();
+  var startRow = e.range.getRow();
+  var numRows = e.range.getNumRows();
+  var startCol = e.range.getColumn();
+  var numCols = e.range.getNumColumns();
 
-  // Ensure edit is within data rows (row >= MONITOR_START_ROW)
-  if (row < MONITOR_START_ROW) return;
+  // If the edited range is completely above the data start row, skip
+  if (startRow + numRows - 1 < MONITOR_START_ROW) return;
 
-  var noCell = sheet.getRange(row, MONITOR_COL_NO);
-  var postDateCell = sheet.getRange(row, MONITOR_COL_POST_DATE);
-  var nolfCell = sheet.getRange(row, MONITOR_COL_NOLF);
-  var itemCell = sheet.getRange(row, MONITOR_COL_ITEM);
-  var kodeCell = sheet.getRange(row, MONITOR_COL_KODE);
-  var spekCell = sheet.getRange(row, MONITOR_COL_SPEK);
-  var uomCell = sheet.getRange(row, MONITOR_COL_UOM);
-  var wsAwalCell = sheet.getRange(row, MONITOR_COL_WSAWAL);
-  var wsTujuanCell = sheet.getRange(row, MONITOR_COL_WSTUJUAN);
-  var picCell = sheet.getRange(row, MONITOR_COL_PIC);
-  var proyekCell = sheet.getRange(row, MONITOR_COL_PROYEK);
-  var wbsCell = sheet.getRange(row, MONITOR_COL_WBS);
-  var typeCarCell = sheet.getRange(row, MONITOR_COL_TYPECAR);
+  var effectiveStartRow = Math.max(startRow, MONITOR_START_ROW);
+  var effectiveRowCount = (startRow + numRows) - effectiveStartRow;
+  if (effectiveRowCount <= 0) return;
+
+  // -------------------------------------------------------------
+  // MULTI-ROW BULK DELETE / EDIT HANDLER
+  // -------------------------------------------------------------
+  if (effectiveRowCount > 1) {
+    var range = sheet.getRange(effectiveStartRow, 1, effectiveRowCount, MONITOR_TOTAL_COLS);
+    var allRows = range.getValues();
+    var hasModifications = false;
+
+    for (var i = 0; i < effectiveRowCount; i++) {
+      var rowData = allRows[i];
+      var kode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
+      var spek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
+
+      // If both Kode and Spek are empty on this row, wipe all metadata cleanly
+      if (kode === "" && spek === "") {
+        clearRowDataInMemory(rowData);
+        hasModifications = true;
+      }
+    }
+
+    if (hasModifications) {
+      range.setValues(allRows);
+    }
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // SINGLE ROW FAST IN-MEMORY HANDLER
+  // -------------------------------------------------------------
+  var row = effectiveStartRow;
+  var col = startCol;
+  var cellVal = (e.value !== undefined) ? e.value : e.range.getValue();
+  var cellStr = (cellVal !== null && cellVal !== undefined) ? cellVal.toString().trim() : "";
+
+  var rowRange = sheet.getRange(row, 1, 1, MONITOR_TOTAL_COLS);
+  var rowData = rowRange.getValues()[0];
+  var modified = false;
 
   var autoNoValue = row - MONITOR_START_ROW + 1; // Row 10 = 1, Row 11 = 2, etc.
 
-  // Safely retrieve the edited cell's value (handles typing, pasting, dropdowns, and range edits)
-  var cellVal = (e && e.value !== undefined) ? e.value : e.range.getValue();
-  var cellStr = (cellVal !== null && cellVal !== undefined) ? cellVal.toString().trim() : "";
+  // Current values on this row
+  var currentKode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
+  var currentSpek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
 
-  // -------------------------------------------------------------
   // Case A: Editing "Item" (Column 4 / Col D)
-  // -------------------------------------------------------------
   if (col === MONITOR_COL_ITEM) {
     var itemVal = parseInt(cellStr, 10);
     if (!isNaN(itemVal)) {
       if (itemVal === 1) {
-        // New group! Increment No LF from previous active row
         var prev = getPreviousActiveRow(sheet, row);
-        if (prev && prev.noLf) {
-          nolfCell.setValue(incrementNoLf(prev.noLf));
-        } else if (!nolfCell.getValue()) {
-          nolfCell.setValue(getDefaultNoLf(100));
-        }
+        rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(100);
+        modified = true;
       } else if (itemVal > 1) {
-        // Continuation item! Copy No LF from previous active row
         var prev = getPreviousActiveRow(sheet, row);
         if (prev && prev.noLf) {
-          nolfCell.setValue(prev.noLf);
+          rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
+          modified = true;
         }
       }
-      ensureGroupMetadata(sheet, row);
+      inheritGroupMetadataInMemory(sheet, row, rowData);
     }
   }
 
-  // -------------------------------------------------------------
   // Case B: Editing "No LF" (Column 3 / Col C) directly
-  // -------------------------------------------------------------
-  if (col === MONITOR_COL_NOLF) {
-    if (cellStr !== "") {
-      if (!itemCell.getValue()) {
-        itemCell.setValue(1);
-      }
+  if (col === MONITOR_COL_NOLF && cellStr !== "") {
+    if (!rowData[MONITOR_COL_ITEM - 1]) {
+      rowData[MONITOR_COL_ITEM - 1] = 1;
+      modified = true;
     }
   }
 
-  // -------------------------------------------------------------
-  // Case C: Editing Group Metadata fields (WS Awal, WS Tujuan, Proyek, WBS, PIC, Type Car)
-  // -------------------------------------------------------------
+  // Case C: Editing Group Metadata fields
   if (col === MONITOR_COL_WSAWAL || col === MONITOR_COL_WSTUJUAN ||
       col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
       col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR) {
     syncDownstreamGroupMetadata(sheet, row, col, cellVal);
   }
 
-  // -------------------------------------------------------------
   // Case D: Editing "Kode Material" (Column 5 / Col E)
-  // -------------------------------------------------------------
   if (col === MONITOR_COL_KODE) {
-    // If Kode Material is cleared/deleted
     if (cellStr === "") {
-      spekCell.clearContent();
-      uomCell.clearContent();
-      // If Spesifikasi is also empty, clear all row metadata
-      var currentSpek = spekCell.getValue();
-      if (!currentSpek || currentSpek.toString().trim() === "") {
-        noCell.clearContent();
-        postDateCell.clearContent();
-        itemCell.clearContent();
-        nolfCell.clearContent();
-        wsAwalCell.clearContent();
-        wsTujuanCell.clearContent();
-        picCell.clearContent();
-        proyekCell.clearContent();
-        wbsCell.clearContent();
-        typeCarCell.clearContent();
-      }
+      rowData[MONITOR_COL_KODE - 1] = "";
+      rowData[MONITOR_COL_SPEK - 1] = "";
+      rowData[MONITOR_COL_UOM - 1] = "";
+      clearRowDataInMemory(rowData);
+      rowRange.setValues([rowData]);
       return;
     }
 
     var mat = getMaterialByKode(cellStr);
     if (mat) {
-      spekCell.setValue(mat.nama);
-      if (mat.satuan) {
-        uomCell.setValue(mat.satuan);
-      }
+      rowData[MONITOR_COL_SPEK - 1] = mat.nama;
+      if (mat.satuan) rowData[MONITOR_COL_UOM - 1] = mat.satuan;
+      modified = true;
     }
 
-    // Process Item & No LF assignment & Group Metadata inheritance
-    ensureItemAndNoLf(sheet, row, itemCell, nolfCell);
-    ensureGroupMetadata(sheet, row);
+    ensureItemAndNoLfInMemory(sheet, row, rowData);
+    inheritGroupMetadataInMemory(sheet, row, rowData);
 
-    // Auto-fill NO (1, 2, 3...)
-    if (!noCell.getValue()) {
-      noCell.setValue(autoNoValue)
-            .setHorizontalAlignment("center")
-            .setVerticalAlignment("middle");
+    if (!rowData[MONITOR_COL_NO - 1]) {
+      rowData[MONITOR_COL_NO - 1] = autoNoValue;
+      modified = true;
     }
-
-    // Auto-fill Post Date (dd/MM/yyyy HH:mm:ss)
-    if (!postDateCell.getValue()) {
-      var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-      postDateCell.setValue(timeStamp);
+    if (!rowData[MONITOR_COL_POST_DATE - 1]) {
+      rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      modified = true;
     }
   }
 
-  // -------------------------------------------------------------
   // Case E: Editing "Spesifikasi" (Column 6 / Col F) directly
-  // -------------------------------------------------------------
   if (col === MONITOR_COL_SPEK) {
-    var currentKode = kodeCell.getValue();
-    var kodeStr = (currentKode !== null && currentKode !== undefined) ? currentKode.toString().trim() : "";
-
     if (cellStr !== "") {
-      // Process Item & No LF assignment & Group Metadata inheritance
-      ensureItemAndNoLf(sheet, row, itemCell, nolfCell);
-      ensureGroupMetadata(sheet, row);
+      ensureItemAndNoLfInMemory(sheet, row, rowData);
+      inheritGroupMetadataInMemory(sheet, row, rowData);
 
-      // Auto-fill NO (1, 2, 3...)
-      if (!noCell.getValue()) {
-        noCell.setValue(autoNoValue)
-              .setHorizontalAlignment("center")
-              .setVerticalAlignment("middle");
+      if (!rowData[MONITOR_COL_NO - 1]) {
+        rowData[MONITOR_COL_NO - 1] = autoNoValue;
+        modified = true;
       }
-
-      // Auto-fill Post Date (dd/MM/yyyy HH:mm:ss)
-      if (!postDateCell.getValue()) {
-        var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-        postDateCell.setValue(timeStamp);
+      if (!rowData[MONITOR_COL_POST_DATE - 1]) {
+        rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+        modified = true;
       }
-    } else {
-      // If Spesifikasi is cleared and Kode Material is also empty, clear row metadata
-      if (kodeStr === "") {
-        noCell.clearContent();
-        postDateCell.clearContent();
-        itemCell.clearContent();
-        nolfCell.clearContent();
-        uomCell.clearContent();
-        wsAwalCell.clearContent();
-        wsTujuanCell.clearContent();
-        picCell.clearContent();
-        proyekCell.clearContent();
-        wbsCell.clearContent();
-        typeCarCell.clearContent();
-      }
+    } else if (currentKode === "") {
+      clearRowDataInMemory(rowData);
+      rowRange.setValues([rowData]);
+      return;
     }
   }
-}
 
-/**
- * Ensures Item and No LF are populated when a user enters material or spec.
- */
-function ensureItemAndNoLf(sheet, row, itemCell, nolfCell) {
-  var currentItem = parseInt(itemCell.getValue(), 10);
-  var currentNoLf = nolfCell.getValue();
+  // If both Kode and Spek are empty, guarantee complete cleanup
+  if (cellStr === "" && currentKode === "" && currentSpek === "" && col !== MONITOR_COL_ITEM && col !== MONITOR_COL_NOLF) {
+    clearRowDataInMemory(rowData);
+    modified = true;
+  }
 
-  if (!currentItem) {
-    var prev = getPreviousActiveRow(sheet, row);
-    if (prev) {
-      itemCell.setValue(prev.item + 1);
-      if (!currentNoLf) {
-        nolfCell.setValue(prev.noLf);
-      }
-    } else {
-      itemCell.setValue(1);
-      if (!currentNoLf) {
-        nolfCell.setValue(getDefaultNoLf(100));
-      }
-    }
-  } else if (currentItem === 1 && !currentNoLf) {
-    var prev = getPreviousActiveRow(sheet, row);
-    if (prev && prev.noLf) {
-      nolfCell.setValue(incrementNoLf(prev.noLf));
-    } else {
-      nolfCell.setValue(getDefaultNoLf(100));
-    }
+  // 1 BATCH WRITE: Write all modified columns in 1 single network call
+  if (modified) {
+    rowRange.setValues([rowData]);
   }
 }
 
@@ -416,46 +406,62 @@ function printKpmM() {
     noLampiranKpm: ""
   };
 
-  // Collect all material rows matching targetNoLfStr (exact or sequence match)
-  for (var r = MONITOR_START_ROW; r <= lastRow; r++) {
-    var rNoLf = sheet.getRange(r, MONITOR_COL_NOLF).getValue();
-    if (rNoLf) {
-      var rNoLfStr = rNoLf.toString().trim();
-      var isMatch = (rNoLfStr.toLowerCase() === targetNoLfStr.toLowerCase()) ||
-                    (targetNoLfStr.length < 10 && rNoLfStr.toLowerCase().indexOf(targetNoLfStr.toLowerCase()) === 0);
+  // Collect all material rows matching targetNoLfStr in 1 batch table read
+  var numDataRows = lastRow - MONITOR_START_ROW + 1;
+  if (numDataRows > 0) {
+    var allRows = sheet.getRange(MONITOR_START_ROW, 1, numDataRows, MONITOR_TOTAL_COLS).getValues();
 
-      if (isMatch) {
-        if (!headerInfo.noRefKpp || headerInfo.noRefKpp === inputNoLf) {
-          headerInfo.noRefKpp = rNoLfStr;
-        }
+    for (var i = 0; i < allRows.length; i++) {
+      var rowArray = allRows[i];
+      var rNoLf = rowArray[MONITOR_COL_NOLF - 1];
 
-        var kode = sheet.getRange(r, MONITOR_COL_KODE).getValue();
-        var spek = sheet.getRange(r, MONITOR_COL_SPEK).getValue();
-        var qty = sheet.getRange(r, MONITOR_COL_QTY).getValue();
-        var qtyDiserahkan = sheet.getRange(r, MONITOR_COL_QTYDISERAHKAN).getValue();
-        var satuan = sheet.getRange(r, MONITOR_COL_UOM).getValue();
-        var wsAwal = sheet.getRange(r, MONITOR_COL_WSAWAL).getValue();
-        var wsTujuan = sheet.getRange(r, MONITOR_COL_WSTUJUAN).getValue();
-        var ket = sheet.getRange(r, MONITOR_COL_KET).getValue();
+      if (rNoLf) {
+        var rNoLfStr = rNoLf.toString().trim();
+        var isMatch = (rNoLfStr.toLowerCase() === targetNoLfStr.toLowerCase()) ||
+                      (targetNoLfStr.length < 10 && rNoLfStr.toLowerCase().indexOf(targetNoLfStr.toLowerCase()) === 0);
 
-        if (kode || spek) {
-          materialList.push({
-            kode: kode ? kode.toString().trim() : "",
-            deskripsiSpesifikasi: spek ? spek.toString().trim() : "",
-            qty: qty || 1,
-            qtyDiserahkan: (qtyDiserahkan !== null && qtyDiserahkan !== undefined) ? qtyDiserahkan.toString().trim() : "",
-            satuan: satuan ? satuan.toString().trim() : "",
-            wsAwal: wsAwal ? wsAwal.toString().trim() : "",
-            wsTujuan: wsTujuan ? wsTujuan.toString().trim() : "",
-            keterangan: ket ? ket.toString().trim() : ""
-          });
-        }
+        if (isMatch) {
+          if (!headerInfo.noRefKpp || headerInfo.noRefKpp === inputNoLf) {
+            headerInfo.noRefKpp = rNoLfStr;
+          }
 
-        // Capture header fields from the first matching row
-        if (!headerInfo.tanggal) {
-          headerInfo.tanggal = sheet.getRange(r, MONITOR_COL_POST_DATE).getValue() || "";
-          headerInfo.serial = sheet.getRange(r, MONITOR_COL_SN).getValue() || "";
-          headerInfo.proyek = sheet.getRange(r, MONITOR_COL_PROYEK).getValue() || "";
+          var kode = rowArray[MONITOR_COL_KODE - 1];
+          var spek = rowArray[MONITOR_COL_SPEK - 1];
+          var qty = rowArray[MONITOR_COL_QTY - 1];
+          var qtyDiserahkan = rowArray[MONITOR_COL_QTYDISERAHKAN - 1];
+          var satuan = rowArray[MONITOR_COL_UOM - 1];
+          var wsAwal = rowArray[MONITOR_COL_WSAWAL - 1];
+          var wsTujuan = rowArray[MONITOR_COL_WSTUJUAN - 1];
+          var ket = rowArray[MONITOR_COL_KET - 1];
+
+          if (kode || spek) {
+            materialList.push({
+              kode: kode ? kode.toString().trim() : "",
+              deskripsiSpesifikasi: spek ? spek.toString().trim() : "",
+              qty: qty || 1,
+              qtyDiserahkan: (qtyDiserahkan !== null && qtyDiserahkan !== undefined) ? qtyDiserahkan.toString().trim() : "",
+              satuan: satuan ? satuan.toString().trim() : "",
+              wsAwal: wsAwal ? wsAwal.toString().trim() : "",
+              wsTujuan: wsTujuan ? wsTujuan.toString().trim() : "",
+              keterangan: ket ? ket.toString().trim() : ""
+            });
+          }
+
+          if (!headerInfo.tanggal) {
+            var rawPostDate = rowArray[MONITOR_COL_POST_DATE - 1];
+            if (rawPostDate instanceof Date) {
+              headerInfo.tanggal = Utilities.formatDate(rawPostDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
+            } else if (rawPostDate) {
+              var s = rawPostDate.toString().trim();
+              if (s.indexOf(" ") !== -1 && s.indexOf("/") !== -1) {
+                headerInfo.tanggal = s.split(" ")[0]; // Extract "20/08/2026"
+              } else {
+                headerInfo.tanggal = s;
+              }
+            }
+            headerInfo.serial = rowArray[MONITOR_COL_SN - 1] || "";
+            headerInfo.proyek = rowArray[MONITOR_COL_PROYEK - 1] || "";
+          }
         }
       }
     }
@@ -482,6 +488,7 @@ function printKpmM() {
     .replace(/\{month\}/g, monthRoman);
 
   var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
+  var displayTanggal = headerInfo.tanggal || today;
   var totalPage = Math.max(1, Math.ceil(materialList.length / PAGE_SIZE));
 
   var data = {
@@ -492,14 +499,14 @@ function printKpmM() {
     header: {
       noRefKpp: headerInfo.noRefKpp,
       noLampiranKpm: headerInfo.noLampiranKpm,
-      tanggal: headerInfo.tanggal || today,
+      tanggal: displayTanggal,
       serial: headerInfo.serial,
       proyek: headerInfo.proyek
     },
     groups: [
       {
         reservasi: "",
-        tanggal: headerInfo.tanggal || today,
+        tanggal: displayTanggal,
         serial: headerInfo.serial,
         proyek: headerInfo.proyek,
         noLampiranKpm: headerInfo.noLampiranKpm,

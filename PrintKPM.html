@@ -279,6 +279,30 @@
 // The template receives one data object from Apps Script. Missing collections
 // are normalized to empty arrays so a partially populated request does not
 // make the template fail before it can render.
+function cleanDateStr(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    var dd = String(val.getDate()).padStart(2, '0');
+    var mm = String(val.getMonth() + 1).padStart(2, '0');
+    var yyyy = val.getFullYear();
+    return dd + '/' + mm + '/' + yyyy;
+  }
+  var s = String(val).trim();
+  if (s.indexOf("GMT") !== -1 || (isNaN(s) && !isNaN(Date.parse(s)) && s.indexOf("/") === -1)) {
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      var dd = String(d.getDate()).padStart(2, '0');
+      var mm = String(d.getMonth() + 1).padStart(2, '0');
+      var yyyy = d.getFullYear();
+      return dd + '/' + mm + '/' + yyyy;
+    }
+  }
+  if (s.indexOf(" ") !== -1 && s.indexOf("/") !== -1) {
+    return s.split(" ")[0];
+  }
+  return s;
+}
+
 var groups = data.groups || [];
 var pageCounter = 0;
 // Keep the row capacity in one place; the calibration script uses the same
@@ -325,7 +349,7 @@ for(var g = 0; g < groups.length; g++){
         </td>
         <td class="printDate">
           Dicetak :
-          <?= data.tanggalCetak ?><br>
+          <?= cleanDateStr(data.tanggalCetak) ?><br>
           Halaman :
           <?= pageNo ?> dari
           <?= data.totalPage ?>
@@ -351,7 +375,7 @@ for(var g = 0; g < groups.length; g++){
       <tr>
         <td class="label">Tanggal</td>
         <td>
-          <?= group.tanggal || data.header.tanggal || "" ?>
+          <?= cleanDateStr(group.tanggal || data.header.tanggal) ?>
         </td>
         <td class="label">Serial Number</td>
         <td>
@@ -389,9 +413,9 @@ for(var g = 0; g < groups.length; g++){
           <th style="width:18mm;">Qty Diminta</th>
           <th style="width:20mm;">Qty Diserahkan</th>
           <th style="width:15mm;">Sat</th>
+          <th style="width:32mm;">Keterangan</th>
           <th style="width:26mm;">WS Awal</th>
           <th style="width:26mm;">WS Tujuan</th>
-          <th style="width:32mm;">Keterangan</th>
         </tr>
       </thead>
       <tbody>
@@ -416,13 +440,13 @@ for(var g = 0; g < groups.length; g++){
             <?= m.satuan ?>
           </td>
           <td>
+            <?= m.keterangan || "" ?>
+          </td>
+          <td>
             <?= m.wsAwal ?>
           </td>
           <td>
             <?= m.wsTujuan ?>
-          </td>
-          <td>
-            <?= m.keterangan || "" ?>
           </td>
         </tr>
         <? } ?>

@@ -109,11 +109,32 @@ function openKpmForm() {
 }
 
 // ============================================
-// Lookup a material by its Kode Material
+// Fast Cached Lookup for Kode Material
 // ============================================
+var _materialMemoryCache = {};
+
 function getMaterialByKode(kode) {
   if (!kode) return null;
+  var kodeTrimmed = kode.toString().trim().toUpperCase();
+  if (kodeTrimmed === "") return null;
 
+  // 1. Check in-memory RAM cache (0.001ms instant)
+  if (_materialMemoryCache[kodeTrimmed]) {
+    return _materialMemoryCache[kodeTrimmed];
+  }
+
+  // 2. Check ScriptCache (2ms)
+  var cache = CacheService.getScriptCache();
+  var cachedJson = cache.get("MAT_" + encodeURIComponent(kodeTrimmed));
+  if (cachedJson) {
+    try {
+      var parsed = JSON.parse(cachedJson);
+      _materialMemoryCache[kodeTrimmed] = parsed;
+      return parsed;
+    } catch(e) {}
+  }
+
+  // 3. Fallback: Fetch DataBase sheet (Read ONLY Cols B to E = 4 columns)
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MATERIALDB_SHEET_NAME);
   if (!sheet) {
@@ -131,22 +152,38 @@ function getMaterialByKode(kode) {
   if (lastRow < MATERIALDB_START_ROW) return null;
 
   var numRows = lastRow - MATERIALDB_START_ROW + 1;
-  var data = sheet.getRange(MATERIALDB_START_ROW, 1, numRows, 12).getValues();
+  // Read Cols B to E (4 columns: Kode, Deskripsi, Group, Satuan)
+  var data = sheet.getRange(MATERIALDB_START_ROW, 2, numRows, 4).getValues();
 
-  var kodeTrimmed = kode.toString().trim().toUpperCase();
+  var found = null;
+  var batchToCache = {};
 
   for (var i = 0; i < data.length; i++) {
-    var rowKode = data[i][COL_KODE - 1];
-    if (rowKode && rowKode.toString().trim().toUpperCase() === kodeTrimmed) {
-      return {
-        kode: rowKode,
-        nama: data[i][COL_NAMA - 1],
-        satuan: data[i][COL_SATUAN - 1]
+    var rowKode = data[i][0]; // Col B (index 0)
+    if (rowKode) {
+      var kStr = rowKode.toString().trim().toUpperCase();
+      var itemObj = {
+        kode: rowKode.toString().trim(),
+        nama: data[i][1] ? data[i][1].toString().trim() : "", // Col C
+        satuan: data[i][3] ? data[i][3].toString().trim() : "" // Col E
       };
+      _materialMemoryCache[kStr] = itemObj;
+
+      if (kStr === kodeTrimmed) {
+        found = itemObj;
+      }
+      if (kStr.length < 40) {
+        batchToCache["MAT_" + encodeURIComponent(kStr)] = JSON.stringify(itemObj);
+      }
     }
   }
 
-  return null;
+  // Cache materials for fast subsequent lookups (up to 6 hours)
+  try {
+    cache.putAll(batchToCache, 21600);
+  } catch(e) {}
+
+  return found;
 }
 
 // ============================================
