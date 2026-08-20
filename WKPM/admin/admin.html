@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Line Feeding - Admin</title>
+    <link rel="stylesheet" href="admin.css">
+  </head>
+  <body>
+    <div class="container">
+      
+      <div class="tab-container">
+        <button id="btnTabBuat" class="tab-btn active" onclick="switchTab('buat')">📝 Buat KPM</button>
+        <button id="btnTabPantau" class="tab-btn" onclick="switchTab('pantau')">📊 Pantau KPM</button>
+      </div>
+
+      <div id="tabBuat">
+        <h2>Sistem Line Feeding</h2>
+        <p class="subtitle">Lengkapi Rincian Ekspedisi & Daftar Material.</p>
+        <form id="generateForm">
+          <div class="lokasi-group">
+            <label for="lokasiBerangkat">Lokasi Workshop (Berangkat):</label>
+            <select id="lokasiBerangkat" required>
+              <option value="">-- Pilih Lokasi Awal --</option>
+              <option value="Candi Sewu">Candi Sewu</option>
+              <option value="Tiron">Tiron</option>
+              <option value="Sukosari">Sukosari</option>
+              <option value="Remul">Remul</option>
+            </select>
+            <label for="lokasiTiba">Lokasi Workshop (Tujuan/Tiba):</label>
+            <select id="lokasiTiba" required>
+              <option value="">-- Pilih Lokasi Tujuan --</option>
+              <option value="Candi Sewu">Candi Sewu</option>
+              <option value="Tiron">Tiron</option>
+              <option value="Sukosari">Sukosari</option>
+              <option value="Remul">Remul</option>
+            </select>
+          </div>
+
+          <label>Status KPM:</label>
+          <input type="text" id="statusKPM" name="statusKPM" value="Baru Dibuat" class="input-terkunci" readonly>
+
+          <label>Nama Petugas / PIC:</label>
+          <select id="namaPIC" name="namaPIC" required>
+            <option value="">-- Pilih Nama PIC --</option>
+            <option value="Aang">Aang</option>
+            <option value="Eko">Eko</option>
+            <option value="Ruli">Ruli</option>
+            <option value="Vany">Vany</option>
+            <option value="Taufiq">Taufiq</option>
+          </select>
+
+          <label>Nama Proyek:</label>
+          <input type="text" id="namaProyek" name="namaProyek" placeholder="Contoh: Proyek Pembangunan A..." required>
+
+          <hr>
+          
+          <label style="margin-bottom: 5px;">Daftar Material (Item, Qty, Satuan):</label>
+          <div id="wadahBarang">
+            <div class="item-box">
+              <input type="text" class="input-barang" placeholder="Nama Barang..." required>
+              <input type="number" class="input-qty" placeholder="Qty" min="1" required>
+              <select class="input-uom" required>
+                <option value="PCS">PCS</option><option value="M">M</option><option value="UNIT">UNIT</option>
+                <option value="SET">SET</option><option value="PSG">PSG</option><option value="SHT">SHT</option>
+                <option value="L">L</option><option value="ROLL">ROLL</option><option value="STK">STK</option>
+              </select>
+              <button type="button" class="btn-hapus" onclick="this.parentElement.remove()">X</button>
+            </div>
+          </div>
+          <button type="button" id="btnTambah" class="btn-secondary">+ Tambah Barang</button>
+          <button type="submit" id="btnSubmitGen" class="btn-primary">Simpan & Generate KPM</button>
+        </form>
+        
+        <div id="hasilBox" style="display:none; text-align:center; margin-top: 25px; padding: 20px; background-color: #d4edda; border: 2px dashed #28a745; border-radius: 8px;">
+          <p style="color: #155724; font-weight: bold;">Sukses Disimpan ke Database!</p>
+          <h1 id="nomorTampil" style="color: #155724; font-size: 28px;">-</h1>
+          <button type="button" onclick="location.reload()" style="background-color: #6c757d; margin-top: 15px;">Buat KPM Selanjutnya</button>
+        </div>
+      </div>
+
+      <div id="tabPantau" style="display: none;">
+        <h2>Monitoring Status KPM</h2>
+        <button type="button" class="btn-refresh" onclick="tarikDataMonitoring()">🔄 Segarkan Data Server</button>
+        
+        <div class="filter-container">
+          <button class="filter-btn active" onclick="terapkanFilter('Semua', this)">Semua</button>
+          <button class="filter-btn" onclick="terapkanFilter('Baru Dibuat', this)">Dibuat</button>
+          <button class="filter-btn" onclick="terapkanFilter('Berangkat', this)">Berangkat</button>
+          <button class="filter-btn" onclick="terapkanFilter('Tiba', this)">Tiba</button>
+        </div>
+
+        <div id="statusLoading">Silakan segarkan data untuk melihat status terbaru.</div>
+        <div id="wadahKosong">Tidak ada KPM dengan status tersebut.</div>
+        <div id="wadahMonitoring"></div> 
+      </div>
+    </div>
+
+    <script src="admin.js" defer></script>
+  </body>
+</html>

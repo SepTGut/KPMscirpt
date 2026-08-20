@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Line Feeding - Ekspedisi</title>
+    <link rel="stylesheet" href="user.css">
+  </head>
+  <body>
+    <div class="container">
+      <h2>Sistem Line Feeding</h2>
+      <p class="subtitle" id="statusTeks">Menarik data dari Spreadsheet...</p>
+
+      <form id="updateForm" name="updateForm">
+        <label for="nomorKPM">Nomor KPM (Pilih dari daftar):</label>
+        <div class="kpm-group">
+          <select id="nomorKPM" name="nomorKPM" required>
+            <option value="">-- Memuat Data... --</option>
+          </select>
+          <button type="button" id="btnRefreshData" class="btn-refresh">🔄 Perbarui</button>
+        </div>
+
+        <label for="namaProyek">Nama Proyek:</label>
+        <input type="text" id="namaProyek" name="namaProyek" class="input-terkunci" readonly required>
+        
+        <label>Daftar Barang Bawaan (Cross-check):</label>
+        <div id="wadahListBarang" class="box-barang">
+          <p>Pilih Nomor KPM di atas untuk melihat barang...</p>
+        </div>
+
+        <label>Update Status Ekspedisi:</label>
+        <div class="radio-group">
+          <label><input type="radio" name="statusKPM" value="Berangkat" class="radio-status" required> Berangkat</label>
+          <label><input type="radio" name="statusKPM" value="Tiba" class="radio-status" required> Tiba</label>
+        </div>
+
+        <div id="wadahFoto">
+          <label id="labelFoto" for="inputFoto" style="margin-top: 0;">📷 Unggah Bukti Foto (Wajib):</label>
+          <input type="file" id="inputFoto" accept="image/*" capture="environment">
+          <div id="statusKompresi">Memproses ukuran foto...</div>
+          <input type="hidden" id="fotoData" name="fotoData">
+        </div>
+
+        <label for="lokasiWorkshop">Lokasi Workshop (Rute):</label>
+        <input type="text" id="lokasiWorkshop" name="lokasiWorkshop" class="input-terkunci" readonly required>
+
+        <label for="namaPIC">Nama Petugas / PIC:</label>
+        <input type="text" id="namaPIC" name="namaPIC" class="input-terkunci" readonly required>
+
+        <button type="submit" id="btnSubmitUpd" class="submit-btn">Simpan ke Database</button>
+      </form>
+      <div id="pesanUpdate"></div>
+    </div>
+
+    <script src="user.js" defer></script>
+  </body>
+</html>
