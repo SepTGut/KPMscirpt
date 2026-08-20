@@ -422,7 +422,7 @@ function testWebStateMachineValidations() {
     var archiveParam = {
       parameter: {
         action: "archiveKpm",
-        apiToken: TEST_ADMIN_TOKEN,
+        apiToken: getTestAdminToken(),
         nomorKPM: testNoLf
       }
     };

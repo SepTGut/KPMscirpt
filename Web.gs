@@ -626,6 +626,8 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
     var blob = Utilities.newBlob(decodedBytes, mimeType, namaFile);
     var file = folder.createFile(blob);
 
+    // Delivery evidence is intentionally viewable by anyone who has the link.
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return file.getUrl();
   } catch (err) {
     Logger.log("uploadProofPhoto error: " + err.message);
