@@ -53,24 +53,27 @@ async function muatDataKPM() {
   btnRefreshData.disabled = true;
   try {
     const response = await fetchWithTimeout(`${scriptURL}?action=getDeliveries`, { cache: 'no-store' });
-    const data = await response.json();
-    if (!Array.isArray(data)) throw new Error('Unexpected server response');
+    const result = await response.json();
     if (requestId !== dataRequestId) return; // Ignore an older refresh response.
-    dataKPMGlobal = data;
+
+    const list = Array.isArray(result) ? result : (result?.data && Array.isArray(result.data)) ? result.data : [];
+    dataKPMGlobal = list;
     selectKPM.innerHTML = '<option value="">-- Pilih KPM yang tersedia --</option>';
-    
-    data.forEach(item => {
+
+    list.forEach(item => {
       const option = document.createElement('option');
-      option.value = item.nomor ?? '';
-      option.textContent = `${item.nomor ?? '-'} (${item.nextStatus ?? 'Update'})`;
+      const nomor = item.nomor ?? item.kpmId ?? '-';
+      const actionLabel = item.nextAction ?? 'Update';
+      option.value = nomor;
+      option.textContent = `${nomor} (➔ ${actionLabel})`;
       selectKPM.appendChild(option);
     });
 
-    if (data.length) {
-      statusTeks.innerText = `Ditemukan ${data.length} KPM yang perlu diantar/diupdate.`;
+    if (list.length) {
+      statusTeks.innerText = `Ditemukan ${list.length} KPM yang perlu diantar/diupdate.`;
     } else {
       statusTeks.innerText = 'Tidak ada KPM yang perlu diantar/diupdate.';
-      selectKPM.innerHTML = '<option value="">-- Semua KPM Sudah Tiba --</option>';
+      selectKPM.innerHTML = '<option value="">-- Semua KPM Sudah Selesai/Tiba --</option>';
     }
   } catch (error) {
     if (requestId !== dataRequestId) return;
@@ -95,19 +98,19 @@ document.querySelectorAll('.radio-status').forEach(radio => {
 });
 
 selectKPM.addEventListener('change', () => {
-  const selected = dataKPMGlobal.find(item => String(item?.nomor) === selectKPM.value);
+  const selected = dataKPMGlobal.find(item => String(item?.nomor || item?.kpmId) === selectKPM.value);
   if (!selected) { showDefaultDetails(); return; }
 
   document.getElementById('lokasiWorkshop').value = selected.lokasi ?? '';
   document.getElementById('namaPIC').value = selected.pic ?? '';
   document.getElementById('namaProyek').value = selected.proyek ?? '';
-  
-  // Use server-directed next status and photo label
-  const nextStatus = selected.nextStatus || (selected.currentStatus === 'Berangkat' ? 'Tiba' : 'Berangkat');
-  const targetRadio = document.querySelector(`input[name="statusKPM"][value="${nextStatus}"]`);
+
+  // Use server-directed next action and photo label
+  const nextAction = selected.nextAction || (selected.currentStatus === 'Berangkat' ? 'Tiba' : 'Berangkat');
+  const targetRadio = document.querySelector(`input[name="statusKPM"][value="${nextAction}"]`);
   if (targetRadio) targetRadio.checked = true;
-  
-  updatePhotoRequirement(nextStatus, selected.photoLabel);
+
+  updatePhotoRequirement(nextAction, selected.photoLabel);
 
   const items = Array.isArray(selected.daftarBarang) ? selected.daftarBarang : [];
   wadahListBarang.innerHTML = items.length
@@ -115,7 +118,7 @@ selectKPM.addEventListener('change', () => {
     : '<p>Tidak ada rincian barang.</p>';
 });
 
-// Convert the camera image to a smaller JPEG before sending it to Apps Script.
+// Convert camera image to a compressed JPEG before upload.
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -151,13 +154,13 @@ updateForm.addEventListener('submit', async event => {
   submitButton.disabled = true;
   statusKompresi.style.display = 'block';
   statusKompresi.innerText = 'Memproses ukuran foto...';
-  // Readonly fields are intentionally enabled only while constructing FormData.
+  // Readonly fields are temporarily enabled while constructing FormData.
   ['lokasiWorkshop', 'namaPIC', 'namaProyek'].forEach(id => { document.getElementById(id).readOnly = false; });
 
   try {
     document.getElementById('fotoData').value = await compressImage(file);
     statusKompresi.innerText = 'Kompresi selesai. Sedang menyimpan ke database...';
-    
+
     const formData = new FormData(updateForm);
     formData.append('action', 'updateStatus');
 
@@ -173,7 +176,7 @@ updateForm.addEventListener('submit', async event => {
     submitButton.innerText = 'Simpan ke Database';
     submitButton.disabled = false;
     statusKompresi.innerText = 'Gagal memproses foto atau menyimpan data.';
-    alert('Gagal menyimpan data. Periksa koneksi dan coba lagi.');
+    alert('Gagal menyimpan data: ' + error.message);
   }
 });
 

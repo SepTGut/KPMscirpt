@@ -1,18 +1,72 @@
 // ============================================
 // WEB APP CONTROLLER & BUSINESS LOGIC (Web.gs)
 // ============================================
-// Single Source of Truth for WKPM Web App (Admin & User/Driver)
+// Single Source of Truth for KPM/LF Web System (Admin & Driver/User)
 
 var WEB_CONFIG = {
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],
   PICS: ["Aang", "Eko", "Ruli", "Vany", "Taufiq"],
-  UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
-  STATUSES: ["Baru Dibuat", "Berangkat", "Tiba", "Selesai"]
+  UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"]
 };
 
 // ============================================
-// 1. MASTER DATA SERVICE
+// 1. STATE MACHINE & STATUS DEFINITIONS
+// ============================================
+
+var KPM_STATUS = Object.freeze({
+  BARU_DIBUAT: 'Baru Dibuat',
+  BERANGKAT: 'Berangkat',
+  TIBA: 'Tiba',
+  SELESAI: 'Selesai'
+});
+
+var STATUS_TRANSITIONS = Object.freeze({
+  'Baru Dibuat': ['Berangkat'],
+  'Berangkat': ['Tiba'],
+  'Tiba': ['Selesai'],
+  'Selesai': []
+});
+
+var STATUS_CODES = Object.freeze({
+  'Baru Dibuat': 'BARU_DIBUAT',
+  'Berangkat': 'BERANGKAT',
+  'Tiba': 'TIBA',
+  'Selesai': 'SELESAI'
+});
+
+// ============================================
+// 2. UNIFIED API RESPONSE HELPERS
+// ============================================
+
+function createSuccessResponse(action, data) {
+  return {
+    success: true,
+    action: action || "",
+    data: data || null,
+    error: null
+  };
+}
+
+function createErrorResponse(action, code, message) {
+  return {
+    success: false,
+    action: action || "",
+    data: null,
+    error: {
+      code: code || "SERVER_ERROR",
+      message: message || "Terjadi kesalahan pada server."
+    }
+  };
+}
+
+function jsonOutput(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================
+// 3. MASTER DATA SERVICE
 // ============================================
 
 /**
@@ -23,12 +77,18 @@ function getMasterData() {
     workshops: WEB_CONFIG.WORKSHOPS,
     pics: WEB_CONFIG.PICS,
     uoms: WEB_CONFIG.UOMS,
-    statuses: WEB_CONFIG.STATUSES
+    statuses: [
+      KPM_STATUS.BARU_DIBUAT,
+      KPM_STATUS.BERANGKAT,
+      KPM_STATUS.TIBA,
+      KPM_STATUS.SELESAI
+    ],
+    statusCodes: STATUS_CODES
   };
 }
 
 // ============================================
-// 2. TIME & FORMATTING BUSINESS HELPERS
+// 4. TIME & FORMATTING HELPERS
 // ============================================
 
 /**
@@ -92,11 +152,12 @@ function extractHyperlinkUrl(dispVal, formulaVal, rawVal) {
 }
 
 // ============================================
-// 3. MONITORING DOMAIN SERVICE (ADMIN VIEW)
+// 5. MONITORING DOMAIN SERVICE (ADMIN VIEW)
 // ============================================
 
 /**
  * Reads sheet and produces fully server-computed KPM monitoring objects.
+ * Decouples business data (status, progress percent, dates) from UI presentation.
  */
 function getKpmMonitoringData(includeArchived) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -132,7 +193,7 @@ function getKpmMonitoringData(includeArchived) {
 
     var pic = String(row[MONITOR_COL_PIC - 1] || "").trim();
     var statusAkhir = String(row[MONITOR_COL_STATUS - 1] || "").trim();
-    if (!statusAkhir) statusAkhir = "Baru Dibuat";
+    if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
 
     var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim();
     var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim();
@@ -149,33 +210,31 @@ function getKpmMonitoringData(includeArchived) {
       rawData[i][MONITOR_COL_FOTO_TIB - 1]
     );
 
-    var isArchived = statusAkhir.toLowerCase() === "selesai";
+    var isArchived = (statusAkhir === KPM_STATUS.SELESAI || statusAkhir.toLowerCase() === "selesai");
     if (!includeArchived && isArchived) continue;
 
     if (!kpmMap[kpm]) {
-      var isDeparted = (statusAkhir === "Berangkat" || statusAkhir === "Tiba" || statusAkhir === "Selesai");
-      var isArrived = (statusAkhir === "Tiba" || statusAkhir === "Selesai");
-
-      var badgeClass = isArrived ? "b-tiba" : isDeparted ? "b-berangkat" : "b-dibuat";
-      var badgeText = isArrived ? "TIBA" : isDeparted ? "BERANGKAT" : "DIBUAT";
-      var timelineFill = isArrived ? "100%" : isDeparted ? "50%" : "0%";
+      var isDeparted = (statusAkhir === KPM_STATUS.BERANGKAT || statusAkhir === KPM_STATUS.TIBA || statusAkhir === KPM_STATUS.SELESAI);
+      var isArrived = (statusAkhir === KPM_STATUS.TIBA || statusAkhir === KPM_STATUS.SELESAI);
+      var statusCode = STATUS_CODES[statusAkhir] || "BARU_DIBUAT";
+      var fillPercent = isArrived ? 100 : (isDeparted ? 50 : 0);
 
       kpmMap[kpm] = {
+        kpmId: kpm,
         nomor: kpm,
         pic: pic,
         status: statusAkhir,
+        statusCode: statusCode,
         lokasi: lokasi,
         proyek: proyek,
-        waktuDibuat: waktuBuat,
-        waktuBerangkat: waktuBer,
-        waktuTiba: waktuTib,
-        durasi: durasi,
-        formattedCreated: formatWaktuDisplay(waktuBuat),
-        formattedDeparted: formatWaktuDisplay(waktuBer),
-        formattedArrived: formatWaktuDisplay(waktuTib),
-        badgeClass: badgeClass,
-        badgeText: badgeText,
-        timelineProgress: timelineFill,
+        createdAt: waktuBuat,
+        createdAtFormatted: formatWaktuDisplay(waktuBuat),
+        departureAt: waktuBer,
+        departureAtFormatted: formatWaktuDisplay(waktuBer),
+        arrivalAt: waktuTib,
+        arrivalAtFormatted: formatWaktuDisplay(waktuTib),
+        duration: durasi,
+        fillPercent: fillPercent,
         isDeparted: isDeparted,
         isArrived: isArrived,
         buktiBerangkat: buktiBerangkat,
@@ -198,11 +257,11 @@ function getKpmMonitoringData(includeArchived) {
 }
 
 // ============================================
-// 4. DELIVERY DOMAIN SERVICE (USER/DRIVER VIEW)
+// 6. DELIVERY DOMAIN SERVICE (DRIVER/USER VIEW)
 // ============================================
 
 /**
- * Returns active KPMs decorated with server-directed nextStatus and validation requirements.
+ * Returns active KPMs decorated with server-directed nextAction and requirements.
  */
 function getAvailableDeliveries() {
   var allKpm = getKpmMonitoringData(false);
@@ -210,18 +269,24 @@ function getAvailableDeliveries() {
 
   for (var i = 0; i < allKpm.length; i++) {
     var item = allKpm[i];
-    // Driver can only process KPMs that have not arrived or finished
-    if (item.status !== "Tiba" && item.status !== "Selesai") {
-      var nextStatus = (item.status === "Berangkat") ? "Tiba" : "Berangkat";
+    // Driver can only interact with KPMs that are not finished or arrived
+    if (item.status !== KPM_STATUS.TIBA && item.status !== KPM_STATUS.SELESAI) {
+      var allowedNext = STATUS_TRANSITIONS[item.status] || [];
+      var nextAction = allowedNext.length > 0 ? allowedNext[0] : "";
+      var nextActionCode = STATUS_CODES[nextAction] || "";
+
       available.push({
+        kpmId: item.nomor,
         nomor: item.nomor,
         proyek: item.proyek,
         lokasi: item.lokasi,
         pic: item.pic,
         currentStatus: item.status,
-        nextStatus: nextStatus,
+        statusCode: item.statusCode,
+        nextAction: nextAction,
+        nextActionCode: nextActionCode,
         requiresPhoto: true,
-        photoLabel: (nextStatus === "Berangkat")
+        photoLabel: (nextAction === KPM_STATUS.BERANGKAT)
           ? "📷 Unggah Bukti Foto Keberangkatan (Wajib):"
           : "📷 Unggah Bukti Foto Ketibaan (Wajib):",
         daftarBarang: item.daftarBarang
@@ -233,25 +298,31 @@ function getAvailableDeliveries() {
 }
 
 // ============================================
-// 5. CREATION SERVICE (KPM CREATION)
+// 7. CREATION SERVICE (KPM CREATION)
 // ============================================
 
 /**
  * Validates and batch-creates new KPM rows.
  */
 function validateAndCreateKpm(params) {
-  if (!params) throw new Error("Parameter tidak ditemukan");
+  if (!params) {
+    throw { code: "INVALID_REQUEST", message: "Parameter tidak ditemukan." };
+  }
   var rawBarang = params.daftarBarang || "";
-  if (!rawBarang.trim()) throw new Error("Daftar barang tidak boleh kosong");
+  if (!rawBarang.trim()) {
+    throw { code: "INVALID_MATERIAL", message: "Daftar barang tidak boleh kosong." };
+  }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
-  if (!sheet) throw new Error("Sheet " + MONITOR_SHEET_NAME + " tidak ditemukan");
+  if (!sheet) {
+    throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
+  }
 
   var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
   var items = rawBarang.split("|");
   var lokasiWorkshop = params.lokasiWorkshop || "";
-  var statusKPM = params.statusKPM || "Baru Dibuat";
+  var statusKPM = params.statusKPM || KPM_STATUS.BARU_DIBUAT;
   var namaPIC = params.namaPIC || "";
   var namaProyek = params.namaProyek || "";
 
@@ -331,11 +402,17 @@ function validateAndCreateKpm(params) {
     sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS).setValues(rowsToInsert);
   }
 
-  return nomorBaruStr;
+  return {
+    kpmId: nomorBaruStr,
+    nomor: nomorBaruStr,
+    itemCount: rowsToInsert.length,
+    status: statusKPM,
+    statusCode: STATUS_CODES[statusKPM] || "BARU_DIBUAT"
+  };
 }
 
 // ============================================
-// 6. STATUS UPDATE & PHOTO SERVICE
+// 8. STATUS UPDATE & PHOTO SERVICE (STATE MACHINE)
 // ============================================
 
 /**
@@ -363,103 +440,156 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
     return file.getUrl();
   } catch (err) {
     Logger.log("uploadProofPhoto error: " + err.message);
-    return "Error Drive: " + err.message;
+    return "";
   }
 }
 
 /**
- * Validates state transitions and updates KPM status, photo, timestamps, and duration.
+ * Validates state machine transitions and updates KPM status, photo, timestamps, and duration.
  */
 function validateAndUpdateStatus(params) {
-  if (!params) throw new Error("Parameter tidak ditemukan");
-  var nomorKPM = String(params.nomorKPM || "").trim().toUpperCase();
-  var statusKPM = String(params.statusKPM || "").trim();
-  if (!nomorKPM) throw new Error("Nomor KPM wajib diisi");
-  if (!statusKPM) throw new Error("Status KPM wajib diisi");
+  if (!params) {
+    throw { code: "INVALID_REQUEST", message: "Parameter tidak ditemukan." };
+  }
+  var nomorKPM = String(params.nomorKPM || params.kpmId || "").trim().toUpperCase();
+  var targetStatus = String(params.statusKPM || params.status || "").trim();
+
+  if (!nomorKPM) {
+    throw { code: "INVALID_REQUEST", message: "Nomor KPM wajib diisi." };
+  }
+  if (!targetStatus) {
+    throw { code: "INVALID_STATUS", message: "Status KPM tujuan wajib diisi." };
+  }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
-  if (!sheet) throw new Error("Sheet " + MONITOR_SHEET_NAME + " tidak ditemukan");
+  if (!sheet) {
+    throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
+  }
 
   var lastRow = sheet.getLastRow();
   var numDataRows = Math.max(0, lastRow - MONITOR_START_ROW + 1);
-  if (numDataRows === 0) throw new Error("KPM Tidak Ditemukan");
-
-  var urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, statusKPM);
-  var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+  if (numDataRows === 0) {
+    throw { code: "KPM_NOT_FOUND", message: "KPM " + nomorKPM + " tidak ditemukan." };
+  }
 
   var fullRange = sheet.getRange(MONITOR_START_ROW, 1, numDataRows, MONITOR_TOTAL_COLS);
   var allData = fullRange.getValues();
-  var adaYangDiupdate = false;
 
-  var namaPIC = params.namaPIC || "";
-  var lokasiWorkshop = params.lokasiWorkshop || "";
+  // Find target KPM and verify current status
+  var matchingRows = [];
+  var currentStatus = "";
 
   for (var k = 0; k < allData.length; k++) {
     var kpmDiSheet = String(allData[k][MONITOR_COL_NOLF - 1] || "").trim().toUpperCase();
     if (kpmDiSheet === nomorKPM) {
-      adaYangDiupdate = true;
-
-      if (statusKPM.toLowerCase() === "berangkat") {
-        allData[k][MONITOR_COL_WKT_BERANGKAT - 1] = waktuSekarang;
-        if (urlFoto) {
-          allData[k][MONITOR_COL_FOTO_BER - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
-        }
-      } else if (statusKPM.toLowerCase() === "tiba") {
-        allData[k][MONITOR_COL_WKT_TIBA - 1] = waktuSekarang;
-        var waktuBerangkatTersimpan = allData[k][MONITOR_COL_WKT_BERANGKAT - 1];
-        var hasilDurasi = hitungDurasi(waktuBerangkatTersimpan, waktuSekarang);
-        if (hasilDurasi !== "") {
-          allData[k][MONITOR_COL_DURASI - 1] = hasilDurasi;
-        }
-        if (urlFoto) {
-          allData[k][MONITOR_COL_FOTO_TIB - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
-        }
-      }
-
-      if (namaPIC) allData[k][MONITOR_COL_PIC - 1] = namaPIC;
-      allData[k][MONITOR_COL_STATUS - 1] = statusKPM;
-      if (lokasiWorkshop) {
-        if (statusKPM.toLowerCase() === "tiba") {
-          allData[k][MONITOR_COL_WSTUJUAN - 1] = lokasiWorkshop;
-        } else {
-          allData[k][MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
-        }
+      matchingRows.push(k);
+      if (!currentStatus) {
+        currentStatus = String(allData[k][MONITOR_COL_STATUS - 1] || "").trim() || KPM_STATUS.BARU_DIBUAT;
       }
     }
   }
 
-  if (!adaYangDiupdate) throw new Error("KPM Tidak Ditemukan");
+  if (matchingRows.length === 0) {
+    throw { code: "KPM_NOT_FOUND", message: "KPM " + nomorKPM + " tidak ditemukan di sistem." };
+  }
+
+  // Enforce State Machine Transitions
+  var allowedNext = STATUS_TRANSITIONS[currentStatus] || [];
+  if (allowedNext.indexOf(targetStatus) === -1) {
+    throw {
+      code: "INVALID_TRANSITION",
+      message: "Transisi status tidak valid: Tidak dapat mengubah status dari '" + currentStatus + "' ke '" + targetStatus + "'."
+    };
+  }
+
+  // Photo requirement validation for Berangkat / Tiba (unless bypassing for archive)
+  var requiresPhoto = (targetStatus === KPM_STATUS.BERANGKAT || targetStatus === KPM_STATUS.TIBA);
+  var hasPhotoData = (params.fotoData && params.fotoData.indexOf(",") !== -1);
+  if (requiresPhoto && !hasPhotoData && !params.bypassPhoto) {
+    throw {
+      code: "PHOTO_REQUIRED",
+      message: "Foto bukti pengiriman wajib dilampirkan untuk status '" + targetStatus + "'."
+    };
+  }
+
+  var urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, targetStatus);
+  var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+  var namaPIC = params.namaPIC || "";
+  var lokasiWorkshop = params.lokasiWorkshop || "";
+
+  for (var idx = 0; idx < matchingRows.length; idx++) {
+    var rIndex = matchingRows[idx];
+
+    if (targetStatus === KPM_STATUS.BERANGKAT) {
+      allData[rIndex][MONITOR_COL_WKT_BERANGKAT - 1] = waktuSekarang;
+      if (urlFoto) {
+        allData[rIndex][MONITOR_COL_FOTO_BER - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
+      }
+    } else if (targetStatus === KPM_STATUS.TIBA) {
+      allData[rIndex][MONITOR_COL_WKT_TIBA - 1] = waktuSekarang;
+      var waktuBerangkatTersimpan = allData[rIndex][MONITOR_COL_WKT_BERANGKAT - 1];
+      var hasilDurasi = hitungDurasi(waktuBerangkatTersimpan, waktuSekarang);
+      if (hasilDurasi !== "") {
+        allData[rIndex][MONITOR_COL_DURASI - 1] = hasilDurasi;
+      }
+      if (urlFoto) {
+        allData[rIndex][MONITOR_COL_FOTO_TIB - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
+      }
+    }
+
+    if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = namaPIC;
+    allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
+    if (lokasiWorkshop) {
+      if (targetStatus === KPM_STATUS.TIBA) {
+        allData[rIndex][MONITOR_COL_WSTUJUAN - 1] = lokasiWorkshop;
+      } else {
+        allData[rIndex][MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
+      }
+    }
+  }
 
   fullRange.setValues(allData);
-  return "Sukses";
+
+  return {
+    kpmId: nomorKPM,
+    nomor: nomorKPM,
+    previousStatus: currentStatus,
+    currentStatus: targetStatus,
+    statusCode: STATUS_CODES[targetStatus] || "",
+    updatedAt: waktuSekarang,
+    photoUrl: urlFoto
+  };
 }
 
 // ============================================
-// 7. ARCHIVE SERVICE
+// 9. ARCHIVE SERVICE
 // ============================================
 
 /**
  * Marks a completed KPM as 'Selesai' (archived from monitoring).
  */
 function archiveKpm(nomorKPM) {
-  if (!nomorKPM) throw new Error("Nomor KPM wajib diisi");
+  if (!nomorKPM) {
+    throw { code: "INVALID_REQUEST", message: "Nomor KPM wajib diisi." };
+  }
   return validateAndUpdateStatus({
     nomorKPM: nomorKPM,
-    statusKPM: "Selesai"
+    statusKPM: KPM_STATUS.SELESAI,
+    bypassPhoto: true
   });
 }
 
 // ============================================
-// 8. REST API ROUTING (doGet & doPost)
+// 10. REST API ROUTING (doGet & doPost)
 // ============================================
 
 /**
- * Handles all GET requests. Routes by action param with backwards-compatible fallback.
+ * Handles all GET requests. Returns unified { success, action, data, error } envelope.
  */
 function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action).trim() : "getMonitoring";
   try {
-    var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action).trim() : "";
     var responseData;
 
     if (action === "getMasterData") {
@@ -470,57 +600,63 @@ function doGet(e) {
       var includeArchived = (e && e.parameter && e.parameter.includeArchived === "true");
       responseData = getKpmMonitoringData(includeArchived);
     } else {
-      // Default: returns monitoring data for full backward-compatibility with existing apps
+      // Default: returns monitoring data
+      action = "getMonitoring";
       responseData = getKpmMonitoringData(false);
     }
 
-    return ContentService.createTextOutput(JSON.stringify(responseData))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOutput(createSuccessResponse(action, responseData));
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ error: error.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var code = (error && error.code) ? error.code : "SERVER_ERROR";
+    var msg = (error && error.message) ? error.message : String(error);
+    return jsonOutput(createErrorResponse(action, code, msg));
   }
 }
 
 /**
- * Handles all POST requests. Routes by action param with backwards-compatible fallback.
+ * Handles all POST requests with LockService concurrency protection.
+ * Returns unified { success, action, data, error } envelope.
  */
 function doPost(e) {
   var lock = LockService.getScriptLock();
+  var params = (e && e.parameter) ? e.parameter : {};
+  var action = params.action ? String(params.action).trim() : "";
+
+  // Deduce action if not explicitly supplied
+  if (!action) {
+    if (params.daftarBarang) action = "createKpm";
+    else if (params.statusKPM && (params.statusKPM === KPM_STATUS.SELESAI || params.statusKPM.toLowerCase() === "selesai")) action = "archiveKpm";
+    else if (params.statusKPM) action = "updateStatus";
+    else action = "unknown";
+  }
+
   try {
     lock.waitLock(15000); // 15-second concurrency lock
 
-    var params = (e && e.parameter) ? e.parameter : {};
-    var action = params.action ? String(params.action).trim() : "";
+    var resultData;
 
-    // 1. Create KPM route
-    if (action === "createKpm" || params.daftarBarang) {
-      var newNomor = validateAndCreateKpm(params);
-      return ContentService.createTextOutput(newNomor);
+    if (action === "createKpm") {
+      resultData = validateAndCreateKpm(params);
+    } else if (action === "archiveKpm") {
+      resultData = archiveKpm(params.nomorKPM);
+    } else if (action === "updateStatus") {
+      resultData = validateAndUpdateStatus(params);
+    } else {
+      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
 
-    // 2. Archive KPM route
-    if (action === "archiveKpm" || (params.statusKPM && params.statusKPM.toLowerCase() === "selesai")) {
-      var archiveResult = archiveKpm(params.nomorKPM);
-      return ContentService.createTextOutput(archiveResult);
-    }
-
-    // 3. Update Status route
-    if (action === "updateStatus" || params.statusKPM) {
-      var updateResult = validateAndUpdateStatus(params);
-      return ContentService.createTextOutput(updateResult);
-    }
-
-    return ContentService.createTextOutput("Error: Perintah tidak dikenali");
+    return jsonOutput(createSuccessResponse(action, resultData));
   } catch (error) {
-    return ContentService.createTextOutput("Error: " + error.message);
+    var code = (error && error.code) ? error.code : "SERVER_ERROR";
+    var msg = (error && error.message) ? error.message : String(error);
+    return jsonOutput(createErrorResponse(action, code, msg));
   } finally {
     lock.releaseLock();
   }
 }
 
 // ============================================
-// 9. SETUP TRACKING HEADERS UTILITY
+// 11. SETUP TRACKING HEADERS UTILITY
 // ============================================
 
 /**

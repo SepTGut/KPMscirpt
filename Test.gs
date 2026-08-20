@@ -193,90 +193,128 @@ function testWebMasterData() {
 }
 
 /**
- * Tests the doGet() endpoint response format with various actions.
+ * Tests the doGet() endpoint response format with unified envelopes.
  */
 function testDoGetEndpoint() {
-  Logger.log("--- Testing doGet() endpoint ---");
+  Logger.log("--- Testing doGet() Envelope Format ---");
 
   // 1. Default monitoring
   var outputDefault = doGet({});
-  var parsedDefault = JSON.parse(outputDefault.getContent());
-  Logger.log("doGet default returned " + (Array.isArray(parsedDefault) ? parsedDefault.length + " active KPMs" : "Error"));
+  var envDefault = JSON.parse(outputDefault.getContent());
+  Logger.log("doGet default: success=" + envDefault.success + ", items=" + (envDefault.data ? envDefault.data.length : 0));
 
   // 2. Action: getMasterData
   var outputMaster = doGet({ parameter: { action: "getMasterData" } });
-  var parsedMaster = JSON.parse(outputMaster.getContent());
-  Logger.log("doGet action=getMasterData: " + (parsedMaster.workshops ? "PASS" : "FAIL"));
+  var envMaster = JSON.parse(outputMaster.getContent());
+  Logger.log("doGet getMasterData: success=" + envMaster.success + ", workshops=" + (envMaster.data?.workshops ? envMaster.data.workshops.length : 0));
 
   // 3. Action: getDeliveries
   var outputDeliveries = doGet({ parameter: { action: "getDeliveries" } });
-  var parsedDeliveries = JSON.parse(outputDeliveries.getContent());
-  Logger.log("doGet action=getDeliveries returned " + (Array.isArray(parsedDeliveries) ? parsedDeliveries.length + " pending deliveries" : "Error"));
+  var envDeliveries = JSON.parse(outputDeliveries.getContent());
+  Logger.log("doGet getDeliveries: success=" + envDeliveries.success + ", deliveries=" + (envDeliveries.data ? envDeliveries.data.length : 0));
 }
 
 /**
- * Tests full KPM lifecycle via doPost(): Creation -> Berangkat -> Tiba -> Archive.
+ * Tests State Machine transitions and validations (Happy path and Invalid Jumps).
  */
-function testDoPostCreationAndTracking() {
-  Logger.log("--- Testing doPost() Lifecycle ---");
+function testWebStateMachineValidations() {
+  Logger.log("--- Testing State Machine Transitions & Validation Rules ---");
 
-  // Step 1: Create new KPM
+  // Mock a tiny photo data string for valid photo upload tests
+  var mockPhoto = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP...";
+
+  // 1. Create a test KPM
   var createParam = {
     parameter: {
       action: "createKpm",
       daftarBarang: "Baut M10~50~pcs|Plat Besi 5mm~2~sht",
       namaPIC: "Driver Uji Coba",
       namaProyek: "Proyek LRT Jabodebek",
-      lokasiWorkshop: "WS-01 ➔ WS-04",
-      statusKPM: "Baru Dibuat"
-    }
-  };
-
-  var resCreate = doPost(createParam);
-  var generatedNoLf = resCreate.getContent();
-  Logger.log("Step 1 (Create KPM): Generated No LF = " + generatedNoLf);
-
-  if (!generatedNoLf || generatedNoLf.indexOf("Error") === 0) {
-    Logger.log("Creation failed: " + generatedNoLf);
-    return;
-  }
-
-  // Step 2: Update status to 'Berangkat'
-  var berangkatParam = {
-    parameter: {
-      action: "updateStatus",
-      nomorKPM: generatedNoLf,
-      statusKPM: "Berangkat",
-      namaPIC: "Driver Uji Coba",
       lokasiWorkshop: "WS-01 ➔ WS-04"
     }
   };
 
-  var resBerangkat = doPost(berangkatParam);
-  Logger.log("Step 2 (Berangkat): Result = " + resBerangkat.getContent());
+  var resCreate = JSON.parse(doPost(createParam).getContent());
+  Logger.log("Step 1 (Create KPM): success=" + resCreate.success + ", KPM=" + JSON.stringify(resCreate.data));
+  var generatedNoLf = resCreate.data?.nomor;
+  if (!generatedNoLf) {
+    Logger.log("Create failed, stopping state machine test.");
+    return;
+  }
 
-  // Step 3: Update status to 'Tiba'
-  var tibaParam = {
+  // 2. Test Invalid Jump: 'Baru Dibuat' -> 'Tiba' (Must be rejected with INVALID_TRANSITION)
+  var invalidJumpParam = {
     parameter: {
       action: "updateStatus",
       nomorKPM: generatedNoLf,
       statusKPM: "Tiba",
+      fotoData: mockPhoto
+    }
+  };
+  var resInvalidJump = JSON.parse(doPost(invalidJumpParam).getContent());
+  var isInvalidRejected = (!resInvalidJump.success && resInvalidJump.error?.code === "INVALID_TRANSITION");
+  Logger.log("Step 2 (Invalid Jump 'Baru Dibuat' -> 'Tiba'): " + (isInvalidRejected ? "PASS (Properly Rejected: " + resInvalidJump.error.message + ")" : "FAIL"));
+
+  // 3. Test Missing Photo on Berangkat (Must be rejected with PHOTO_REQUIRED)
+  var missingPhotoParam = {
+    parameter: {
+      action: "updateStatus",
+      nomorKPM: generatedNoLf,
+      statusKPM: "Berangkat"
+    }
+  };
+  var resMissingPhoto = JSON.parse(doPost(missingPhotoParam).getContent());
+  var isMissingPhotoRejected = (!resMissingPhoto.success && resMissingPhoto.error?.code === "PHOTO_REQUIRED");
+  Logger.log("Step 3 (Missing Photo on Berangkat): " + (isMissingPhotoRejected ? "PASS (Properly Rejected: " + resMissingPhoto.error.message + ")" : "FAIL"));
+
+  // 4. Test Valid Transition: 'Baru Dibuat' -> 'Berangkat' (With photo)
+  var validBerangkatParam = {
+    parameter: {
+      action: "updateStatus",
+      nomorKPM: generatedNoLf,
+      statusKPM: "Berangkat",
+      fotoData: mockPhoto,
       namaPIC: "Driver Uji Coba",
       lokasiWorkshop: "WS-01 ➔ WS-04"
     }
   };
+  var resBerangkat = JSON.parse(doPost(validBerangkatParam).getContent());
+  Logger.log("Step 4 (Valid Berangkat): success=" + resBerangkat.success + ", status=" + resBerangkat.data?.currentStatus);
 
-  var resTiba = doPost(tibaParam);
-  Logger.log("Step 3 (Tiba): Result = " + resTiba.getContent());
+  // 5. Test Valid Transition: 'Berangkat' -> 'Tiba' (With photo)
+  var validTibaParam = {
+    parameter: {
+      action: "updateStatus",
+      nomorKPM: generatedNoLf,
+      statusKPM: "Tiba",
+      fotoData: mockPhoto,
+      namaPIC: "Driver Uji Coba",
+      lokasiWorkshop: "WS-01 ➔ WS-04"
+    }
+  };
+  var resTiba = JSON.parse(doPost(validTibaParam).getContent());
+  Logger.log("Step 5 (Valid Tiba): success=" + resTiba.success + ", status=" + resTiba.data?.currentStatus);
 
-  // Step 4: Archive KPM (Selesai)
+  // 6. Test Valid Transition: 'Tiba' -> 'Selesai' (Archive)
   var archiveParam = {
     parameter: {
       action: "archiveKpm",
       nomorKPM: generatedNoLf
     }
   };
+  var resArchive = JSON.parse(doPost(archiveParam).getContent());
+  Logger.log("Step 6 (Archive Selesai): success=" + resArchive.success + ", status=" + resArchive.data?.currentStatus);
 
-  var resArchive = doPost(archiveParam);
-  Logger.log("Step 4 (Archive): Result = " + resArchive.getContent());
+  // 7. Test Invalid Transition after Selesai (Must be rejected)
+  var afterArchiveParam = {
+    parameter: {
+      action: "updateStatus",
+      nomorKPM: generatedNoLf,
+      statusKPM: "Berangkat",
+      fotoData: mockPhoto
+    }
+  };
+  var resAfterArchive = JSON.parse(doPost(afterArchiveParam).getContent());
+  var isAfterArchiveRejected = (!resAfterArchive.success && resAfterArchive.error?.code === "INVALID_TRANSITION");
+  Logger.log("Step 7 (Invalid Jump after Selesai): " + (isAfterArchiveRejected ? "PASS (Properly Rejected)" : "FAIL"));
 }

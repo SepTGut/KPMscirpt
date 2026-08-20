@@ -39,27 +39,36 @@ function trustedPhotoUrl(value) {
   } catch { return ''; }
 }
 
+// Frontend mapping: maps semantic statusCode to UI CSS styling
+function getBadgeConfig(statusCode) {
+  switch (statusCode) {
+    case 'TIBA': return { className: 'b-tiba', label: 'TIBA' };
+    case 'BERANGKAT': return { className: 'b-berangkat', label: 'BERANGKAT' };
+    case 'SELESAI': return { className: 'b-selesai', label: 'SELESAI' };
+    default: return { className: 'b-dibuat', label: 'DIBUAT' };
+  }
+}
+
 function normalizedKpm(item) {
-  const isDeparted = item?.isDeparted ?? (item?.status === 'Berangkat' || item?.status === 'Tiba');
-  const isArrived = item?.isArrived ?? (item?.status === 'Tiba');
+  const statusCode = item?.statusCode ?? (item?.status === 'Tiba' ? 'TIBA' : item?.status === 'Berangkat' ? 'BERANGKAT' : 'BARU_DIBUAT');
+  const isDeparted = item?.isDeparted ?? (statusCode === 'BERANGKAT' || statusCode === 'TIBA');
+  const isArrived = item?.isArrived ?? (statusCode === 'TIBA');
+  const fillPercent = item?.fillPercent ?? (isArrived ? 100 : (isDeparted ? 50 : 0));
+
   return {
-    nomor: item?.nomor ?? '-',
+    nomor: item?.nomor ?? item?.kpmId ?? '-',
     status: item?.status ?? 'Baru Dibuat',
+    statusCode: statusCode,
     proyek: item?.proyek ?? '-',
     lokasi: item?.lokasi ?? '-',
     pic: item?.pic ?? '-',
-    waktuDibuat: item?.waktuDibuat ?? '',
-    waktuBerangkat: item?.waktuBerangkat ?? '',
-    waktuTiba: item?.waktuTiba ?? '',
-    formattedCreated: item?.formattedCreated ?? formatWaktuLengkap(item?.waktuDibuat),
-    formattedDeparted: item?.formattedDeparted ?? formatWaktuLengkap(item?.waktuBerangkat),
-    formattedArrived: item?.formattedArrived ?? formatWaktuLengkap(item?.waktuTiba),
-    badgeClass: item?.badgeClass ?? (isArrived ? 'b-tiba' : isDeparted ? 'b-berangkat' : 'b-dibuat'),
-    badgeText: item?.badgeText ?? (isArrived ? 'TIBA' : isDeparted ? 'BERANGKAT' : 'DIBUAT'),
-    timelineProgress: item?.timelineProgress ?? (isArrived ? '100%' : isDeparted ? '50%' : '0%'),
+    formattedCreated: item?.createdAtFormatted ?? item?.formattedCreated ?? '-',
+    formattedDeparted: item?.departureAtFormatted ?? item?.formattedDeparted ?? 'Menunggu update...',
+    formattedArrived: item?.arrivalAtFormatted ?? item?.formattedArrived ?? 'Menunggu update...',
+    fillPercent: fillPercent,
     isDeparted: isDeparted,
     isArrived: isArrived,
-    durasi: item?.durasi ?? '',
+    durasi: item?.duration ?? item?.durasi ?? '',
     buktiBerangkat: item?.buktiBerangkat ?? '',
     buktiTiba: item?.buktiTiba ?? '',
     daftarBarang: Array.isArray(item?.daftarBarang) ? item.daftarBarang : []
@@ -106,14 +115,20 @@ generateForm.addEventListener('submit', async event => {
   btnSubmitGen.disabled = true; btnTambah.disabled = true; btnSubmitGen.innerText = 'Memproses Database...';
   try {
     const response = await fetchWithTimeout(scriptURL, { method: 'POST', body: params });
-    const nomorKPMBaru = (await response.text()).trim();
-    if (!nomorKPMBaru || /error/i.test(nomorKPMBaru)) throw new Error(nomorKPMBaru || 'Empty server response');
+    const result = await response.json();
+
+    if (!result || !result.success) {
+      const errMsg = result?.error?.message || 'Gagal membuat KPM di server.';
+      throw new Error(errMsg);
+    }
+
+    const nomorKPMBaru = result.data?.nomor || result.data?.kpmId || '-';
     generateForm.style.display = 'none';
     document.getElementById('hasilBox').style.display = 'block';
     document.getElementById('nomorTampil').textContent = nomorKPMBaru;
   } catch (error) {
     console.error('KPM creation failed:', error);
-    alert('Gagal menyimpan KPM. Periksa koneksi internet dan coba lagi.');
+    alert('Gagal menyimpan KPM: ' + error.message);
     btnSubmitGen.disabled = false; btnTambah.disabled = false; btnSubmitGen.innerText = 'Simpan & Generate KPM';
   }
 });
@@ -122,13 +137,6 @@ function terapkanFilter(statusTujuan, button) {
   statusFilterSaatIni = statusTujuan;
   document.querySelectorAll('.filter-btn').forEach(item => item.classList.remove('active'));
   button.classList.add('active'); renderKartu();
-}
-
-function formatWaktuLengkap(value) {
-  if (!value || value === '-') return 'Menunggu update...';
-  const parts = String(value).trim().split(/\s+/);
-  if (parts.length > 1) { const time = parts[1].split(':'); return `${parts[0]}, ${time[0] || '00'}:${time[1] || '00'} WIB`; }
-  return escapeHtml(value);
 }
 
 function renderKartu() {
@@ -140,16 +148,17 @@ function renderKartu() {
   // Fixed markup is combined only with escaped spreadsheet values.
   wadahMonitoring.innerHTML = dataTampil.map(raw => {
     const kpm = normalizedKpm(raw);
-    const created = kpm.formattedCreated, departed = kpm.formattedDeparted, arrived = kpm.formattedArrived;
+    const badge = getBadgeConfig(kpm.statusCode);
     const photoDeparted = trustedPhotoUrl(kpm.buktiBerangkat), photoArrived = trustedPhotoUrl(kpm.buktiTiba);
     const items = kpm.daftarBarang.map(item => `<div class="list-item"><span>📦 ${escapeHtml(item?.nama ?? '-')}</span><strong>${escapeHtml(item?.qty ?? '')} ${escapeHtml(item?.uom ?? '')}</strong></div>`).join('');
+
     return `<div class="kpm-card">
-      <div class="kpm-header"><h3>${escapeHtml(kpm.nomor)}</h3><span class="badge ${kpm.badgeClass}">${kpm.badgeText}</span></div>
+      <div class="kpm-header"><h3>${escapeHtml(kpm.nomor)}</h3><span class="badge ${badge.className}">${badge.label}</span></div>
       <div class="kpm-detail"><p><strong>Proyek:</strong> ${escapeHtml(kpm.proyek)}</p><p><strong>Rute:</strong> ${escapeHtml(kpm.lokasi)}</p><p><strong>PIC:</strong> ${escapeHtml(kpm.pic)}</p></div>
-      <div class="timeline"><div class="timeline-bg"><div class="timeline-fill" style="height: ${kpm.timelineProgress};"></div></div>
-        <div class="timeline-step active"><div class="timeline-icon">📝</div><div class="timeline-info"><span class="timeline-title">KPM Dibuat</span><span class="timeline-time">${created}</span></div></div>
-        <div class="timeline-step ${kpm.isDeparted ? 'active' : ''}"><div class="timeline-icon">🚚</div><div class="timeline-info"><span class="timeline-title">Perjalanan Berangkat</span><span class="timeline-time">${kpm.isDeparted ? departed : 'Menunggu update...'}</span></div></div>
-        <div class="timeline-step ${kpm.isArrived ? 'active' : ''}"><div class="timeline-icon">✅</div><div class="timeline-info"><span class="timeline-title">Tiba di Tujuan</span><span class="timeline-time">${kpm.isArrived ? arrived : 'Menunggu update...'}</span></div></div></div>
+      <div class="timeline"><div class="timeline-bg"><div class="timeline-fill" style="height: ${kpm.fillPercent}%;"></div></div>
+        <div class="timeline-step active"><div class="timeline-icon">📝</div><div class="timeline-info"><span class="timeline-title">KPM Dibuat</span><span class="timeline-time">${kpm.formattedCreated}</span></div></div>
+        <div class="timeline-step ${kpm.isDeparted ? 'active' : ''}"><div class="timeline-icon">🚚</div><div class="timeline-info"><span class="timeline-title">Perjalanan Berangkat</span><span class="timeline-time">${kpm.isDeparted ? kpm.formattedDeparted : 'Menunggu update...'}</span></div></div>
+        <div class="timeline-step ${kpm.isArrived ? 'active' : ''}"><div class="timeline-icon">✅</div><div class="timeline-info"><span class="timeline-title">Tiba di Tujuan</span><span class="timeline-time">${kpm.isArrived ? kpm.formattedArrived : 'Menunggu update...'}</span></div></div></div>
       <details><summary>Lihat Rincian Barang (${kpm.daftarBarang.length} Item)</summary>${items || '<p>Tidak ada rincian barang.</p>'}</details>
       <div class="card-actions">${photoDeparted ? `<a href="${photoDeparted}" target="_blank" rel="noopener noreferrer" class="btn-foto-berangkat">📷 Berangkat</a>` : ''}${photoArrived ? `<a href="${photoArrived}" target="_blank" rel="noopener noreferrer" class="btn-foto-tiba">📷 Tiba</a>` : ''}${kpm.isArrived ? `<button type="button" class="btn-arsip" data-action="archive" data-nomor="${escapeHtml(kpm.nomor)}">🧹 Sembunyikan (Selesai)</button>` : ''}</div>
     </div>`;
@@ -162,10 +171,13 @@ async function tarikDataMonitoring() {
   wadahMonitoring.replaceChildren(); loading.style.display = 'block'; empty.style.display = 'none'; loading.innerText = 'Mengambil data dari server...';
   try {
     const response = await fetchWithTimeout(`${scriptURL}?action=getMonitoring`, { cache: 'no-store' });
-    const data = await response.json();
-    if (!Array.isArray(data)) throw new Error('Unexpected server response');
+    const result = await response.json();
     if (requestId !== monitoringRequestId) return; // Ignore stale refresh results.
-    dataMonitoringGlobal = data.map(normalizedKpm); loading.style.display = 'none'; renderKartu();
+
+    const items = Array.isArray(result) ? result : (result?.data && Array.isArray(result.data)) ? result.data : [];
+    dataMonitoringGlobal = items.map(normalizedKpm);
+    loading.style.display = 'none';
+    renderKartu();
   } catch (error) {
     if (requestId !== monitoringRequestId) return;
     console.error('Monitoring load failed:', error); loading.innerText = 'Koneksi internet bermasalah. Gagal memuat data.';
@@ -197,7 +209,8 @@ async function arsipkanKPM(nomor, button) {
 async function muatMasterData() {
   try {
     const response = await fetchWithTimeout(`${scriptURL}?action=getMasterData`, { cache: 'no-store' });
-    const data = await response.json();
+    const result = await response.json();
+    const data = result?.data || result;
     if (data && Array.isArray(data.workshops) && Array.isArray(data.pics)) {
       populateDropdown('lokasiBerangkat', data.workshops, '-- Pilih Lokasi Awal --');
       populateDropdown('lokasiTiba', data.workshops, '-- Pilih Lokasi Tujuan --');
