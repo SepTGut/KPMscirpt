@@ -271,9 +271,9 @@ function onEdit(e) {
             .setVerticalAlignment("middle");
     }
 
-    // Auto-fill Post Date (dd/MM/yyyy HH:mm:ss)
+    // Auto-fill Post Date (HH:mm - dd/MM/yyyy)
     if (!postDateCell.getValue()) {
-      var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "HH:mm - dd/MM/yyyy");
       postDateCell.setValue(timeStamp);
     }
   }
@@ -297,9 +297,9 @@ function onEdit(e) {
               .setVerticalAlignment("middle");
       }
 
-      // Auto-fill Post Date (dd/MM/yyyy HH:mm:ss)
+      // Auto-fill Post Date (HH:mm - dd/MM/yyyy)
       if (!postDateCell.getValue()) {
-        var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+        var timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "HH:mm - dd/MM/yyyy");
         postDateCell.setValue(timeStamp);
       }
     } else {

@@ -1,0 +1,732 @@
+<!--
+  KpmForm.html
+  ------------
+  Client-side form used by the Apps Script dialog. The page owns only the
+  temporary list of materials and basic input validation. Persistent work
+  (material lookup, number generation, form submission, and print preview)
+  is delegated to server functions through google.script.run.
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    /* Visual system for the compact two-column request form. */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+    :root {
+      --navy: #16233B;
+      --steel: #2C5C86;
+      --steel-dark: #204A70;
+      --slate: #4B5768;
+      --slate-light: #8996A6;
+      --bg: #F4F6F9;
+      --card: #FFFFFF;
+      --border: #DEE4EB;
+      --border-strong: #C7D0DA;
+      --success: #1B7A4C;
+      --success-bg: #EAF6EF;
+      --danger: #C0392B;
+      --danger-bg: #FCEDEC;
+      --radius: 8px;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-display: 'IBM Plex Sans', var(--font-ui);
+      --font-mono: 'IBM Plex Mono', SFMono-Regular, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      font-size: 12.5px;
+      color: var(--slate);
+      background: var(--bg);
+      margin: 0;
+      padding: 0 0 18px 0;
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      background: linear-gradient(135deg, var(--navy), var(--steel-dark));
+      color: #fff;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .header svg {
+      flex: none;
+      opacity: .9;
+    }
+
+    .header h1 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      margin: 0;
+      text-transform: uppercase;
+    }
+
+    .header p {
+      margin: 2px 0 0 0;
+      font-size: 11px;
+      color: #C9D6E4;
+      font-weight: 500;
+    }
+
+    .content {
+      padding: 0 18px;
+    }
+
+    /* ---------- Section cards ---------- */
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px 16px 16px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--navy);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin: 0 0 12px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .count-badge {
+      background: var(--steel);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 8px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ---------- Form fields ---------- */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+
+    .field .hint {
+      font-weight: 400;
+      color: var(--slate-light);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    input[type=text],
+    input[type=number] {
+      width: 100%;
+      padding: 7px 9px;
+      font-family: var(--font-ui);
+      font-size: 12.5px;
+      color: var(--navy);
+      background: #fff;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input[type=text]:focus,
+    input[type=number]:focus {
+      outline: none;
+      border-color: var(--steel);
+      box-shadow: 0 0 0 3px rgba(44, 92, 134, .15);
+    }
+
+    input[readonly] {
+      background: #EEF1F4;
+      color: var(--slate);
+      cursor: not-allowed;
+    }
+
+    #inputKode {
+      font-family: var(--font-mono);
+    }
+
+    /* ---------- Add material row ---------- */
+    .item-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .item-row>div {
+      flex: 1;
+    }
+
+    .item-row .qty-field {
+      flex: 0 0 78px;
+    }
+
+    .btn-add {
+      flex: none;
+      padding: 7px 16px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--steel);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+
+    .btn-add:hover {
+      background: var(--steel-dark);
+    }
+
+    #materialInfo {
+      font-size: 11px;
+      font-weight: 500;
+      margin-top: 8px;
+      min-height: 16px;
+      display: none;
+      align-items: center;
+      gap: 5px;
+    }
+
+    #materialInfo.show {
+      display: flex;
+    }
+
+    #materialInfo.ok {
+      color: var(--success);
+    }
+
+    #materialInfo.bad {
+      color: var(--danger);
+    }
+
+    #addItemError {
+      font-size: 11px;
+      color: var(--danger);
+      margin-top: 6px;
+      display: none;
+    }
+
+    /* ---------- Table ---------- */
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+
+    thead th {
+      background: #EEF2F6;
+      color: var(--navy);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      text-align: left;
+      padding: 8px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--slate);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #FAFBFC;
+    }
+
+    tbody tr:hover {
+      background: #F1F6FA;
+    }
+
+    td.kode {
+      font-family: var(--font-mono);
+      color: var(--navy);
+      font-weight: 500;
+    }
+
+    td.qty {
+      text-align: right;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: var(--slate-light);
+      padding: 18px 8px;
+      font-style: italic;
+    }
+
+    .remove-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      color: var(--slate-light);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .remove-btn:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    /* ---------- Footer / submit ---------- */
+    #errorMsg {
+      display: none;
+      align-items: flex-start;
+      gap: 8px;
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid #F3C7C2;
+      border-radius: 6px;
+      padding: 9px 11px;
+      font-size: 11.5px;
+      font-weight: 500;
+      margin: 14px 18px 0 18px;
+    }
+
+    #loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      font-size: 12px;
+      color: var(--slate);
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border-strong);
+      border-top-color: var(--steel);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .btn-submit {
+      margin: 16px 18px 0 18px;
+    }
+
+    .btn-submit button {
+      width: 100%;
+      padding: 11px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: #fff;
+      background: var(--navy);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-submit button:hover {
+      background: #0F1B2E;
+    }
+
+    .btn-submit button:disabled {
+      background: var(--slate-light);
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Page identity and a short description of the business operation. -->
+  <div class="header">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M9 2h6a1 1 0 011 1v1h1a2 2 0 012 2v13a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1z" />
+      <path d="M9 11h6M9 15h6M9 7h2" />
+    </svg>
+    <div>
+      <h1>Kartu Permintaan Material</h1>
+      <p>Form pengajuan pemindahan material antar Work Station</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Auto-numbered document fields plus the work-station transfer details. -->
+    <div class="section">
+      <div class="section-title">Informasi Umum</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>No Ref. KPP</label>
+          <input type="text" id="noRefKpp" placeholder="Memuat format...">
+        </div>
+        <div class="field">
+          <label>Tanggal <span class="hint">(otomatis)</span></label>
+          <input type="text" id="tanggal" readonly>
+        </div>
+        <div class="field">
+          <label>No Reservasi <span class="hint">(kosongkan jika blank)</span></label>
+          <input type="text" id="reservasi">
+        </div>
+        <div class="field">
+          <label>Proyek</label>
+          <input type="text" id="proyek">
+        </div>
+        <div class="field">
+          <label>Serial <span class="hint">(opsional)</span></label>
+          <input type="text" id="serial">
+        </div>
+        <div class="field">
+          <label>No Lampiran KPM</label>
+          <input type="text" id="noLampiranKpm" placeholder="Memuat format...">
+        </div>
+        <div class="field">
+          <label>WS Awal</label>
+          <input type="text" id="wsAwal">
+        </div>
+        <div class="field">
+          <label>WS Tujuan</label>
+          <input type="text" id="wsTujuan">
+        </div>
+      </div>
+    </div>
+
+    <!-- One material is looked up and staged here before it is added to items[]. -->
+    <div class="section">
+      <div class="section-title">Tambah Material</div>
+      <div class="item-row">
+        <div style="flex:1.3;">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--navy);margin-bottom:4px;">Kode
+            Material</label>
+          <input type="text" id="inputKode" onblur="lookupMaterial()" placeholder="cth. MAT-0021">
+        </div>
+        <div style="flex:1.6;">
+          <label
+            style="display:block;font-size:11px;font-weight:600;color:var(--navy);margin-bottom:4px;">Spesifikasi</label>
+          <input type="text" id="inputSpek">
+        </div>
+        <div class="qty-field">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--navy);margin-bottom:4px;">Qty</label>
+          <input type="number" id="inputQty" min="0"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addItem();}">
+        </div>
+        <button class="btn-add" onclick="addItem()">+ Tambah</button>
+      </div>
+      <div id="materialInfo"></div>
+      <div id="addItemError"></div>
+    </div>
+
+    <!-- items[] is rendered into this table; the table is never the source of truth. -->
+    <div class="section">
+      <div class="section-title">
+        Daftar Material
+        <span class="count-badge" id="itemCount">0</span>
+      </div>
+      <div class="table-wrap">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th>Kode</th>
+              <th>Nama</th>
+              <th>Spek</th>
+              <th style="text-align:right;">Qty</th>
+              <th>Sat</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Form-level errors are separate from the smaller add-material error. -->
+  <div id="errorMsg">
+    <span>⚠</span>
+    <span id="errorMsgText"></span>
+  </div>
+
+  <!-- Shown while the server creates the preview payload and print view. -->
+  <div id="loading">
+    <span class="spinner"></span>
+    <span>Memproses...</span>
+  </div>
+
+  <div class="btn-submit">
+    <button id="submitBtn" onclick="submitForm()">Preview &amp; Cetak</button>
+  </div>
+
+  <script>
+    // The browser date is display-only; server-side dates are generated when
+    // the request is submitted so the saved document remains authoritative.
+    document.getElementById('tanggal').value = new Date().toLocaleDateString('id-ID');
+
+    // Reserve the next display numbers when the dialog opens. The values are
+    // shown as read-only-looking fields but are submitted with the form.
+    google.script.run.withSuccessHandler(function (res) {
+      document.getElementById('noRefKpp').value = res.kpmNo;
+      document.getElementById('noLampiranKpm').value = res.lampiranNo;
+    }).getGeneratedKpmNumbers();
+
+    // items is the client-side draft list. currentMaterial is the last
+    // successful lookup and must be present before a row can be added.
+    var items = [];
+    var currentMaterial = null;
+
+    // Ask the server for the material master record matching the entered code.
+    // The result is cached in currentMaterial until the user adds or clears it.
+    function lookupMaterial() {
+      var kode = document.getElementById('inputKode').value.trim();
+      var infoDiv = document.getElementById('materialInfo');
+
+      if (!kode) {
+        infoDiv.className = '';
+        infoDiv.innerHTML = '';
+        currentMaterial = null;
+        return;
+      }
+
+      infoDiv.className = 'show';
+      infoDiv.innerHTML = 'Mencari...';
+
+      google.script.run
+        .withSuccessHandler(function (material) {
+          if (material) {
+            currentMaterial = material;
+            infoDiv.className = 'show ok';
+            infoDiv.innerHTML = '✓ ' + material.nama + ' (' + material.satuan + ')';
+          } else {
+            currentMaterial = null;
+            infoDiv.className = 'show bad';
+            infoDiv.innerHTML = '✕ Kode material tidak ditemukan.';
+          }
+        })
+        .withFailureHandler(function (err) {
+          infoDiv.className = 'show bad';
+          infoDiv.innerHTML = '✕ Error: ' + err.message;
+        })
+        .getMaterialByKode(kode);
+    }
+
+    // Toggle the validation message associated with the material-entry row.
+    function showAddItemError(msg) {
+      var el = document.getElementById('addItemError');
+      if (!msg) {
+        el.style.display = 'none';
+        el.innerText = '';
+        return;
+      }
+      el.innerText = msg;
+      el.style.display = 'block';
+    }
+
+    // Validate the staged material, append a plain object to items[], redraw the
+    // table, and reset the entry controls for the next material.
+    function addItem() {
+      var spek = document.getElementById('inputSpek').value.trim();
+      var qty = document.getElementById('inputQty').value;
+
+      showAddItemError('');
+
+      if (!currentMaterial) {
+        showAddItemError('Silakan masukkan Kode Material yang valid terlebih dahulu.');
+        return;
+      }
+      if (!qty || qty <= 0) {
+        showAddItemError('Silakan isi Qty.');
+        return;
+      }
+
+      items.push({
+        kode: currentMaterial.kode,
+        nama: currentMaterial.nama,
+        satuan: currentMaterial.satuan,
+        spesifikasi: spek,
+        qty: qty
+      });
+
+      renderItems();
+
+      document.getElementById('inputKode').value = '';
+      document.getElementById('inputSpek').value = '';
+      document.getElementById('inputQty').value = '';
+      document.getElementById('materialInfo').className = '';
+      document.getElementById('materialInfo').innerHTML = '';
+      currentMaterial = null;
+      document.getElementById('inputKode').focus();
+    }
+
+    // Remove by the rendered array index, then rebuild the table so indexes in
+    // the inline remove handlers stay aligned with items[].
+    function removeItem(index) {
+      items.splice(index, 1);
+      renderItems();
+    }
+
+    // Render the current draft list. An explicit empty row keeps the table
+    // readable before the first material is entered.
+    function renderItems() {
+      var body = document.getElementById('itemsBody');
+      body.innerHTML = '';
+      document.getElementById('itemCount').innerText = items.length;
+
+      if (items.length === 0) {
+        var emptyRow = document.createElement('tr');
+        emptyRow.className = 'empty-row';
+        emptyRow.innerHTML = '<td colspan="6">Belum ada material yang ditambahkan.</td>';
+        body.appendChild(emptyRow);
+        return;
+      }
+
+      items.forEach(function (item, index) {
+        var row = document.createElement('tr');
+        row.innerHTML =
+          '<td class="kode">' + item.kode + '</td>' +
+          '<td>' + item.nama + '</td>' +
+          '<td>' + item.spesifikasi + '</td>' +
+          '<td class="qty">' + item.qty + '</td>' +
+          '<td>' + item.satuan + '</td>' +
+          '<td><span class="remove-btn" onclick="removeItem(' + index + ')" title="Hapus">×</span></td>';
+        body.appendChild(row);
+      });
+    }
+
+    // Render the initial empty state immediately after the DOM is available.
+    renderItems();
+
+    // Show or hide the form-level validation and server-error banner.
+    function setError(msg) {
+      var errorMsg = document.getElementById('errorMsg');
+      if (!msg) {
+        errorMsg.style.display = 'none';
+        return;
+      }
+      document.getElementById('errorMsgText').innerText = msg;
+      errorMsg.style.display = 'flex';
+    }
+
+    // Validate required document fields, enrich every item with the shared
+    // source/destination work stations, then submit the complete payload to
+    // Apps Script. A second server call opens the generated print view.
+    function submitForm() {
+      var noRefKpp = document.getElementById('noRefKpp').value.trim();
+      var reservasi = document.getElementById('reservasi').value.trim();
+      var proyek = document.getElementById('proyek').value.trim();
+      var serial = document.getElementById('serial').value.trim();
+      var noLampiranKpm = document.getElementById('noLampiranKpm').value.trim();
+      var wsAwal = document.getElementById('wsAwal').value.trim();
+      var wsTujuan = document.getElementById('wsTujuan').value.trim();
+
+      setError('');
+
+      if (!noRefKpp || !proyek || !noLampiranKpm || !wsAwal || !wsTujuan) {
+        setError('No Ref. KPP, Proyek, No Lampiran KPM, WS Awal, dan WS Tujuan wajib diisi.');
+        return;
+      }
+
+      if (items.length === 0) {
+        setError('Belum ada material yang ditambahkan ke daftar.');
+        return;
+      }
+
+      // Keep the payload shape expected by submitKpmForm(). Work-station values
+      // belong to the request, so they are copied onto every material row.
+      var formattedItems = items.map(function (item) {
+        return {
+          kode: item.kode,
+          nama: item.nama,
+          satuan: item.satuan,
+          spesifikasi: item.spesifikasi,
+          qty: item.qty,
+          wsAwal: wsAwal,
+          wsTujuan: wsTujuan
+        };
+      });
+
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('submitBtn').disabled = true;
+
+      // Disable repeat submission while the asynchronous server calls run.
+      google.script.run
+        .withSuccessHandler(function (data) {
+          google.script.run
+            .withSuccessHandler(function () {
+              google.script.host.close();
+            })
+            .withFailureHandler(function (err) {
+              document.getElementById('loading').style.display = 'none';
+              document.getElementById('submitBtn').disabled = false;
+              setError('Gagal membuka preview: ' + err.message);
+            })
+            .openPrintView(data);
+        })
+        .withFailureHandler(function (err) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('submitBtn').disabled = false;
+          setError(err.message);
+        })
+        .submitKpmForm({
+          noRefKpp: noRefKpp,
+          reservasi: reservasi,
+          proyek: proyek,
+          serial: serial,
+          noLampiranKpm: noLampiranKpm,
+          items: formattedItems
+        });
+    }
+  </script>
+</body>
+
+</html>
