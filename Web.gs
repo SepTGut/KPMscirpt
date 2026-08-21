@@ -6,7 +6,7 @@
 var WEB_CONFIG = {
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],
-  PICS: ["Aang", "Eko", "Ruli", "Vany", "Taufiq"],
+  PICS: ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"],
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
@@ -20,13 +20,15 @@ var WEB_CONFIG = {
 // ============================================
 
 var KPM_STATUS = Object.freeze({
-  BARU_DIBUAT: 'Belum Berangkat',
+  BARU_DIBUAT: 'Baru Dibuat',
+  BELUM_BERANGKAT: 'Belum Berangkat',
   BERANGKAT: 'Jalan',
   TIBA: 'Tiba',
   SELESAI: 'Selesai'
 });
 
 var STATUS_TRANSITIONS = Object.freeze({
+  'Baru Dibuat': ['Belum Berangkat'],
   'Belum Berangkat': ['Jalan'],
   'Jalan': ['Tiba'],
   'Tiba': ['Selesai'],
@@ -34,7 +36,8 @@ var STATUS_TRANSITIONS = Object.freeze({
 });
 
 var STATUS_CODES = Object.freeze({
-  'Belum Berangkat': 'BARU_DIBUAT',
+  'Baru Dibuat': 'BARU_DIBUAT',
+  'Belum Berangkat': 'BELUM_BERANGKAT',
   'Jalan': 'BERANGKAT',
   'Tiba': 'TIBA',
   'Selesai': 'SELESAI'
@@ -45,13 +48,23 @@ function normalizeKpmStatus(value) {
   var status = String(value || '').trim();
   var aliases = {
     'Baru Dibuat': KPM_STATUS.BARU_DIBUAT,
-    'Belum Berangkat': KPM_STATUS.BARU_DIBUAT,
+    'Belum Berangkat': KPM_STATUS.BELUM_BERANGKAT,
     'Berangkat': KPM_STATUS.BERANGKAT,
     'Jalan': KPM_STATUS.BERANGKAT,
     'Tiba': KPM_STATUS.TIBA,
     'Selesai': KPM_STATUS.SELESAI
   };
   return aliases[status] || status;
+}
+
+function isFiveMinutesOld(timestamp) {
+  var parts = String(timestamp || '').trim().split(/[\/ :]/);
+  if (parts.length < 6) return false;
+  var createdAt = new Date(
+    Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]),
+    Number(parts[3]), Number(parts[4]), Number(parts[5])
+  );
+  return !isNaN(createdAt.getTime()) && (new Date().getTime() - createdAt.getTime() >= 5 * 60 * 1000);
 }
 
 // ============================================
@@ -148,7 +161,7 @@ function getMasterData() {
     workshops: WEB_CONFIG.WORKSHOPS,
     pics: WEB_CONFIG.PICS,
     uoms: WEB_CONFIG.UOMS,
-    statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA],
+    statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BELUM_BERANGKAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA, KPM_STATUS.SELESAI],
     statusCodes: STATUS_CODES
   };
 }
@@ -271,53 +284,96 @@ function getKpmMonitoringData(includeArchived) {
   var rawData = range.getValues();
   var kpmMap = {};
 
+  var lastSeenKpm = "";
+  var lastSeenPic = "";
+  var lastSeenProyek = "";
+  var lastSeenWsAwal = "";
+  var lastSeenWsTujuan = "";
+  var lastSeenWaktuBuat = "";
+  var lastSeenWaktuBer = "";
+  var lastSeenWaktuTib = "";
+  var lastSeenDurasi = "";
+  var lastSeenStatus = "";
+  var lastSeenBuktiBer = "";
+  var lastSeenBuktiTib = "";
+
   for (var i = 0; i < displayData.length; i++) {
     var row = displayData[i];
-    var kpm = String(row[MONITOR_COL_NOLF - 1] || "").trim();
-    if (!kpm) continue;
-
+    var rawKpm = String(row[MONITOR_COL_NOLF - 1] || "").trim();
     var spek = String(row[MONITOR_COL_SPEK - 1] || "").trim();
     var kode = String(row[MONITOR_COL_KODE - 1] || "").trim();
     var barang = spek || kode;
     var qty = String(row[MONITOR_COL_QTY - 1] || "").trim();
     var uom = String(row[MONITOR_COL_UOM - 1] || "").trim();
-    var proyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim();
 
-    var waktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim();
-    var waktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim();
-    var waktuTib = String(row[MONITOR_COL_WKT_TIBA - 1] || "").trim();
-    var durasi = String(row[MONITOR_COL_DURASI - 1] || "").trim();
+    if (rawKpm) {
+      lastSeenKpm = rawKpm;
+      lastSeenPic = String(row[MONITOR_COL_PIC - 1] || "").trim();
+      lastSeenProyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim();
+      lastSeenWaktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim();
+      lastSeenWaktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim();
+      lastSeenWaktuTib = String(row[MONITOR_COL_WKT_TIBA - 1] || "").trim();
+      lastSeenDurasi = String(row[MONITOR_COL_DURASI - 1] || "").trim();
 
-    var pic = String(row[MONITOR_COL_PIC - 1] || "").trim();
-    var statusAkhir = normalizeKpmStatus(row[MONITOR_COL_STATUS - 1]);
-    if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
+      var rawStatus = String(row[MONITOR_COL_STATUS - 1] || '').trim();
+      var statusAkhir = normalizeKpmStatus(rawStatus);
+      if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
+      if (statusAkhir === KPM_STATUS.BARU_DIBUAT && isFiveMinutesOld(lastSeenWaktuBuat)) {
+        statusAkhir = KPM_STATUS.BELUM_BERANGKAT;
+        sheet.getRange(MONITOR_START_ROW + i, MONITOR_COL_STATUS).setValue(statusAkhir);
+      }
+      lastSeenStatus = statusAkhir;
 
-    var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim();
-    var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim();
-    // Older KPM rows stored the complete route in the origin column.
-    // Normalize those rows for the API without requiring a spreadsheet migration.
-    if (!wsTujuan) {
-      var legacySeparator = wsAwal.indexOf("➔") !== -1 ? "➔" : (wsAwal.indexOf("->") !== -1 ? "->" : "");
-      if (legacySeparator) {
-        var legacyRoute = wsAwal.split(legacySeparator);
-        if (legacyRoute.length === 2) {
-          wsAwal = legacyRoute[0].trim();
-          wsTujuan = legacyRoute[1].trim();
+      var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim();
+      var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim();
+      if (!wsTujuan) {
+        var legacySeparator = wsAwal.indexOf("➔") !== -1 ? "➔" : (wsAwal.indexOf("->") !== -1 ? "->" : "");
+        if (legacySeparator) {
+          var legacyRoute = wsAwal.split(legacySeparator);
+          if (legacyRoute.length === 2) {
+            wsAwal = legacyRoute[0].trim();
+            wsTujuan = legacyRoute[1].trim();
+          }
         }
       }
-    }
-    var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
+      lastSeenWsAwal = wsAwal;
+      lastSeenWsTujuan = wsTujuan;
 
+      lastSeenBuktiBer = extractHyperlinkUrl(
+        displayData[i][MONITOR_COL_FOTO_BER - 1],
+        formulaData[i][MONITOR_COL_FOTO_BER - 1],
+        rawData[i][MONITOR_COL_FOTO_BER - 1]
+      );
+      lastSeenBuktiTib = extractHyperlinkUrl(
+        displayData[i][MONITOR_COL_FOTO_TIB - 1],
+        formulaData[i][MONITOR_COL_FOTO_TIB - 1],
+        rawData[i][MONITOR_COL_FOTO_TIB - 1]
+      );
+    }
+
+    var kpm = rawKpm || (barang ? lastSeenKpm : "");
+    if (!kpm) continue;
+
+    var pic = String(row[MONITOR_COL_PIC - 1] || "").trim() || lastSeenPic;
+    var proyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim() || lastSeenProyek;
+    var waktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim() || lastSeenWaktuBuat;
+    var waktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim() || lastSeenWaktuBer;
+    var waktuTib = String(row[MONITOR_COL_WKT_TIBA - 1] || "").trim() || lastSeenWaktuTib;
+    var durasi = String(row[MONITOR_COL_DURASI - 1] || "").trim() || lastSeenDurasi;
+    var statusAkhir = lastSeenStatus || KPM_STATUS.BARU_DIBUAT;
+    var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim() || lastSeenWsAwal;
+    var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim() || lastSeenWsTujuan;
+    var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
     var buktiBerangkat = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_BER - 1],
       formulaData[i][MONITOR_COL_FOTO_BER - 1],
       rawData[i][MONITOR_COL_FOTO_BER - 1]
-    );
+    ) || lastSeenBuktiBer;
     var buktiTiba = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_TIB - 1],
       formulaData[i][MONITOR_COL_FOTO_TIB - 1],
       rawData[i][MONITOR_COL_FOTO_TIB - 1]
-    );
+    ) || lastSeenBuktiTib;
 
     var isArchived = (statusAkhir === KPM_STATUS.SELESAI || statusAkhir.toLowerCase() === "selesai");
     if (!includeArchived && isArchived) continue;
@@ -380,7 +436,7 @@ function getAvailableDeliveries() {
 
   for (var i = 0; i < allKpm.length; i++) {
     var item = allKpm[i];
-    if (item.status !== KPM_STATUS.TIBA && item.status !== KPM_STATUS.SELESAI) {
+    if (item.status !== KPM_STATUS.BARU_DIBUAT && item.status !== KPM_STATUS.TIBA && item.status !== KPM_STATUS.SELESAI) {
       var allowedNext = STATUS_TRANSITIONS[item.status] || [];
       var nextAction = allowedNext.length > 0 ? allowedNext[0] : "";
       var nextActionCode = STATUS_CODES[nextAction] || "";
@@ -505,12 +561,36 @@ function validateAndCreateKpm(params) {
   if (!namaPIC) {
     throw { code: "INVALID_INPUT", message: "Nama PIC / Petugas wajib diisi." };
   }
-  if (WEB_CONFIG.PICS.indexOf(namaPIC) === -1) {
+  var picMatched = "";
+  for (var p = 0; p < WEB_CONFIG.PICS.length; p++) {
+    if (WEB_CONFIG.PICS[p].toLowerCase() === namaPIC.toLowerCase()) {
+      picMatched = WEB_CONFIG.PICS[p];
+      break;
+    }
+  }
+  if (!picMatched) {
     throw { code: "INVALID_INPUT", message: "Nama PIC '" + namaPIC + "' tidak terdaftar dalam konfigurasi sistem." };
   }
+  namaPIC = picMatched;
 
   // Validate route
-  var lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
+  var lokasiBerangkat = params.lokasiBerangkat
+    ? validateWorkshopRoute(params.lokasiBerangkat)
+    : "";
+  var lokasiTiba = params.lokasiTiba
+    ? validateWorkshopRoute(params.lokasiTiba)
+    : "";
+  var lokasiWorkshop = params.lokasiWorkshop
+    ? validateWorkshopRoute(params.lokasiWorkshop)
+    : "";
+  if (!lokasiBerangkat || !lokasiTiba) {
+    if (!lokasiWorkshop || lokasiWorkshop.indexOf("➔") === -1) {
+      throw { code: "INVALID_LOCATION", message: "Lokasi berangkat dan lokasi tujuan wajib diisi." };
+    }
+    var routeParts = lokasiWorkshop.split("➔");
+    lokasiBerangkat = routeParts[0].trim();
+    lokasiTiba = routeParts[1].trim();
+  }
   var namaProyek = (params.namaProyek || "").trim();
   if (!namaProyek || namaProyek.length > 200) {
     throw { code: "INVALID_INPUT", message: "Nama proyek wajib diisi dan maksimal 200 karakter." };
@@ -530,7 +610,7 @@ function validateAndCreateKpm(params) {
   var lastRow = sheet.getLastRow();
   var numDataRows = Math.max(0, lastRow - MONITOR_START_ROW + 1);
 
-  // Determine next sequence No LF
+  // Determine next sequence No LF by scanning backwards
   var latestNoLf = "";
   if (numDataRows > 0) {
     var nolfColData = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numDataRows, 1).getValues();
@@ -545,19 +625,8 @@ function validateAndCreateKpm(params) {
 
   var nomorBaruStr = latestNoLf ? incrementNoLf(latestNoLf) : getDefaultNoLf(0);
 
-  // Find first empty row starting from MONITOR_START_ROW
-  var barisKosong = MONITOR_START_ROW;
-  if (numDataRows > 0) {
-    var allNoCol = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numDataRows, 1).getValues();
-    var foundLast = 0;
-    for (var b = allNoCol.length - 1; b >= 0; b--) {
-      if (String(allNoCol[b][0]).trim() !== "") {
-        foundLast = b + 1;
-        break;
-      }
-    }
-    barisKosong = MONITOR_START_ROW + foundLast;
-  }
+  // Find first truly empty row across the entire sheet
+  var barisKosong = lastRow >= MONITOR_START_ROW ? (lastRow + 1) : MONITOR_START_ROW;
 
   var rowsToInsert = [];
 
@@ -589,7 +658,8 @@ function validateAndCreateKpm(params) {
     rowData[MONITOR_COL_PROYEK - 1] = namaProyek;
     rowData[MONITOR_COL_QTY - 1] = parseFloat(itemObj.qty) || 1;
     rowData[MONITOR_COL_PIC - 1] = namaPIC;
-    rowData[MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
+    rowData[MONITOR_COL_WSAWAL - 1] = lokasiBerangkat;
+    rowData[MONITOR_COL_WSTUJUAN - 1] = lokasiTiba;
     rowData[MONITOR_COL_STATUS - 1] = statusKPM;
 
     rowsToInsert.push(rowData);
@@ -597,6 +667,7 @@ function validateAndCreateKpm(params) {
 
   if (rowsToInsert.length > 0) {
     sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS).setValues(rowsToInsert);
+    SpreadsheetApp.flush();
   }
 
   return {
@@ -695,16 +766,22 @@ function validateAndUpdateStatus(params) {
   // Find target KPM and verify current status
   var matchingRows = [];
   var currentStatus = "";
+  var activeGroupKpm = "";
 
   for (var k = 0; k < allData.length; k++) {
     var kpmDiSheet = String(allData[k][MONITOR_COL_NOLF - 1] || "").trim().toUpperCase();
-    if (kpmDiSheet === nomorKPM) {
+    var kodeOrSpek = String(allData[k][MONITOR_COL_SPEK - 1] || allData[k][MONITOR_COL_KODE - 1] || "").trim();
+    if (kpmDiSheet) {
+      activeGroupKpm = kpmDiSheet;
+    }
+    if (activeGroupKpm === nomorKPM && (kpmDiSheet || kodeOrSpek)) {
       matchingRows.push(k);
-      if (!currentStatus) {
-        currentStatus = normalizeKpmStatus(allData[k][MONITOR_COL_STATUS - 1]) || KPM_STATUS.BARU_DIBUAT;
+      if (!currentStatus && allData[k][MONITOR_COL_STATUS - 1]) {
+        currentStatus = normalizeKpmStatus(allData[k][MONITOR_COL_STATUS - 1]);
       }
     }
   }
+  if (!currentStatus) currentStatus = KPM_STATUS.BARU_DIBUAT;
 
   if (matchingRows.length === 0) {
     throw { code: "KPM_NOT_FOUND", message: "KPM " + nomorKPM + " tidak ditemukan di sistem." };
@@ -743,13 +820,33 @@ function validateAndUpdateStatus(params) {
   var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
   
   var namaPIC = (params.namaPIC || "").trim();
-  if (namaPIC && WEB_CONFIG.PICS.indexOf(namaPIC) === -1) {
-    throw { code: "INVALID_INPUT", message: "Nama PIC '" + namaPIC + "' tidak terdaftar dalam konfigurasi sistem." };
+  if (namaPIC) {
+    var picMatched = "";
+    for (var p = 0; p < WEB_CONFIG.PICS.length; p++) {
+      if (WEB_CONFIG.PICS[p].toUpperCase() === namaPIC.toUpperCase()) {
+        picMatched = WEB_CONFIG.PICS[p];
+        break;
+      }
+    }
+    if (!picMatched) {
+      throw { code: "INVALID_INPUT", message: "Nama PIC '" + namaPIC + "' tidak terdaftar dalam konfigurasi sistem." };
+    }
+    namaPIC = picMatched;
   }
 
   var lokasiWorkshop = "";
+  var workshopOrigin = "";
+  var workshopDest = "";
   if (params.lokasiWorkshop) {
     lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
+    if (lokasiWorkshop.indexOf("➔") !== -1) {
+      var wParts = lokasiWorkshop.split("➔");
+      workshopOrigin = wParts[0].trim();
+      workshopDest = wParts[1].trim();
+    } else {
+      workshopOrigin = lokasiWorkshop;
+      workshopDest = lokasiWorkshop;
+    }
   }
 
   for (var idx = 0; idx < matchingRows.length; idx++) {
@@ -776,14 +873,15 @@ function validateAndUpdateStatus(params) {
     allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
     if (lokasiWorkshop) {
       if (targetStatus === KPM_STATUS.TIBA) {
-        allData[rIndex][MONITOR_COL_WSTUJUAN - 1] = lokasiWorkshop;
+        allData[rIndex][MONITOR_COL_WSTUJUAN - 1] = workshopDest;
       } else {
-        allData[rIndex][MONITOR_COL_WSAWAL - 1] = lokasiWorkshop;
+        allData[rIndex][MONITOR_COL_WSAWAL - 1] = workshopOrigin;
       }
     }
   }
 
   fullRange.setValues(allData);
+  SpreadsheetApp.flush();
 
   return {
     kpmId: nomorKPM,
@@ -870,11 +968,15 @@ function doPost(e) {
     else action = "unknown";
   }
 
+  var lockAcquired = false;
   try {
     if (["createKpm", "archiveKpm", "updateStatus"].indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
     }
-    lock.waitLock(15000); // 15-second concurrency lock
+    lockAcquired = lock.tryLock(15000);
+    if (!lockAcquired) {
+      throw { code: "CONCURRENCY_ERROR", message: "Server sedang sibuk memproses permintaan lain. Harap coba beberapa saat lagi." };
+    }
 
     // Authenticate POST request
     authenticateRequest(params, action);
@@ -897,7 +999,13 @@ function doPost(e) {
     var msg = (error && error.message) ? error.message : String(error);
     return jsonOutput(createErrorResponse(action, code, msg));
   } finally {
-    lock.releaseLock();
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (lockErr) {
+        Logger.log("lock.releaseLock error: " + lockErr);
+      }
+    }
   }
 }
 
@@ -924,11 +1032,17 @@ function setupTrackingHeaders() {
 
   sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_WKT_BERANGKAT, 1, 6).setValues(headers);
 
-  // Keep the visible tracking choices limited to the three operational states.
+  // Keep the visible tracking choices limited to the four tracking states.
   // Selesai is still written internally when an item is archived, so invalid
   // values remain allowed for that internal archive state.
   var statusValidation = SpreadsheetApp.newDataValidation()
-    .requireValueInList([KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA], true)
+    .requireValueInList([
+      KPM_STATUS.BARU_DIBUAT,
+      KPM_STATUS.BELUM_BERANGKAT,
+      KPM_STATUS.BERANGKAT,
+      KPM_STATUS.TIBA,
+      KPM_STATUS.SELESAI
+    ], true)
     .setAllowInvalid(true)
     .build();
   var statusRowCount = Math.max(1, sheet.getMaxRows() - MONITOR_START_ROW + 1);

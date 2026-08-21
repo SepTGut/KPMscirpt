@@ -98,7 +98,8 @@ async function createKpm() {
       body: {
         namaPIC: createForm.value.namaPIC,
         namaProyek: createForm.value.namaProyek,
-        lokasiWorkshop: `${createForm.value.lokasiBerangkat} ➔ ${createForm.value.lokasiTiba}`,
+        lokasiBerangkat: createForm.value.lokasiBerangkat,
+        lokasiTiba: createForm.value.lokasiTiba,
         daftarBarang: JSON.stringify(createForm.value.items),
       },
     })
@@ -173,7 +174,7 @@ async function updateStatus() {
 }
 
 function statusClass(status) {
-  return { 'Belum Berangkat': 'bg-slate-100 text-slate-700', Jalan: 'bg-amber-100 text-amber-700', Tiba: 'bg-emerald-100 text-emerald-700', Selesai: 'bg-blue-100 text-blue-700' }[status] || 'bg-slate-100 text-slate-700'
+  return { 'Baru Dibuat': 'bg-purple-100 text-purple-700', 'Belum Berangkat': 'bg-slate-100 text-slate-700', Jalan: 'bg-amber-100 text-amber-700', Tiba: 'bg-emerald-100 text-emerald-700', Selesai: 'bg-blue-100 text-blue-700' }[status] || 'bg-slate-100 text-slate-700'
 }
 
 onMounted(() => {
@@ -208,7 +209,7 @@ onMounted(() => {
           <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Menyimpan...' : 'Simpan & Generate KPM' }}</button>
         </form>
 
-        <div v-else class="space-y-4"><div class="flex flex-wrap justify-between gap-3"><div class="flex flex-wrap gap-2"><button v-for="option in ['Semua', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button></div><button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button></div><div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div><article v-for="item in filteredMonitoring" :key="item.nomor" class="panel"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3><p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span></div><div class="mt-4 grid gap-2 text-sm sm:grid-cols-3"><p><span class="font-semibold">PIC:</span> {{ item.pic }}</p><p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p><p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p></div><div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div></div><details class="mt-4 rounded-xl bg-slate-50 p-3"><summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary><div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></details><button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button></article></div>
+        <div v-else class="space-y-4"><div class="flex flex-wrap justify-between gap-3"><div class="flex flex-wrap gap-2"><button v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button></div><button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button></div><div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div><article v-for="item in filteredMonitoring" :key="item.nomor" class="panel"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3><p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span></div><div class="mt-4 grid gap-2 text-sm sm:grid-cols-3"><p><span class="font-semibold">PIC:</span> {{ item.pic }}</p><p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p><p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p></div><div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div></div><details class="mt-4 rounded-xl bg-slate-50 p-3"><summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary><div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></details><button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button></article></div>
       </section>
 
       <section v-else>

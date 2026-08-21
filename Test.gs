@@ -273,8 +273,8 @@ function testWebCreationStatusLockdown() {
   };
 
   var res = JSON.parse(doPost(createReq).getContent());
-  var isPass = (res.success && res.data?.status === "Belum Berangkat" && res.data?.statusCode === "BARU_DIBUAT");
-  Logger.log("Creation Status Forced to 'Belum Berangkat': " + (isPass ? "PASS (Status: " + res.data?.status + ")" : "FAIL"));
+  var isPass = (res.success && res.data?.status === "Baru Dibuat" && res.data?.statusCode === "BARU_DIBUAT");
+  Logger.log("Creation Status Forced to 'Baru Dibuat': " + (isPass ? "PASS (Status: " + res.data?.status + ")" : "FAIL"));
 
   if (res.data?.nomor) {
     cleanUpTestKpm(res.data.nomor);
@@ -335,7 +335,7 @@ function testWebStateMachineValidations() {
   var uploadedPhotoUrls = [];
 
   try {
-    // 1. Create KPM
+    // 1. Create KPM (initial status: Baru Dibuat)
     var createParam = {
       parameter: {
         action: "createKpm",
@@ -352,7 +352,7 @@ function testWebStateMachineValidations() {
 
     var resCreate = JSON.parse(doPost(createParam).getContent());
     testNoLf = resCreate.data?.nomor;
-    Logger.log("Step 1 (Create KPM): success=" + resCreate.success + ", KPM=" + testNoLf);
+    Logger.log("Step 1 (Create KPM): success=" + resCreate.success + (resCreate.success ? "" : " error=" + JSON.stringify(resCreate.error)) + ", KPM=" + testNoLf + ", status=" + resCreate.data?.status);
 
     if (!testNoLf) {
       Logger.log("Creation failed, aborting test.");
@@ -371,38 +371,51 @@ function testWebStateMachineValidations() {
     };
     var resInvalid = JSON.parse(doPost(invalidJumpParam).getContent());
     var isInvalidRejected = (!resInvalid.success && resInvalid.error?.code === "INVALID_TRANSITION");
-    Logger.log("Step 2 (Invalid Jump Rejection): " + (isInvalidRejected ? "PASS" : "FAIL"));
+    Logger.log("Step 2 (Invalid Jump Rejection): " + (isInvalidRejected ? "PASS" : "FAIL (got: " + JSON.stringify(resInvalid) + ")"));
 
-    // 3. Missing Photo on Berangkat (Must be rejected)
+    // 3. Transition 'Baru Dibuat' -> 'Belum Berangkat'
+    var toBelumBerangkatParam = {
+      parameter: {
+        action: "updateStatus",
+        apiToken: getTestAdminToken(),
+        nomorKPM: testNoLf,
+        statusKPM: "Belum Berangkat",
+        bypassPhoto: "true"
+      }
+    };
+    var resBelum = JSON.parse(doPost(toBelumBerangkatParam).getContent());
+    Logger.log("Step 3 (Baru Dibuat -> Belum Berangkat): success=" + resBelum.success + (resBelum.success ? "" : " error=" + JSON.stringify(resBelum.error)) + ", status=" + resBelum.data?.currentStatus);
+
+    // 4. Missing Photo on Jalan / Berangkat (Must be rejected)
     var missingPhotoParam = {
       parameter: {
         action: "updateStatus",
         apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
-        statusKPM: "Berangkat"
+        statusKPM: "Jalan"
       }
     };
     var resMissing = JSON.parse(doPost(missingPhotoParam).getContent());
     var isMissingRejected = (!resMissing.success && resMissing.error?.code === "PHOTO_REQUIRED");
-    Logger.log("Step 3 (Missing Photo Rejection): " + (isMissingRejected ? "PASS" : "FAIL"));
+    Logger.log("Step 4 (Missing Photo Rejection): " + (isMissingRejected ? "PASS" : "FAIL (got: " + JSON.stringify(resMissing) + ")"));
 
-    // 4. Valid Transition: 'Baru Dibuat' -> 'Berangkat' (With real 1x1 JPEG)
-    var validBerangkatParam = {
+    // 5. Valid Transition: 'Belum Berangkat' -> 'Jalan' (With real 1x1 JPEG)
+    var validJalanParam = {
       parameter: {
         action: "updateStatus",
         apiToken: getTestDriverToken(),
         nomorKPM: testNoLf,
-        statusKPM: "Berangkat",
+        statusKPM: "Jalan",
         fotoData: REAL_1X1_JPEG_BASE64,
         namaPIC: "Aang",
         lokasiWorkshop: "Candi Sewu ➔ Tiron"
       }
     };
-    var resBerangkat = JSON.parse(doPost(validBerangkatParam).getContent());
-    if (resBerangkat.data?.photoUrl) uploadedPhotoUrls.push(resBerangkat.data.photoUrl);
-    Logger.log("Step 4 (Valid Berangkat): success=" + resBerangkat.success + ", currentStatus=" + resBerangkat.data?.currentStatus);
+    var resJalan = JSON.parse(doPost(validJalanParam).getContent());
+    if (resJalan.data?.photoUrl) uploadedPhotoUrls.push(resJalan.data.photoUrl);
+    Logger.log("Step 5 (Valid Jalan): success=" + resJalan.success + (resJalan.success ? "" : " error=" + JSON.stringify(resJalan.error)) + ", currentStatus=" + resJalan.data?.currentStatus);
 
-    // 5. Valid Transition: 'Berangkat' -> 'Tiba' (With real 1x1 JPEG)
+    // 6. Valid Transition: 'Jalan' -> 'Tiba' (With real 1x1 JPEG)
     var validTibaParam = {
       parameter: {
         action: "updateStatus",
@@ -416,9 +429,9 @@ function testWebStateMachineValidations() {
     };
     var resTiba = JSON.parse(doPost(validTibaParam).getContent());
     if (resTiba.data?.photoUrl) uploadedPhotoUrls.push(resTiba.data.photoUrl);
-    Logger.log("Step 5 (Valid Tiba): success=" + resTiba.success + ", currentStatus=" + resTiba.data?.currentStatus);
+    Logger.log("Step 6 (Valid Tiba): success=" + resTiba.success + (resTiba.success ? "" : " error=" + JSON.stringify(resTiba.error)) + ", currentStatus=" + resTiba.data?.currentStatus);
 
-    // 6. Valid Transition: 'Tiba' -> 'Selesai' (Archive)
+    // 7. Valid Transition: 'Tiba' -> 'Selesai' (Archive)
     var archiveParam = {
       parameter: {
         action: "archiveKpm",
@@ -427,7 +440,7 @@ function testWebStateMachineValidations() {
       }
     };
     var resArchive = JSON.parse(doPost(archiveParam).getContent());
-    Logger.log("Step 6 (Archive Selesai): success=" + resArchive.success + ", currentStatus=" + resArchive.data?.currentStatus);
+    Logger.log("Step 7 (Archive Selesai): success=" + resArchive.success + (resArchive.success ? "" : " error=" + JSON.stringify(resArchive.error)) + ", currentStatus=" + resArchive.data?.currentStatus);
 
   } finally {
     // Clean up test KPM row from Sheet
