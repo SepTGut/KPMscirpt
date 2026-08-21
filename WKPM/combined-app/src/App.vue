@@ -1,9 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-const scriptUrl = import.meta.env.VITE_SCRIPT_URL || ''
-const adminToken = import.meta.env.VITE_ADMIN_API_TOKEN || ''
-const driverToken = import.meta.env.VITE_DRIVER_API_TOKEN || ''
+const scriptUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/api'
 const requestTimeout = 30000
 
 const mode = ref('admin')
@@ -28,20 +26,15 @@ const filteredMonitoring = computed(() => filter.value === 'Semua'
   ? monitoring.value
   : monitoring.value.filter(item => item.status === filter.value))
 
-const apiToken = computed(() => mode.value === 'admin' ? adminToken : driverToken)
-
 function clearNotice() { message.value = ''; error.value = '' }
 
 async function api(action, options = {}) {
-  if (!scriptUrl) throw new Error('VITE_SCRIPT_URL belum dikonfigurasi.')
-  if (!apiToken.value) throw new Error('Token aplikasi belum dikonfigurasi.')
-
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), requestTimeout)
   try {
     const params = new URLSearchParams(options.body || {})
     params.set('action', action)
-    params.set('apiToken', apiToken.value)
+    params.set('role', mode.value)
     const isGet = options.method === 'GET'
     const response = await fetch(isGet ? `${scriptUrl}?${params}` : scriptUrl, {
       method: options.method || 'POST',
@@ -49,9 +42,14 @@ async function api(action, options = {}) {
       cache: 'no-store',
       signal: controller.signal,
     })
-    if (!response.ok) throw new Error(`Server returned ${response.status}`)
-    const result = await response.json()
-    if (!result?.success) throw new Error(result?.error?.message || 'Server menolak permintaan.')
+    const result = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw new Error(result?.error?.message || `Server returned ${response.status}`)
+    }
+    if (!result?.success) {
+      const detail = result?.error?.message || result?.error?.code
+      throw new Error(detail || `API menolak permintaan: ${JSON.stringify(result)}`)
+    }
     return result.data
   } finally {
     clearTimeout(timeout)

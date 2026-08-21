@@ -261,6 +261,10 @@
       display: table-header-group;
     }
 
+    .material .blank-row td {
+      color: transparent;
+    }
+
     .center {
       text-align: center;
     }
@@ -308,6 +312,7 @@ var pageCounter = 0;
 // Keep the row capacity in one place; the calibration script uses the same
 // value when estimating how many pages a generated document will need.
 var pageSize = 15; // Set kapasitas maksimum 15 baris per halaman
+var minimumBlankRows = 5; // Keep up to five writable blank rows on each page
 var rawKpp = data.header.noRefKpp || "";
 // A non-empty fallback keeps barcode generation valid for blank-layout tests.
 var barcodeData = rawKpp.trim() !== "" ? rawKpp : "DUMMY-KPP-000";
@@ -335,6 +340,9 @@ for(var g = 0; g < groups.length; g++){
       var mulai = p * pageSize;
       var sampai = mulai + pageSize;
       var pageMaterial = material.slice(mulai, sampai);
+      // Preserve the 15-row page capacity while leaving up to five blank rows
+      // for handwritten additions on pages that are not full.
+      var blankRows = Math.min(minimumBlankRows, Math.max(0, pageSize - pageMaterial.length));
 ?>
 
   <div class="page">
@@ -451,6 +459,19 @@ for(var g = 0; g < groups.length; g++){
           <td>
             <?= m.wsTujuan ?>
           </td>
+        </tr>
+        <? } ?>
+        <? for(var blank = 0; blank < blankRows; blank++){ ?>
+        <tr class="blank-row">
+          <td class="center">&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td class="center">&nbsp;</td>
+          <td class="center">&nbsp;</td>
+          <td class="center">&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
         </tr>
         <? } ?>
       </tbody>
