@@ -1,6 +1,6 @@
 # KPM Unified Web
 
-Combined Admin and Expedition/User web app. This folder is independent from the existing `admin/` and `user/` pages.
+Combined Admin and Personel web app. This folder is independent from the existing `admin/` and `user/` pages.
 
 ## Run
 
@@ -9,6 +9,8 @@ Combined Admin and Expedition/User web app. This folder is independent from the 
 3. Run `npm run dev` or build with `npm run build`.
 
 The app calls the existing REST actions: `getMasterData`, `getMonitoring`, `getDeliveries`, `createKpm`, `updateStatus`, and `archiveKpm`.
+
+After deployment, use `/kpm` for the Admin interface and `/kpm/personel` for the Personel interface.
 
 Security notes:
 

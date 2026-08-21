@@ -273,8 +273,8 @@ function testWebCreationStatusLockdown() {
   };
 
   var res = JSON.parse(doPost(createReq).getContent());
-  var isPass = (res.success && res.data?.status === "Baru Dibuat" && res.data?.statusCode === "BARU_DIBUAT");
-  Logger.log("Creation Status Forced to 'Baru Dibuat': " + (isPass ? "PASS (Status: " + res.data?.status + ")" : "FAIL"));
+  var isPass = (res.success && res.data?.status === "Belum Berangkat" && res.data?.statusCode === "BARU_DIBUAT");
+  Logger.log("Creation Status Forced to 'Belum Berangkat': " + (isPass ? "PASS (Status: " + res.data?.status + ")" : "FAIL"));
 
   if (res.data?.nomor) {
     cleanUpTestKpm(res.data.nomor);

@@ -166,6 +166,12 @@ updateForm.addEventListener('submit', async event => {
     document.getElementById('fotoData').value = await compressImage(file);
     statusKompresi.innerText = 'Kompresi selesai. Sedang menyimpan ke database...';
 
+    const selected = dataKPMGlobal.find(item => String(item?.nomor || item?.kpmId) === selectKPM.value);
+    const targetStatus = document.querySelector('input[name="statusKPM"]:checked')?.value;
+    document.getElementById('lokasiWorkshop').value = targetStatus === 'Tiba'
+      ? (selected?.lokasiTiba || document.getElementById('lokasiWorkshop').value)
+      : (selected?.lokasiBerangkat || document.getElementById('lokasiWorkshop').value);
+
     const formData = new FormData(updateForm);
     formData.append('action', 'updateStatus');
     formData.append('apiToken', DRIVER_API_TOKEN);

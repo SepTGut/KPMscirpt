@@ -20,25 +20,39 @@ var WEB_CONFIG = {
 // ============================================
 
 var KPM_STATUS = Object.freeze({
-  BARU_DIBUAT: 'Baru Dibuat',
-  BERANGKAT: 'Berangkat',
+  BARU_DIBUAT: 'Belum Berangkat',
+  BERANGKAT: 'Jalan',
   TIBA: 'Tiba',
   SELESAI: 'Selesai'
 });
 
 var STATUS_TRANSITIONS = Object.freeze({
-  'Baru Dibuat': ['Berangkat'],
-  'Berangkat': ['Tiba'],
+  'Belum Berangkat': ['Jalan'],
+  'Jalan': ['Tiba'],
   'Tiba': ['Selesai'],
   'Selesai': []
 });
 
 var STATUS_CODES = Object.freeze({
-  'Baru Dibuat': 'BARU_DIBUAT',
-  'Berangkat': 'BERANGKAT',
+  'Belum Berangkat': 'BARU_DIBUAT',
+  'Jalan': 'BERANGKAT',
   'Tiba': 'TIBA',
   'Selesai': 'SELESAI'
 });
+
+/** Normalizes legacy spreadsheet/client labels to the current three-step flow. */
+function normalizeKpmStatus(value) {
+  var status = String(value || '').trim();
+  var aliases = {
+    'Baru Dibuat': KPM_STATUS.BARU_DIBUAT,
+    'Belum Berangkat': KPM_STATUS.BARU_DIBUAT,
+    'Berangkat': KPM_STATUS.BERANGKAT,
+    'Jalan': KPM_STATUS.BERANGKAT,
+    'Tiba': KPM_STATUS.TIBA,
+    'Selesai': KPM_STATUS.SELESAI
+  };
+  return aliases[status] || status;
+}
 
 // ============================================
 // 2. UNIFIED API RESPONSE HELPERS
@@ -134,12 +148,7 @@ function getMasterData() {
     workshops: WEB_CONFIG.WORKSHOPS,
     pics: WEB_CONFIG.PICS,
     uoms: WEB_CONFIG.UOMS,
-    statuses: [
-      KPM_STATUS.BARU_DIBUAT,
-      KPM_STATUS.BERANGKAT,
-      KPM_STATUS.TIBA,
-      KPM_STATUS.SELESAI
-    ],
+    statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA],
     statusCodes: STATUS_CODES
   };
 }
@@ -280,12 +289,24 @@ function getKpmMonitoringData(includeArchived) {
     var durasi = String(row[MONITOR_COL_DURASI - 1] || "").trim();
 
     var pic = String(row[MONITOR_COL_PIC - 1] || "").trim();
-    var statusAkhir = String(row[MONITOR_COL_STATUS - 1] || "").trim();
+    var statusAkhir = normalizeKpmStatus(row[MONITOR_COL_STATUS - 1]);
     if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
 
     var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim();
     var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim();
-    var lokasi = wsAwal || wsTujuan;
+    // Older KPM rows stored the complete route in the origin column.
+    // Normalize those rows for the API without requiring a spreadsheet migration.
+    if (!wsTujuan) {
+      var legacySeparator = wsAwal.indexOf("➔") !== -1 ? "➔" : (wsAwal.indexOf("->") !== -1 ? "->" : "");
+      if (legacySeparator) {
+        var legacyRoute = wsAwal.split(legacySeparator);
+        if (legacyRoute.length === 2) {
+          wsAwal = legacyRoute[0].trim();
+          wsTujuan = legacyRoute[1].trim();
+        }
+      }
+    }
+    var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
 
     var buktiBerangkat = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_BER - 1],
@@ -314,6 +335,8 @@ function getKpmMonitoringData(includeArchived) {
         status: statusAkhir,
         statusCode: statusCode,
         lokasi: lokasi,
+        lokasiBerangkat: wsAwal,
+        lokasiTiba: wsTujuan,
         proyek: proyek,
         createdAt: waktuBuat,
         createdAtFormatted: formatWaktuDisplay(waktuBuat),
@@ -367,6 +390,8 @@ function getAvailableDeliveries() {
         nomor: item.nomor,
         proyek: item.proyek,
         lokasi: item.lokasi,
+        lokasiBerangkat: item.lokasiBerangkat,
+        lokasiTiba: item.lokasiTiba,
         pic: item.pic,
         currentStatus: item.status,
         statusCode: item.statusCode,
@@ -643,7 +668,7 @@ function validateAndUpdateStatus(params) {
     throw { code: "INVALID_REQUEST", message: "Parameter tidak ditemukan." };
   }
   var nomorKPM = String(params.nomorKPM || params.kpmId || "").trim().toUpperCase();
-  var targetStatus = String(params.statusKPM || params.status || "").trim();
+  var targetStatus = normalizeKpmStatus(params.statusKPM || params.status);
 
   if (!nomorKPM) {
     throw { code: "INVALID_REQUEST", message: "Nomor KPM wajib diisi." };
@@ -676,7 +701,7 @@ function validateAndUpdateStatus(params) {
     if (kpmDiSheet === nomorKPM) {
       matchingRows.push(k);
       if (!currentStatus) {
-        currentStatus = String(allData[k][MONITOR_COL_STATUS - 1] || "").trim() || KPM_STATUS.BARU_DIBUAT;
+        currentStatus = normalizeKpmStatus(allData[k][MONITOR_COL_STATUS - 1]) || KPM_STATUS.BARU_DIBUAT;
       }
     }
   }
@@ -840,7 +865,7 @@ function doPost(e) {
   // Deduce action if not explicitly supplied
   if (!action) {
     if (params.daftarBarang) action = "createKpm";
-    else if (params.statusKPM && (params.statusKPM === KPM_STATUS.SELESAI || params.statusKPM.toLowerCase() === "selesai")) action = "archiveKpm";
+    else if (params.statusKPM && normalizeKpmStatus(params.statusKPM) === KPM_STATUS.SELESAI) action = "archiveKpm";
     else if (params.statusKPM) action = "updateStatus";
     else action = "unknown";
   }
@@ -898,7 +923,19 @@ function setupTrackingHeaders() {
   ];
 
   sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_WKT_BERANGKAT, 1, 6).setValues(headers);
+
+  // Keep the visible tracking choices limited to the three operational states.
+  // Selesai is still written internally when an item is archived, so invalid
+  // values remain allowed for that internal archive state.
+  var statusValidation = SpreadsheetApp.newDataValidation()
+    .requireValueInList([KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA], true)
+    .setAllowInvalid(true)
+    .build();
+  var statusRowCount = Math.max(1, sheet.getMaxRows() - MONITOR_START_ROW + 1);
+  sheet.getRange(MONITOR_START_ROW, MONITOR_COL_STATUS, statusRowCount, 1)
+    .setDataValidation(statusValidation);
+
   if (typeof SpreadsheetApp.getUi === "function") {
-    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga X telah dikonfigurasi.");
+    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga X dan dropdown status telah dikonfigurasi.");
   }
 }

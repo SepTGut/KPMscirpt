@@ -52,7 +52,8 @@ export default async function handler(request) {
     try {
       JSON.parse(body)
     } catch {
-      return errorResponse(502, 'Apps Script returned a non-JSON response. Check the deployment URL and set Web app access to Anyone.')
+      const preview = body.replace(/\s+/g, ' ').trim().slice(0, 160)
+      return errorResponse(502, `Apps Script returned a non-JSON response (HTTP ${upstream.status}). Check the deployed version, doPost(e), and Web app access. Response: ${preview}`)
     }
     return new Response(body, {
       status: upstream.status,

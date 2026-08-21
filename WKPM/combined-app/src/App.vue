@@ -4,7 +4,8 @@ import { computed, onMounted, ref } from 'vue'
 const scriptUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/api'
 const requestTimeout = 30000
 
-const mode = ref('admin')
+const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
+const mode = ref(currentPath.endsWith('/kpm/personel') ? 'user' : 'admin')
 const adminView = ref('create')
 const busy = ref(false)
 const message = ref('')
@@ -76,11 +77,6 @@ async function loadDeliveries() {
   try { deliveries.value = (await api('getDeliveries', { method: 'GET' })) || [] }
   catch (e) { error.value = e.message }
   finally { busy.value = false }
-}
-
-function switchMode(nextMode) {
-  mode.value = nextMode; adminView.value = nextMode === 'admin' ? 'create' : 'deliveries'; clearNotice()
-  nextMode === 'admin' ? loadMaster() : loadDeliveries()
 }
 
 function addItem() { createForm.value.items.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' }) }
@@ -164,7 +160,9 @@ async function updateStatus() {
         nomorKPM: selectedDelivery.value.nomor || selectedDelivery.value.kpmId,
         statusKPM: updateForm.value.statusKPM,
         namaPIC: selectedDelivery.value.pic,
-        lokasiWorkshop: selectedDelivery.value.lokasi,
+        lokasiWorkshop: updateForm.value.statusKPM === 'Tiba'
+          ? (selectedDelivery.value.lokasiTiba || selectedDelivery.value.lokasi)
+          : (selectedDelivery.value.lokasiBerangkat || selectedDelivery.value.lokasi),
         fotoData: updateForm.value.fotoData,
       },
     })
@@ -175,10 +173,13 @@ async function updateStatus() {
 }
 
 function statusClass(status) {
-  return { 'Baru Dibuat': 'bg-slate-100 text-slate-700', Berangkat: 'bg-amber-100 text-amber-700', Tiba: 'bg-emerald-100 text-emerald-700', Selesai: 'bg-blue-100 text-blue-700' }[status] || 'bg-slate-100 text-slate-700'
+  return { 'Belum Berangkat': 'bg-slate-100 text-slate-700', Jalan: 'bg-amber-100 text-amber-700', Tiba: 'bg-emerald-100 text-emerald-700', Selesai: 'bg-blue-100 text-blue-700' }[status] || 'bg-slate-100 text-slate-700'
 }
 
-onMounted(loadMaster)
+onMounted(() => {
+  if (mode.value === 'admin') loadMaster()
+  else loadDeliveries()
+})
 </script>
 
 <template>
@@ -187,8 +188,9 @@ onMounted(loadMaster)
       <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
         <div><p class="text-xs font-semibold uppercase tracking-[0.25em] text-blue-300">KPM Line Feeding</p><h1 class="mt-1 text-2xl font-bold">Unified Operations</h1></div>
         <div class="flex rounded-xl bg-white/10 p-1" role="tablist" aria-label="Pilih peran">
-          <button class="btn" :class="mode === 'admin' ? 'bg-white text-slate-900' : 'text-slate-300'" @click="switchMode('admin')">Admin</button>
-          <button class="btn" :class="mode === 'user' ? 'bg-white text-slate-900' : 'text-slate-300'" @click="switchMode('user')">Ekspedisi</button>
+          <span class="rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white">
+            {{ mode === 'admin' ? 'Admin' : 'Personel' }}
+          </span>
         </div>
       </div>
     </header>
@@ -206,11 +208,11 @@ onMounted(loadMaster)
           <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Menyimpan...' : 'Simpan & Generate KPM' }}</button>
         </form>
 
-        <div v-else class="space-y-4"><div class="flex flex-wrap justify-between gap-3"><div class="flex flex-wrap gap-2"><button v-for="option in ['Semua', 'Baru Dibuat', 'Berangkat', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button></div><button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button></div><div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div><article v-for="item in filteredMonitoring" :key="item.nomor" class="panel"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3><p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span></div><div class="mt-4 grid gap-2 text-sm sm:grid-cols-3"><p><span class="font-semibold">PIC:</span> {{ item.pic }}</p><p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p><p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p></div><div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div></div><details class="mt-4 rounded-xl bg-slate-50 p-3"><summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary><div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></details><button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button></article></div>
+        <div v-else class="space-y-4"><div class="flex flex-wrap justify-between gap-3"><div class="flex flex-wrap gap-2"><button v-for="option in ['Semua', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button></div><button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button></div><div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div><article v-for="item in filteredMonitoring" :key="item.nomor" class="panel"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3><p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span></div><div class="mt-4 grid gap-2 text-sm sm:grid-cols-3"><p><span class="font-semibold">PIC:</span> {{ item.pic }}</p><p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p><p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p></div><div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div></div><details class="mt-4 rounded-xl bg-slate-50 p-3"><summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary><div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></details><button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button></article></div>
       </section>
 
       <section v-else>
-        <div class="mb-5"><h2 class="text-xl font-bold">Update ekspedisi</h2><p class="text-sm text-slate-500">Pilih KPM, ambil foto bukti, lalu simpan status berikutnya.</p></div>
+        <div class="mb-5"><h2 class="text-xl font-bold">Update personel</h2><p class="text-sm text-slate-500">Pilih KPM, ambil foto bukti, lalu simpan status berikutnya.</p></div>
         <div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div class="panel"><div class="flex items-center justify-between"><h3 class="font-bold">KPM tersedia</h3><button class="btn-secondary" :disabled="busy" @click="loadDeliveries">↻</button></div><div v-if="!deliveries.length" class="py-10 text-center text-sm text-slate-500">Tidak ada KPM yang perlu diperbarui.</div><button v-for="item in deliveries" :key="item.nomor" class="mt-3 w-full rounded-xl border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50" :class="selectedDelivery?.nomor === item.nomor ? 'border-blue-500 bg-blue-50' : 'border-slate-200'" @click="chooseDelivery(item)"><div class="flex justify-between gap-3"><strong>{{ item.nomor }}</strong><span class="text-xs font-semibold text-blue-600">{{ item.nextAction }}</span></div><p class="mt-1 text-sm text-slate-500">{{ item.proyek }}</p></button></div>
           <form class="panel space-y-4" @submit.prevent="updateStatus"><div v-if="!selectedDelivery" class="py-10 text-center text-sm text-slate-500">Pilih KPM untuk melihat detail.</div><template v-else><div><h3 class="text-lg font-bold">{{ selectedDelivery.nomor }}</h3><p class="text-sm text-slate-500">{{ selectedDelivery.proyek }} · {{ selectedDelivery.lokasi }}</p></div><div class="rounded-xl bg-amber-50 p-4 text-sm"><p class="font-semibold">Material bawaan</p><div v-for="material in selectedDelivery.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between py-1"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></div><label><span class="label">Status berikutnya</span><select v-model="updateForm.statusKPM" class="field"><option :value="selectedDelivery.nextAction">{{ selectedDelivery.nextAction }}</option></select></label><label><span class="label">Foto bukti</span><input class="field" type="file" accept="image/*" capture="environment" required @change="onPhoto" /></label><button class="btn-success w-full" :disabled="busy">{{ busy ? 'Mengunggah...' : 'Simpan status' }}</button></template></form></div>
       </section>
