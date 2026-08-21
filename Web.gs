@@ -297,6 +297,8 @@ function getKpmMonitoringData(includeArchived) {
   var lastSeenBuktiBer = "";
   var lastSeenBuktiTib = "";
 
+  var pendingStatusRowUpdates = [];
+
   for (var i = 0; i < displayData.length; i++) {
     var row = displayData[i];
     var rawKpm = String(row[MONITOR_COL_NOLF - 1] || "").trim();
@@ -320,7 +322,7 @@ function getKpmMonitoringData(includeArchived) {
       if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
       if (statusAkhir === KPM_STATUS.BARU_DIBUAT && isFiveMinutesOld(lastSeenWaktuBuat)) {
         statusAkhir = KPM_STATUS.BELUM_BERANGKAT;
-        sheet.getRange(MONITOR_START_ROW + i, MONITOR_COL_STATUS).setValue(statusAkhir);
+        pendingStatusRowUpdates.push({ rowIndex: i, status: statusAkhir });
       }
       lastSeenStatus = statusAkhir;
 
@@ -412,6 +414,20 @@ function getKpmMonitoringData(includeArchived) {
 
     if (barang) {
       kpmMap[kpm].daftarBarang.push({ nama: barang, qty: qty, uom: uom });
+    }
+  }
+
+  if (pendingStatusRowUpdates.length > 0) {
+    try {
+      var statusRange = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_STATUS, numRows, 1);
+      var statusVals = statusRange.getValues();
+      for (var u = 0; u < pendingStatusRowUpdates.length; u++) {
+        statusVals[pendingStatusRowUpdates[u].rowIndex][0] = pendingStatusRowUpdates[u].status;
+      }
+      statusRange.setValues(statusVals);
+      SpreadsheetApp.flush();
+    } catch(e) {
+      Logger.log("Batch status update error: " + e.message);
     }
   }
 

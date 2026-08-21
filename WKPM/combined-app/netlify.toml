@@ -3,6 +3,12 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."api"]
+  timeout = 26
+
 [[redirects]]
   from = "/kpm/personel"
   to = "/index.html"
