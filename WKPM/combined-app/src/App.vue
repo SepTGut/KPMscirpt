@@ -65,16 +65,22 @@ async function loadMaster() {
   } catch (e) { error.value = e.message }
 }
 
-async function loadMonitoring() {
+async function loadMonitoring(forceRefresh = false) {
   clearNotice(); busy.value = true
-  try { monitoring.value = (await api('getMonitoring', { method: 'GET' })) || [] }
+  try {
+    const body = forceRefresh ? { refresh: 'true' } : {}
+    monitoring.value = (await api('getMonitoring', { method: 'GET', body })) || []
+  }
   catch (e) { error.value = e.message }
   finally { busy.value = false }
 }
 
-async function loadDeliveries() {
+async function loadDeliveries(forceRefresh = false) {
   clearNotice(); busy.value = true; selectedDelivery.value = null
-  try { deliveries.value = (await api('getDeliveries', { method: 'GET' })) || [] }
+  try {
+    const body = forceRefresh ? { refresh: 'true' } : {}
+    deliveries.value = (await api('getDeliveries', { method: 'GET', body })) || []
+  }
   catch (e) { error.value = e.message }
   finally { busy.value = false }
 }
@@ -126,7 +132,39 @@ function chooseDelivery(item) {
 
 function onPhoto(event) { photoFile.value = event.target.files?.[0] || null }
 
-function compressImage(file) {
+async function compressImage(file) {
+  const MAX_WIDTH = 1000
+  const JPEG_QUALITY = 0.72
+
+  // Fast path: createImageBitmap decodes off main thread (no DOM Image blocking)
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, MAX_WIDTH / bitmap.width)
+    const w = Math.max(1, Math.round(bitmap.width * scale))
+    const h = Math.max(1, Math.round(bitmap.height * scale))
+    // OffscreenCanvas avoids layout/paint overhead when available
+    if (typeof OffscreenCanvas === 'function') {
+      const oc = new OffscreenCanvas(w, h)
+      const ctx = oc.getContext('2d')
+      ctx.drawImage(bitmap, 0, 0, w, h)
+      bitmap.close()
+      const blob = await oc.convertToBlob({ type: 'image/jpeg', quality: JPEG_QUALITY })
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(new Error('Foto tidak dapat dibaca.'))
+        reader.readAsDataURL(blob)
+      })
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    bitmap.close()
+    return canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+  }
+
+  // Fallback: DOM Image decode
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => reject(new Error('Foto tidak dapat dibaca.'))
@@ -134,14 +172,14 @@ function compressImage(file) {
       const image = new Image()
       image.onerror = () => reject(new Error('File bukan gambar yang valid.'))
       image.onload = () => {
-        const scale = Math.min(1, 1000 / image.width)
+        const scale = Math.min(1, MAX_WIDTH / image.width)
         const canvas = document.createElement('canvas')
         canvas.width = Math.max(1, Math.round(image.width * scale))
         canvas.height = Math.max(1, Math.round(image.height * scale))
         const context = canvas.getContext('2d')
         if (!context) return reject(new Error('Browser tidak mendukung pemrosesan foto.'))
         context.drawImage(image, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.72))
+        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY))
       }
       image.src = event.target.result
     }
@@ -262,7 +300,7 @@ onMounted(() => {
             <div class="flex flex-wrap gap-2">
               <button v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button>
             </div>
-            <button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button>
+            <button class="btn-secondary" :disabled="busy" @click="loadMonitoring(true)">↻ Segarkan</button>
           </div>
           <div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div>
           <article v-for="item in filteredMonitoring" :key="item.nomor" class="panel">
@@ -295,7 +333,7 @@ onMounted(() => {
 
       <section v-else>
         <div class="mb-5"><h2 class="text-xl font-bold">Update personel</h2><p class="text-sm text-slate-500">Pilih KPM, ambil foto bukti, lalu simpan status berikutnya.</p></div>
-        <div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div class="panel"><div class="flex items-center justify-between"><h3 class="font-bold">KPM tersedia</h3><button class="btn-secondary" :disabled="busy" @click="loadDeliveries">↻</button></div><div v-if="!deliveries.length" class="py-10 text-center text-sm text-slate-500">Tidak ada KPM yang perlu diperbarui.</div><button v-for="item in deliveries" :key="item.nomor" class="mt-3 w-full rounded-xl border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50" :class="selectedDelivery?.nomor === item.nomor ? 'border-blue-500 bg-blue-50' : 'border-slate-200'" @click="chooseDelivery(item)"><div class="flex justify-between gap-3"><strong>{{ item.nomor }}</strong><span class="text-xs font-semibold text-blue-600">{{ item.nextAction }}</span></div><p class="mt-1 text-sm text-slate-500">{{ item.proyek }}</p></button></div>
+        <div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div class="panel"><div class="flex items-center justify-between"><h3 class="font-bold">KPM tersedia</h3><button class="btn-secondary" :disabled="busy" @click="loadDeliveries(true)">↻</button></div><div v-if="!deliveries.length" class="py-10 text-center text-sm text-slate-500">Tidak ada KPM yang perlu diperbarui.</div><button v-for="item in deliveries" :key="item.nomor" class="mt-3 w-full rounded-xl border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50" :class="selectedDelivery?.nomor === item.nomor ? 'border-blue-500 bg-blue-50' : 'border-slate-200'" @click="chooseDelivery(item)"><div class="flex justify-between gap-3"><strong>{{ item.nomor }}</strong><span class="text-xs font-semibold text-blue-600">{{ item.nextAction }}</span></div><p class="mt-1 text-sm text-slate-500">{{ item.proyek }}</p></button></div>
           <form class="panel space-y-4" @submit.prevent="updateStatus"><div v-if="!selectedDelivery" class="py-10 text-center text-sm text-slate-500">Pilih KPM untuk melihat detail.</div><template v-else><div><h3 class="text-lg font-bold">{{ selectedDelivery.nomor }}</h3><p class="text-sm text-slate-500">{{ selectedDelivery.proyek }} · {{ selectedDelivery.lokasi }}</p></div><div class="rounded-xl bg-amber-50 p-4 text-sm"><p class="font-semibold">Material bawaan</p><div v-for="material in selectedDelivery.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between py-1"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></div><label><span class="label">Status berikutnya</span><select v-model="updateForm.statusKPM" class="field"><option :value="selectedDelivery.nextAction">{{ selectedDelivery.nextAction }}</option></select></label><label><span class="label">Foto bukti</span><input class="field" type="file" accept="image/*" capture="environment" required @change="onPhoto" /></label><button class="btn-success w-full" :disabled="busy">{{ busy ? 'Mengunggah...' : 'Simpan status' }}</button></template></form></div>
       </section>
     </main>

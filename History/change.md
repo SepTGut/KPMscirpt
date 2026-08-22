@@ -15,10 +15,36 @@ Dokumentasi historis lengkap mengenai evolusi arsitektur, refaktorisasi kode, pe
 | **v5.0.0** | 5-Step Lifecycle | Pembaruan state machine 5 langkah (`Baru Dibuat` ➔ `Belum Berangkat` ➔ `Jalan` ➔ `Tiba` ➔ `Selesai`) dan pemisahan kolom rute. |
 | **v6.0.0** | Multi-Item & Performa | Perbaikan penomoran multi-item, grouping material tanpa duplikasi No LF, normalisasi PIC uppercase, batching query, dan eliminasi error 504. |
 | **v7.0.0** | Produksi & QR Assets | Verifikasi endpoint produksi Version 11 dan pembuatan generator QR Code akses portal (`qr code/`). |
+| **v8.0.0** | 2026-08-22 | **Deep High-Performance & Responsiveness Overhaul**: Multi-tier caching (`ScriptCache` + RAM), eliminasi `SpreadsheetApp.flush()`, pembacaan formula selektif 2-kolom, slice write-back bertarget, kompresi gambar off-thread via `createImageBitmap` + `OffscreenCanvas`, dan smart cache invalidation. |
 
 ---
 
 ## 📝 Catatan Perubahan Rinci Per Versi
+
+---
+
+### [v8.0.0] - 2026-08-22
+#### ⚡ Optimasi Performa Mendalam & Peningkatan Responsivitas Sistem
+- **Multi-Tier Caching untuk Seluruh Material Catalog (`Code.gs`)**:
+  - *Masalah:* Setiap pengetikan kode material atau pembuatan KPM membaca sheet `DataBase` berulang-ulang melalui RPC spreadsheet yang lambat.
+  - *Solusi:* Diimplementasikan fungsi `getMaterialDatabaseMap()` yang memuat seluruh katalog material ke dalam RAM dan `ScriptCache` (TTL 6 jam) dengan skema chunking aman (>100KB). Fungsi `getMaterialByKode(kode)` kini beroperasi secara instan ($O(1)$ di memori).
+- **Pembacaan Formula Selektif 2 Kolom (`Web.gs`)**:
+  - *Masalah:* `getKpmMonitoringData` sebelumnya memanggil `range.getFormulas()` dan `range.getValues()` untuk seluruh 24 kolom sheet, menghasilkan network payload yang sangat besar.
+  - *Solusi:* `photoFormulas` kini hanya membaca 2 kolom foto (Kolom W & X), memangkas data transfer dari Google Sheets sebesar lebih dari 60%.
+- **Penulisan Bounded Slice pada Pembaruan Status (`Web.gs`)**:
+  - *Masalah:* `validateAndUpdateStatus` menulis kembali seluruh matriks spreadsheet ribuan baris (`fullRange.setValues(allData)`), memicu latency tinggi.
+  - *Solusi:* Sistem kini menghitung batas indeks baris yang berubah (`minIdx` hingga `maxIdx`) dan hanya menulis irisan baris yang terpengaruh (`allData.slice(minIdx, maxIdx + 1)`).
+- **Caching Target Google Drive Folder (`Web.gs`)**:
+  - *Masalah:* `DriveApp.getFoldersByName()` memindai seluruh direktori Google Drive setiap kali personel mengunggah foto bukti.
+  - *Solusi:* Fungsi `getTargetDriveFolder()` menyimpan ID folder di `ScriptCache` (TTL 6 jam) dan RAM, sehingga foto disimpan langsung via `DriveApp.getFolderById()`.
+- **Chunked Caching & Instant Invalidation untuk Monitoring API (`Web.gs`)**:
+  - *Solusi:* Data monitoring di-cache di `ScriptCache` (TTL 60 detik) dengan pembagian chunking. Cache langsung dibersihkan (*invalidated*) secara instan ketika KPM baru dibuat, status diperbarui, atau KPM diarsipkan.
+- **Smart Refresh & Cache Bypass pada Frontend (`WKPM/combined-app`)**:
+  - *Solusi:* Tombol "↻ Segarkan" / "↻" pada frontend secara eksplisit mengirim parameter `&refresh=true` untuk mem-bypass cache saat pengguna menginginkan data terbaru secara instan.
+- **Kompresi Foto Off-Main-Thread (`App.vue`)**:
+  - *Solusi:* Fungsi `compressImage()` memanfaatkan `createImageBitmap` dan `OffscreenCanvas` agar proses *decoding* dan *resizing* foto resolusi tinggi berjalan di *background thread* tanpa memblokir UI browser pada perangkat mobile.
+- **Optimasi `onEdit` Spreadsheet Engine (`KPMn.gs`)**:
+  - *Solusi:* Menambahkan `_cachedPrevActiveRow` untuk menghindari pembacaan ganda blok baris sebelumnya, prekomputasi `MONITOR_SHEET_NAME_LOWER`, pemangkasan penulisan downstream sync ke baris yang benar-benar terscan, dan eliminasi loop `getValue()` sel demi sel pada `printKpmM()`.
 
 ---
 

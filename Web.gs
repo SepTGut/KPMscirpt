@@ -43,18 +43,19 @@ var STATUS_CODES = Object.freeze({
   'Selesai': 'SELESAI'
 });
 
+var _STATUS_ALIASES = {
+  'Baru Dibuat': KPM_STATUS.BARU_DIBUAT,
+  'Belum Berangkat': KPM_STATUS.BELUM_BERANGKAT,
+  'Berangkat': KPM_STATUS.BERANGKAT,
+  'Jalan': KPM_STATUS.BERANGKAT,
+  'Tiba': KPM_STATUS.TIBA,
+  'Selesai': KPM_STATUS.SELESAI
+};
+
 /** Normalizes legacy spreadsheet/client labels to the current three-step flow. */
 function normalizeKpmStatus(value) {
   var status = String(value || '').trim();
-  var aliases = {
-    'Baru Dibuat': KPM_STATUS.BARU_DIBUAT,
-    'Belum Berangkat': KPM_STATUS.BELUM_BERANGKAT,
-    'Berangkat': KPM_STATUS.BERANGKAT,
-    'Jalan': KPM_STATUS.BERANGKAT,
-    'Tiba': KPM_STATUS.TIBA,
-    'Selesai': KPM_STATUS.SELESAI
-  };
-  return aliases[status] || status;
+  return _STATUS_ALIASES[status] || status;
 }
 
 function isFiveMinutesOld(timestamp) {
@@ -101,10 +102,13 @@ function jsonOutput(obj) {
 // 3. AUTHENTICATION & AUTHORIZATION SERVICE
 // ============================================
 
+var _cachedApiTokens = null;
+
 /**
  * Resolves configured tokens from ScriptProperties or default configuration.
  */
 function getApiTokens() {
+  if (_cachedApiTokens) return _cachedApiTokens;
   var props = PropertiesService.getScriptProperties();
   var tokens = {
     adminToken: props.getProperty("ADMIN_TOKEN") || WEB_CONFIG.DEFAULT_ADMIN_TOKEN,
@@ -113,6 +117,7 @@ function getApiTokens() {
   if (!tokens.adminToken || !tokens.driverToken || tokens.adminToken === tokens.driverToken) {
     throw { code: "CONFIGURATION_ERROR", message: "API authentication is not configured." };
   }
+  _cachedApiTokens = tokens;
   return tokens;
 }
 
@@ -266,10 +271,80 @@ function validateWorkshopRoute(routeStr) {
 // ============================================
 
 /**
+ * Chunked caching helpers to safely store large responses (>100KB) in ScriptCache.
+ */
+function putMonitoringCache(keyPrefix, jsonString, ttlSeconds) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var chunkSize = 90000;
+    var totalChunks = Math.ceil(jsonString.length / chunkSize);
+    var batch = {};
+    batch[keyPrefix + "_count"] = String(totalChunks);
+    for (var i = 0; i < totalChunks; i++) {
+      batch[keyPrefix + "_" + i] = jsonString.substr(i * chunkSize, chunkSize);
+    }
+    cache.putAll(batch, ttlSeconds || 60);
+  } catch (e) {
+    Logger.log("putMonitoringCache notice: " + e.message);
+  }
+}
+
+function getMonitoringCache(keyPrefix) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var countStr = cache.get(keyPrefix + "_count");
+    if (!countStr) return null;
+    var totalChunks = parseInt(countStr, 10);
+    if (isNaN(totalChunks) || totalChunks <= 0) return null;
+
+    var keys = [];
+    for (var i = 0; i < totalChunks; i++) {
+      keys.push(keyPrefix + "_" + i);
+    }
+    var chunks = cache.getAll(keys);
+    var combined = "";
+    for (var j = 0; j < totalChunks; j++) {
+      var part = chunks[keyPrefix + "_" + j];
+      if (part === undefined || part === null) return null;
+      combined += part;
+    }
+    return combined;
+  } catch (e) {
+    Logger.log("getMonitoringCache notice: " + e.message);
+    return null;
+  }
+}
+
+function invalidateMonitoringCache() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var keysToRemove = [
+      "MONITORING_ACTIVE_count",
+      "MONITORING_ALL_count"
+    ];
+    for (var i = 0; i < 15; i++) {
+      keysToRemove.push("MONITORING_ACTIVE_" + i);
+      keysToRemove.push("MONITORING_ALL_" + i);
+    }
+    cache.removeAll(keysToRemove);
+  } catch (e) {}
+}
+
+/**
  * Reads sheet and produces fully server-computed KPM monitoring objects.
  * Decouples business data (status, progress percent, dates) from UI presentation.
  */
-function getKpmMonitoringData(includeArchived) {
+function getKpmMonitoringData(includeArchived, bypassCache) {
+  var cacheKey = includeArchived ? "MONITORING_ALL" : "MONITORING_ACTIVE";
+  if (!bypassCache) {
+    var cached = getMonitoringCache(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+  }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
   if (!sheet) return [];
@@ -280,8 +355,8 @@ function getKpmMonitoringData(includeArchived) {
   var numRows = lastRow - MONITOR_START_ROW + 1;
   var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
   var displayData = range.getDisplayValues();
-  var formulaData = range.getFormulas();
-  var rawData = range.getValues();
+  // Fetch formulas ONLY for the 2 photo columns (Col W & Col X) instead of entire 24-col matrix
+  var photoFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 2).getFormulas();
   var kpmMap = {};
 
   var lastSeenKpm = "";
@@ -343,13 +418,13 @@ function getKpmMonitoringData(includeArchived) {
 
       lastSeenBuktiBer = extractHyperlinkUrl(
         displayData[i][MONITOR_COL_FOTO_BER - 1],
-        formulaData[i][MONITOR_COL_FOTO_BER - 1],
-        rawData[i][MONITOR_COL_FOTO_BER - 1]
+        photoFormulas[i][0],
+        displayData[i][MONITOR_COL_FOTO_BER - 1]
       );
       lastSeenBuktiTib = extractHyperlinkUrl(
         displayData[i][MONITOR_COL_FOTO_TIB - 1],
-        formulaData[i][MONITOR_COL_FOTO_TIB - 1],
-        rawData[i][MONITOR_COL_FOTO_TIB - 1]
+        photoFormulas[i][1],
+        displayData[i][MONITOR_COL_FOTO_TIB - 1]
       );
     }
 
@@ -368,13 +443,13 @@ function getKpmMonitoringData(includeArchived) {
     var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
     var buktiBerangkat = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_BER - 1],
-      formulaData[i][MONITOR_COL_FOTO_BER - 1],
-      rawData[i][MONITOR_COL_FOTO_BER - 1]
+      photoFormulas[i][0],
+      displayData[i][MONITOR_COL_FOTO_BER - 1]
     ) || lastSeenBuktiBer;
     var buktiTiba = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_TIB - 1],
-      formulaData[i][MONITOR_COL_FOTO_TIB - 1],
-      rawData[i][MONITOR_COL_FOTO_TIB - 1]
+      photoFormulas[i][1],
+      displayData[i][MONITOR_COL_FOTO_TIB - 1]
     ) || lastSeenBuktiTib;
 
     var isArchived = (statusAkhir === KPM_STATUS.SELESAI || statusAkhir.toLowerCase() === "selesai");
@@ -419,13 +494,17 @@ function getKpmMonitoringData(includeArchived) {
 
   if (pendingStatusRowUpdates.length > 0) {
     try {
-      var statusRange = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_STATUS, numRows, 1);
-      var statusVals = statusRange.getValues();
+      // Build a minimal write array directly from pending updates instead of re-reading the column
+      var minPendIdx = pendingStatusRowUpdates[0].rowIndex;
+      var maxPendIdx = pendingStatusRowUpdates[pendingStatusRowUpdates.length - 1].rowIndex;
+      var pendSliceLen = maxPendIdx - minPendIdx + 1;
+      // Read only the exact slice we need to patch
+      var statusSlice = sheet.getRange(MONITOR_START_ROW + minPendIdx, MONITOR_COL_STATUS, pendSliceLen, 1).getValues();
       for (var u = 0; u < pendingStatusRowUpdates.length; u++) {
-        statusVals[pendingStatusRowUpdates[u].rowIndex][0] = pendingStatusRowUpdates[u].status;
+        var localIdx = pendingStatusRowUpdates[u].rowIndex - minPendIdx;
+        statusSlice[localIdx][0] = pendingStatusRowUpdates[u].status;
       }
-      statusRange.setValues(statusVals);
-      SpreadsheetApp.flush();
+      sheet.getRange(MONITOR_START_ROW + minPendIdx, MONITOR_COL_STATUS, pendSliceLen, 1).setValues(statusSlice);
     } catch(e) {
       Logger.log("Batch status update error: " + e.message);
     }
@@ -436,6 +515,10 @@ function getKpmMonitoringData(includeArchived) {
     listKPM.push(kpmMap[key]);
   }
   listKPM.reverse();
+
+  // Cache serialized response with 60-second TTL
+  putMonitoringCache(cacheKey, JSON.stringify(listKPM), 60);
+
   return listKPM;
 }
 
@@ -618,7 +701,7 @@ function validateAndCreateKpm(params) {
     throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
   }
 
-  var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+  var waktuSekarang = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
   // SECURITY: Unconditionally force initial status to 'Baru Dibuat'
   var statusKPM = KPM_STATUS.BARU_DIBUAT;
@@ -683,8 +766,10 @@ function validateAndCreateKpm(params) {
 
   if (rowsToInsert.length > 0) {
     sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS).setValues(rowsToInsert);
-    SpreadsheetApp.flush();
   }
+
+  // Invalidate cache so subsequent queries fetch newly created KPM
+  invalidateMonitoringCache();
 
   return {
     kpmId: nomorBaruStr,
@@ -698,6 +783,27 @@ function validateAndCreateKpm(params) {
 // ============================================
 // 9. STATUS UPDATE & PHOTO SERVICE (STATE MACHINE)
 // ============================================
+
+var _cachedDriveFolder = null;
+
+function getTargetDriveFolder() {
+  if (_cachedDriveFolder) return _cachedDriveFolder;
+  var cache = CacheService.getScriptCache();
+  var folderId = cache.get("TARGET_DRIVE_FOLDER_ID");
+  if (folderId) {
+    try {
+      _cachedDriveFolder = DriveApp.getFolderById(folderId);
+      return _cachedDriveFolder;
+    } catch(e) {}
+  }
+  var folders = DriveApp.getFoldersByName(WEB_CONFIG.DRIVE_FOLDER_NAME);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(WEB_CONFIG.DRIVE_FOLDER_NAME);
+  _cachedDriveFolder = folder;
+  try {
+    cache.put("TARGET_DRIVE_FOLDER_ID", folder.getId(), 21600); // 6 hours
+  } catch(e) {}
+  return folder;
+}
 
 /**
  * Handles Base64 image upload to Google Drive with strict MIME & size validation.
@@ -725,12 +831,10 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
   }
 
   try {
-    var folderName = WEB_CONFIG.DRIVE_FOLDER_NAME;
-    var folders = DriveApp.getFoldersByName(folderName);
-    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+    var folder = getTargetDriveFolder();
 
     var safeNomor = (nomorKPM || "KPM").replace(/\//g, "_");
-    var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "ddMMyy_HHmm");
+    var timestamp = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "ddMMyy_HHmm");
     var extension = mimeType === "image/png" ? ".png" : mimeType === "image/webp" ? ".webp" : ".jpg";
     var namaFile = safeNomor + "_" + (statusKPM || "Foto") + "_" + timestamp + extension;
 
@@ -833,7 +937,7 @@ function validateAndUpdateStatus(params) {
     }
   }
 
-  var waktuSekarang = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+  var waktuSekarang = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
   
   var namaPIC = (params.namaPIC || "").trim();
   if (namaPIC) {
@@ -896,8 +1000,16 @@ function validateAndUpdateStatus(params) {
     }
   }
 
-  fullRange.setValues(allData);
-  SpreadsheetApp.flush();
+  if (matchingRows.length > 0) {
+    var minIdx = matchingRows[0];
+    var maxIdx = matchingRows[matchingRows.length - 1];
+    var sliceCount = maxIdx - minIdx + 1;
+    var sliceData = allData.slice(minIdx, maxIdx + 1);
+    sheet.getRange(MONITOR_START_ROW + minIdx, 1, sliceCount, MONITOR_TOTAL_COLS).setValues(sliceData);
+  }
+
+  // Invalidate cache so subsequent queries fetch updated status
+  invalidateMonitoringCache();
 
   return {
     kpmId: nomorKPM,
@@ -956,7 +1068,8 @@ function doGet(e) {
       responseData = getAvailableDeliveries();
     } else if (action === "getMonitoring") {
       var includeArchived = (params.includeArchived === "true");
-      responseData = getKpmMonitoringData(includeArchived);
+      var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
+      responseData = getKpmMonitoringData(includeArchived, bypassCache);
     }
 
     return jsonOutput(createSuccessResponse(action, responseData));

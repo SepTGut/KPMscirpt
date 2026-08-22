@@ -47,6 +47,8 @@ function verifyAppSignature() {
 /**
  * Safely fetches the author/school logo from Google Drive using DriveApp.
  */
+var _aboutLogoMemoryCache = null;
+
 function getAboutLogoSafe() {
   var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230B57D0'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='36' font-weight='bold' fill='%23FFFFFF'>SG</text></svg>";
 
@@ -54,12 +56,35 @@ function getAboutLogoSafe() {
     return defaultLogo;
   }
 
+  // 1. RAM in-memory cache
+  if (_aboutLogoMemoryCache) return _aboutLogoMemoryCache;
+
+  // 2. ScriptCache
+  try {
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("APP_ABOUT_LOGO_" + ABOUT_CONFIG.LOGO_ID);
+    if (cached) {
+      _aboutLogoMemoryCache = cached;
+      return cached;
+    }
+  } catch (e) {}
+
+  // 3. Fallback: DriveApp fetch
   try {
     var file = DriveApp.getFileById(ABOUT_CONFIG.LOGO_ID);
     var blob = file.getBlob();
     var contentType = blob.getContentType();
     var base64 = Utilities.base64Encode(blob.getBytes());
-    return "data:" + contentType + ";base64," + base64;
+    var dataUrl = "data:" + contentType + ";base64," + base64;
+    _aboutLogoMemoryCache = dataUrl;
+
+    try {
+      if (dataUrl.length < 100000) {
+        CacheService.getScriptCache().put("APP_ABOUT_LOGO_" + ABOUT_CONFIG.LOGO_ID, dataUrl, 21600); // 6 hours
+      }
+    } catch (ce) {}
+
+    return dataUrl;
   } catch (err) {
     Logger.log("getAboutLogoSafe warning: " + err.message);
     return defaultLogo;

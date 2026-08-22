@@ -9,6 +9,7 @@
 
 - [Arsitektur Sistem](#-arsitektur-sistem)
 - [Fitur Utama](#-fitur-utama)
+- [Arsitektur Performa & Caching](#-arsitektur-performa--caching)
 - [Alur Status (State Machine)](#-alur-status-state-machine)
 - [Struktur Spreadsheet (Kolom A – X)](#-struktur-spreadsheet-kolom-a--x)
 - [Keamanan & Hak Akses (RBAC)](#-keamanan--hak-akses-rbac)
@@ -84,6 +85,34 @@
 
 4. **Modul Cetak Dokumen (Print Engine)**:
    - Modul cetak dokumen fisik KPM dengan pagination otomatis (15 item per halaman) di [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs) dan [`PrintKPM.html`](file:///d:/MyCode/KPMscirpt/PrintKPM.html).
+
+5. **Arsitektur Performa Tinggi & Multi-Tier Caching**:
+   - Cache katalog material di memori RAM & `ScriptCache` ($O(1)$ lookup).
+   - Pembacaan formula selektif 2 kolom foto (menghemat >60% network payload).
+   - Penulisan bounded slice bertarget untuk pembaruan status dan sinkronisasi baris.
+   - Kompresi gambar off-thread via `createImageBitmap` + `OffscreenCanvas`.
+   - Smart refresh dengan cache bypass terarah (`refresh=true`).
+
+---
+
+## ⚡ Arsitektur Performa & Caching
+
+Untuk menjamin kecepatan, skalabilitas, dan responsivitas tinggi pada koneksi internet seluler maupun desktop:
+
+1. **Multi-Tier Caching (RAM ➔ `ScriptCache` ➔ Storage)**:
+   - **Katalog Material (`Code.gs`)**: Seluruh database material di-load ke RAM dan `ScriptCache` (TTL 6 jam) dengan chunking aman (>100KB). Fungsi `getMaterialByKode(kode)` melakukan pencarian $O(1)$ instan tanpa query spreadsheet.
+   - **Aset Gambar / Logo (`Code.gs` & `About.gs`)**: Logo aplikasi dan header cetak di-cache 3 lapis untuk menghilangkan latensi DriveApp RPC.
+   - **Target Google Drive Folder (`Web.gs`)**: ID folder tujuan pengiriman di-cache di `ScriptCache`, menghilangkan pencarian direktori $O(N)$ pada setiap upload foto.
+
+2. **Optimasi Spreadsheet I/O & Network Payload**:
+   - **Targeted Formula Fetch**: Pembacaan monitoring hanya meminta formula pada 2 kolom foto (Kolom W & X), memangkas data transfer >60%.
+   - **Selective Slice Write-Back**: Pembaruan status KPM hanya menulis kembali irisan baris yang berubah (`allData.slice(minIdx, maxIdx + 1)`), bukan seluruh ribuan baris spreadsheet.
+   - **Downstream Sync Precise Slice**: Sinkronisasi downstream metadata pada `onEdit` hanya menulis kembali baris yang benar-benar terscan.
+   - **Eliminasi `SpreadsheetApp.flush()`**: Menghapus pemanggilan blocking flush agar write-behind spreadsheet berjalan efisien dan asinkron.
+
+3. **Frontend Acceleration (`WKPM/combined-app`)**:
+   - **Off-Thread Image Compression**: `compressImage()` memanfaatkan `createImageBitmap` dan `OffscreenCanvas` untuk *decoding* dan *resizing* foto di *background thread* tanpa memblokir UI browser.
+   - **Smart Invalidation & On-Demand Sync**: Hasil query monitoring di-cache 60 detik di server. Perubahan data (buat KPM, update status, arsipkan) langsung memicu invalidasi cache seketika. Tombol "↻ Segarkan" mem-bypass cache secara eksplisit.
 
 ---
 
