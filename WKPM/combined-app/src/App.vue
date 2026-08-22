@@ -201,15 +201,96 @@ onMounted(() => {
       <div v-if="message" class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ message }}</div>
 
       <section v-if="mode === 'admin'">
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-xl font-bold">Admin dashboard</h2><p class="text-sm text-slate-500">Buat dan pantau perjalanan KPM.</p></div><div class="flex gap-2"><button class="btn" :class="adminView === 'create' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="adminView = 'create'">Buat KPM</button><button class="btn" :class="adminView === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="adminView = 'monitor'; loadMonitoring()">Pantau KPM</button></div></div>
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-bold">Admin dashboard</h2>
+            <p class="text-sm text-slate-500">Buat dan pantau perjalanan KPM.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn" :class="adminView === 'create' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="adminView = 'create'">Buat KPM</button>
+            <button class="btn" :class="adminView === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="adminView = 'monitor'; loadMonitoring()">Pantau KPM</button>
+          </div>
+        </div>
 
         <form v-if="adminView === 'create'" class="panel space-y-5" @submit.prevent="createKpm">
-          <div class="grid gap-4 md:grid-cols-2"><label><span class="label">Lokasi berangkat</span><select v-model="createForm.lokasiBerangkat" class="field"><option value="">Pilih lokasi</option><option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option></select></label><label><span class="label">Lokasi tiba</span><select v-model="createForm.lokasiTiba" class="field"><option value="">Pilih lokasi</option><option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option></select></label><label><span class="label">PIC</span><select v-model="createForm.namaPIC" class="field"><option value="">Pilih PIC</option><option v-for="item in master.pics" :key="item" :value="item">{{ item }}</option></select></label><label><span class="label">Nama proyek</span><input v-model="createForm.namaProyek" class="field" required placeholder="Nama proyek" /></label></div>
-          <div><div class="mb-2 flex items-center justify-between"><h3 class="font-bold">Material</h3><button type="button" class="btn-secondary" @click="addItem">+ Tambah</button></div><div v-for="(item, index) in createForm.items" :key="index" class="mb-3 grid gap-2 sm:grid-cols-[1fr_120px_140px_auto]"><input v-model="item.nama" class="field mt-0" required placeholder="Nama barang" /><input v-model.number="item.qty" class="field mt-0" min="1" type="number" required /><select v-model="item.uom" class="field mt-0"><option v-for="uom in master.uoms" :key="uom" :value="uom">{{ uom }}</option></select><button type="button" class="btn-danger" :disabled="createForm.items.length === 1" @click="removeItem(index)">Hapus</button></div></div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <label>
+              <span class="label">Lokasi berangkat</span>
+              <select v-model="createForm.lokasiBerangkat" class="field">
+                <option value="">Pilih lokasi</option>
+                <option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option>
+              </select>
+            </label>
+            <label>
+              <span class="label">Lokasi tiba</span>
+              <select v-model="createForm.lokasiTiba" class="field">
+                <option value="">Pilih lokasi</option>
+                <option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option>
+              </select>
+            </label>
+            <label>
+              <span class="label">PIC</span>
+              <select v-model="createForm.namaPIC" class="field">
+                <option value="">Pilih PIC</option>
+                <option v-for="item in master.pics" :key="item" :value="item">{{ item }}</option>
+              </select>
+            </label>
+            <label>
+              <span class="label">Nama proyek</span>
+              <input v-model="createForm.namaProyek" class="field" required placeholder="Nama proyek" />
+            </label>
+          </div>
+          <div>
+            <div class="mb-2 flex items-center justify-between">
+              <h3 class="font-bold">Material</h3>
+              <button type="button" class="btn-secondary" @click="addItem">+ Tambah</button>
+            </div>
+            <div v-for="(item, index) in createForm.items" :key="index" class="mb-3 grid gap-2 sm:grid-cols-[1fr_120px_140px_auto]">
+              <input v-model="item.nama" class="field mt-0" required placeholder="Nama barang" />
+              <input v-model.number="item.qty" class="field mt-0" min="1" type="number" required />
+              <select v-model="item.uom" class="field mt-0">
+                <option v-for="uom in master.uoms" :key="uom" :value="uom">{{ uom }}</option>
+              </select>
+              <button type="button" class="btn-danger" :disabled="createForm.items.length === 1" @click="removeItem(index)">Hapus</button>
+            </div>
+          </div>
           <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Menyimpan...' : 'Simpan & Generate KPM' }}</button>
         </form>
 
-        <div v-else class="space-y-4"><div class="flex flex-wrap justify-between gap-3"><div class="flex flex-wrap gap-2"><button v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button></div><button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button></div><div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div><article v-for="item in filteredMonitoring" :key="item.nomor" class="panel"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3><p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span></div><div class="mt-4 grid gap-2 text-sm sm:grid-cols-3"><p><span class="font-semibold">PIC:</span> {{ item.pic }}</p><p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p><p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p></div><div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div></div><details class="mt-4 rounded-xl bg-slate-50 p-3"><summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary><div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0"><span>{{ material.nama }}</span><strong>{{ material.qty }} {{ material.uom }}</strong></div></details><button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button></article></div>
+        <div v-else class="space-y-4">
+          <div class="flex flex-wrap justify-between gap-3">
+            <div class="flex flex-wrap gap-2">
+              <button v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba']" :key="option" class="btn" :class="filter === option ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'" @click="filter = option">{{ option }}</button>
+            </div>
+            <button class="btn-secondary" :disabled="busy" @click="loadMonitoring">↻ Segarkan</button>
+          </div>
+          <div v-if="!filteredMonitoring.length" class="panel text-center text-slate-500">Tidak ada KPM pada filter ini.</div>
+          <article v-for="item in filteredMonitoring" :key="item.nomor" class="panel">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-lg font-bold text-blue-700">{{ item.nomor }}</h3>
+                <p class="text-sm text-slate-500">{{ item.proyek }} · {{ item.lokasi }}</p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-xs font-bold" :class="statusClass(item.status)">{{ item.status }}</span>
+            </div>
+            <div class="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+              <p><span class="font-semibold">PIC:</span> {{ item.pic }}</p>
+              <p><span class="font-semibold">Dibuat:</span> {{ item.createdAtFormatted }}</p>
+              <p><span class="font-semibold">Durasi:</span> {{ item.duration || '-' }}</p>
+            </div>
+            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${item.fillPercent || 0}%` }"></div>
+            </div>
+            <details class="mt-4 rounded-xl bg-slate-50 p-3">
+              <summary class="cursor-pointer text-sm font-semibold">{{ item.daftarBarang?.length || 0 }} material</summary>
+              <div v-for="material in item.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between border-b border-slate-200 py-2 text-sm last:border-0">
+                <span>{{ material.nama }}</span>
+                <strong>{{ material.qty }} {{ material.uom }}</strong>
+              </div>
+            </details>
+            <button v-if="item.isArrived" class="btn-danger mt-4" :disabled="busy" @click="archive(item)">Arsipkan selesai</button>
+          </article>
+        </div>
       </section>
 
       <section v-else>

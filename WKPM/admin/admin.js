@@ -98,43 +98,7 @@ btnTambah.addEventListener('click', () => {
 
 generateForm.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!generateForm.reportValidity()) return;
-  const rows = [...wadahBarang.querySelectorAll('.item-box')];
-  if (!rows.length) { alert('Silakan tambah minimal 1 barang sebelum menyimpan!'); return; }
-
-  const daftarBarang = rows.map(row => ({
-    nama: row.querySelector('.input-barang').value.trim(),
-    qty: row.querySelector('.input-qty').value.trim(),
-    uom: row.querySelector('.input-uom').value.trim()
-  })).filter(item => item.nama !== '');
-
-  if (!daftarBarang.length) { alert('Silakan isi nama barang dengan benar!'); return; }
-
-  const params = new URLSearchParams(new FormData(generateForm));
-  params.append('action', 'createKpm');
-  params.append('apiToken', ADMIN_API_TOKEN);
-  params.append('lokasiWorkshop', `${document.getElementById('lokasiBerangkat').value} ➔ ${document.getElementById('lokasiTiba').value}`);
-  params.append('daftarBarang', JSON.stringify(daftarBarang));
-
-  btnSubmitGen.disabled = true; btnTambah.disabled = true; btnSubmitGen.innerText = 'Memproses Database...';
-  try {
-    const response = await fetchWithTimeout(scriptURL, { method: 'POST', body: params });
-    const result = await response.json();
-
-    if (!result || !result.success) {
-      const errMsg = result?.error?.message || 'Gagal membuat KPM di server.';
-      throw new Error(errMsg);
-    }
-
-    const nomorKPMBaru = result.data?.nomor || result.data?.kpmId || '-';
-    generateForm.style.display = 'none';
-    document.getElementById('hasilBox').style.display = 'block';
-    document.getElementById('nomorTampil').textContent = nomorKPMBaru;
-  } catch (error) {
-    console.error('KPM creation failed:', error);
-    alert('Gagal menyimpan KPM: ' + error.message);
-    btnSubmitGen.disabled = false; btnTambah.disabled = false; btnSubmitGen.innerText = 'Simpan & Generate KPM';
-  }
+  alert('Fitur pembuatan KPM via web form sedang dinonaktifkan. Silakan input baris KPM baru langsung di spreadsheet KPM Monitor.');
 });
 
 function terapkanFilter(statusTujuan, button) {

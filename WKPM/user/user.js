@@ -150,54 +150,5 @@ function compressImage(file) {
 
 updateForm.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!updateForm.reportValidity()) return;
-  if (!selectKPM.value) { alert('Pilih KPM terlebih dahulu!'); return; }
-  const file = inputFoto.files[0];
-  if (!file || !file.type.startsWith('image/')) { alert('Harap lampirkan file foto yang valid!'); return; }
-
-  submitButton.innerText = 'Memproses Foto & Menyimpan...';
-  submitButton.disabled = true;
-  statusKompresi.style.display = 'block';
-  statusKompresi.innerText = 'Memproses ukuran foto...';
-  // Readonly fields are temporarily enabled while constructing FormData.
-  ['lokasiWorkshop', 'namaPIC', 'namaProyek'].forEach(id => { document.getElementById(id).readOnly = false; });
-
-  try {
-    document.getElementById('fotoData').value = await compressImage(file);
-    statusKompresi.innerText = 'Kompresi selesai. Sedang menyimpan ke database...';
-
-    const selected = dataKPMGlobal.find(item => String(item?.nomor || item?.kpmId) === selectKPM.value);
-    const targetStatus = document.querySelector('input[name="statusKPM"]:checked')?.value;
-    document.getElementById('lokasiWorkshop').value = targetStatus === 'Tiba'
-      ? (selected?.lokasiTiba || document.getElementById('lokasiWorkshop').value)
-      : (selected?.lokasiBerangkat || document.getElementById('lokasiWorkshop').value);
-
-    const formData = new FormData(updateForm);
-    formData.append('action', 'updateStatus');
-    formData.append('apiToken', DRIVER_API_TOKEN);
-
-    const response = await fetchWithTimeout(scriptURL, {
-      method: 'POST',
-      body: new URLSearchParams(formData)
-    });
-    const result = await response.json();
-
-    if (!result || !result.success) {
-      throw new Error(result?.error?.message || 'Server menolak pembaruan status.');
-    }
-
-    statusKompresi.innerText = 'Pembaruan berhasil!';
-    document.getElementById('pesanUpdate').innerText = 'TUNTAS! Data berhasil diupdate.';
-    setTimeout(() => location.reload(), 2000);
-  } catch (error) {
-    console.error('Status update failed:', error);
-    submitButton.innerText = 'Simpan ke Database';
-    submitButton.disabled = false;
-    statusKompresi.innerText = 'Gagal menyimpan: ' + error.message;
-    alert('Gagal menyimpan data: ' + error.message);
-  }
+  alert('Portal driver legacy dinonaktifkan. Silakan gunakan link portal resmi di /kpm/personel.');
 });
-
-btnRefreshData.addEventListener('click', muatDataKPM);
-showDefaultDetails();
-muatDataKPM();
