@@ -47,7 +47,7 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │               BACKEND GOOGLE APPS SCRIPT (Web.gs)                      │
 │   - Role-Based Access Control (Admin vs Driver Token)                  │
-│   - State Machine Validation (Baru Dibuat ➔ Belum ➔ Jalan ➔ Tiba)     │
+│   - State Machine Validation (Baru Dibuat ➔ Belum ➔ Jalan ➔ Tiba)    │
 │   - Concurrency Lock (LockService 15 detik)                            │
 │   - Multi-item KPM Auto-sequencing & No LF Increment Generator         │
 │   - Pre-Hashed Cryptographic Digital Seal & Anti-Tamper Protection     │
