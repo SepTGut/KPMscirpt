@@ -1,8 +1,11 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { fileURLToPath } from 'url'
 
-const rootDir = process.cwd()
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const rootDir = path.resolve(__dirname, '..')
 
 // Core secret salts (Obfuscated into hex byte seeds)
 const SALT_META_RAW = "SG_SMKN1MADIUN_TITL_2026_AUTHOR_INTEGRITY_SALT_V8"

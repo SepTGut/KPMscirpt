@@ -1,14 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
+import { fileURLToPath } from 'url';
 
-const folder = path.join(process.cwd(), 'qr code');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+const folder = path.join(rootDir, 'qr code');
 if (!fs.existsSync(folder)) {
   fs.mkdirSync(folder, { recursive: true });
 }
 
-const adminUrl = 'https://linefeedingd.netlify.app/kpm';
-const personelUrl = 'https://linefeedingd.netlify.app/kpm/personel';
+// Live Vercel Production URLs
+const adminUrl = 'https://combined-app-theta.vercel.app/kpm';
+const personelUrl = 'https://combined-app-theta.vercel.app/kpm/personel';
 
 function downloadQR(dataUrl, filename) {
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(dataUrl)}`;
@@ -63,14 +69,14 @@ const htmlContent = `<!DOCTYPE html>
       <h2>Admin Dashboard</h2>
       <p class="desc">Buat KPM baru & monitoring live</p>
       <img src="qr_admin_kpm.png" alt="QR Admin">
-      <div class="link-text">https://linefeedingd.netlify.app/kpm</div>
+      <div class="link-text">https://combined-app-theta.vercel.app/kpm</div>
     </div>
     <div class="card">
       <span class="tag tag-driver">PORTAL PERSONEL / DRIVER</span>
       <h2>Update Status & Foto</h2>
       <p class="desc">Ambil foto bukti & update perjalanan</p>
       <img src="qr_personel_driver.png" alt="QR Personel">
-      <div class="link-text">https://linefeedingd.netlify.app/kpm/personel</div>
+      <div class="link-text">https://combined-app-theta.vercel.app/kpm/personel</div>
     </div>
   </div>
 </body>
