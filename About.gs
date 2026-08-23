@@ -100,7 +100,7 @@ function openAboutDialog() {
     return;
   }
 
-  var template = HtmlService.createTemplateFromFile('About');
+  var template = HtmlService.createTemplateFromFile('AboutDialog');
   template.info = getAppAuthorInfo();
 
   var htmlOutput = template.evaluate()

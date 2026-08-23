@@ -10,6 +10,16 @@
   timeout = 26
 
 [[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
+
+[[redirects]]
   from = "/kpm/personel"
   to = "/index.html"
   status = 200

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-const scriptUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/api'
+const scriptUrl = import.meta.env.VITE_API_URL || '/api'
 const requestTimeout = 30000
 
 const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'

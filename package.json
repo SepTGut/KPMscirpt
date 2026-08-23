@@ -1,0 +1,13 @@
+{
+  "name": "kpm-script",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "gas:push": "npx @google/clasp push --force",
+    "gas:watch": "npx @google/clasp push --watch --force",
+    "gas:pull": "npx @google/clasp pull",
+    "gas:status": "npx @google/clasp status",
+    "gas:deploy": "npx @google/clasp deploy",
+    "gas:deployments": "npx @google/clasp deployments"
+  }
+}

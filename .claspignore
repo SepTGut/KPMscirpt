@@ -1,0 +1,7 @@
+# Ignore all files and directories by default
+**/*
+
+# Include only GAS backend files and manifest
+!*.gs
+!*.html
+!appsscript.json
