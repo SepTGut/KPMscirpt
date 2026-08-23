@@ -1,34 +1,34 @@
 # KPM Line Feeding Tracking System 📦🚀
 
 > **Sistem Informasi & Manajemen Kartu Permintaan Material (KPM) Line Feeding Real-time**  
-> Mengintegrasikan Google Sheets sebagai basis data, Google Apps Script sebagai backend API & state machine, Google Drive sebagai media penyimpanan bukti foto, dan Vue 3 + Tailwind CSS di Netlify sebagai antarmuka modern terpadu (Admin & Personel Driver).
+> Mengintegrasikan Google Sheets sebagai basis data, Google Apps Script sebagai backend API & state machine, Google Drive sebagai media penyimpanan bukti foto, dan Vue 3 + Tailwind CSS di Vercel sebagai antarmuka modern terpadu (Admin & Personel Driver).
 
 ---
 
 ## 📑 Daftar Isi
 
-- [Arsitektur Sistem](#-arsitektur-sistem)
-- [Fitur Utama](#-fitur-utama)
-- [Arsitektur Performa & Caching](#-arsitektur-performa--caching)
-- [Alur Status (State Machine)](#-alur-status-state-machine)
-- [Struktur Spreadsheet (Kolom A – X)](#-struktur-spreadsheet-kolom-a--x)
-- [Keamanan & Hak Akses (RBAC)](#-keamanan--hak-akses-rbac)
-- [Spesifikasi API Backend](#-spesifikasi-api-backend)
-- [Panduan Instalasi & Deployment](#-panduan-instalasi--deployment)
+- [Arsitektur Sistem](#arsitektur-sistem)
+- [Fitur Utama](#fitur-utama)
+- [Arsitektur Performa dan Caching](#arsitektur-performa-dan-caching)
+- [Alur Status State Machine](#alur-status-state-machine)
+- [Struktur Spreadsheet Kolom A Sampai X](#struktur-spreadsheet-kolom-a-sampai-x)
+- [Keamanan dan Hak Akses RBAC](#keamanan-dan-hak-akses-rbac)
+- [Spesifikasi API Backend](#spesifikasi-api-backend)
+- [Panduan Instalasi dan Deployment](#panduan-instalasi-dan-deployment)
   - [1. Konfigurasi Google Apps Script](#1-konfigurasi-google-apps-script)
-  - [2. Konfigurasi Netlify Frontend](#2-konfigurasi-netlify-frontend)
-  - [3. Menjalankan Lokal (Development)](#3-menjalankan-lokal-development)
-- [Akses QR Code & Link Publik](#-akses-qr-code--link-publik)
-- [Pengujian Otomatis (Test.gs)](#-pengujian-otomatis-testgs)
-- [Lisensi & Pembuat](#-lisensi--pembuat)
+  - [2. Konfigurasi Vercel Frontend](#2-konfigurasi-vercel-frontend)
+  - [3. Menjalankan Lokal Development](#3-menjalankan-lokal-development)
+- [Akses QR Code dan Link Publik](#akses-qr-code-dan-link-publik)
+- [Pengujian Otomatis](#pengujian-otomatis)
+- [Lisensi dan Pembuat](#lisensi-dan-pembuat)
 
 ---
 
-## 🏗️ Arsitektur Sistem
+## Arsitektur Sistem
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (Netlify)                             │
+│                        FRONTEND (Vercel)                               │
 │                                                                        │
 │   Portal Admin (/kpm)                 Portal Personel (/kpm/personel)  │
 │   - Buat KPM Baru                     - Lihat KPM Tersedia             │
@@ -38,9 +38,9 @@
                                    │ HTTPS Fetch
                                    ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                NETLIFY SERVERLESS PROXY (api.mjs)                     │
+│                VERCEL SERVERLESS PROXY (api/index.js)                  │
 │   - Menyembunyikan token API dari browser (Server-side token injection)│
-│   - Mengelola timeout koneksi hingga 26 detik                          │
+│   - Mengelola timeout koneksi hingga 30 detik                          │
 └──────────────────────────────────┬─────────────────────────────────────┘
                                    │ HTTPS POST / GET (JSON)
                                    ▼
@@ -50,6 +50,7 @@
 │   - State Machine Validation (Baru Dibuat ➔ Belum ➔ Jalan ➔ Tiba)     │
 │   - Concurrency Lock (LockService 15 detik)                            │
 │   - Multi-item KPM Auto-sequencing & No LF Increment Generator         │
+│   - Pre-Hashed Cryptographic Digital Seal & Anti-Tamper Protection     │
 └───────────────────┬────────────────────────────────┬───────────────────┘
                     │                                │
                     ▼                                ▼
@@ -64,7 +65,7 @@
 
 ---
 
-## ✨ Fitur Utama
+## Fitur Utama
 
 1. **Dashboard Admin Modern**:
    - Pembuatan KPM multi-barang (hingga 100 material per nomor KPM).
@@ -82,6 +83,7 @@
    - Google Apps Script sebagai *Single Source of Truth* bisnis logic.
    - Menggunakan `ScriptProperties` untuk keamanan token API.
    - Proteksi konkurensi dengan `LockService` untuk mencegah duplikasi penomoran KPM saat beberapa pengguna melakukan aksi bersamaan.
+   - Proteksi tanda tangan digital kriptografis (Pre-hashed SHA-256 Seal) anti-tamper.
 
 4. **Modul Cetak Dokumen (Print Engine)**:
    - Modul cetak dokumen fisik KPM dengan pagination otomatis (15 item per halaman) di [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs) dan [`PrintKPM.html`](file:///d:/MyCode/KPMscirpt/PrintKPM.html).
@@ -95,7 +97,7 @@
 
 ---
 
-## ⚡ Arsitektur Performa & Caching
+## Arsitektur Performa dan Caching
 
 Untuk menjamin kecepatan, skalabilitas, dan responsivitas tinggi pada koneksi internet seluler maupun desktop:
 
@@ -116,34 +118,34 @@ Untuk menjamin kecepatan, skalabilitas, dan responsivitas tinggi pada koneksi in
 
 ---
 
-## 🔄 Alur Status (State Machine)
+## Alur Status State Machine
 
 Sistem memberlakukan alur status berurutan yang ketat (*Strict State Machine*) untuk mencegah perubahan status ilegal:
 
 ```mermaid
 graph LR
-    A["1. Baru Dibuat"] -->|"Otomatis 5 mnt / Manual"| B["2. Belum Berangkat"]
+    A["1. Baru Dibuat"] -->|"Otomatis 1 mnt / Manual"| B["2. Belum Berangkat"]
     B -->|"Driver Upload Foto Berangkat"| C["3. Jalan"]
     C -->|"Driver Upload Foto Tiba"| D["4. Tiba"]
     D -->|"Admin Arsipkan"| E["5. Selesai"]
 ```
 
 | Status | Kode Status | Hak Akses | Deskripsi & Syarat Transisi |
-|:---|:---:|:---:|:---|
+| :--- | :---: | :---: | :--- |
 | **Baru Dibuat** | `BARU_DIBUAT` | Admin | Status awal saat KPM dibuat oleh Admin. KPM belum siap diambil driver. |
-| **Belum Berangkat** | `BELUM_BERANGKAT` | Admin / Sistem | Otomatis berubah setelah 5 menit atau diubah admin. KPM muncul di portal Driver. |
+| **Belum Berangkat** | `BELUM_BERANGKAT` | Admin / Sistem | Otomatis berubah setelah 1 menit atau diubah admin. KPM muncul di portal Driver. |
 | **Jalan** | `BERANGKAT` | Driver / Admin | Driver memulai perjalanan. **Wajib melampirkan foto bukti keberangkatan.** Waktu berangkat dicatat otomatis. |
 | **Tiba** | `TIBA` | Driver / Admin | Driver sampai di tujuan. **Wajib melampirkan foto bukti tiba.** Durasi perjalanan dihitung otomatis. |
 | **Selesai** | `SELESAI` | Admin | KPM telah tuntas dan diarsipkan dari tampilan monitoring harian. |
 
 ---
 
-## 📊 Struktur Spreadsheet (Kolom A – X)
+## Struktur Spreadsheet Kolom A Sampai X
 
 Data KPM disimpan pada sheet **`KPM Monitor 2026`** mulai dari baris 10:
 
 | Kolom | Nama Kolom di Spreadsheet | Konstanta di Script | Tipe Data | Deskripsi |
-|:---:|:---|:---|:---:|:---|
+| :---: | :--- | :--- | :---: | :--- |
 | **A** | `NO ( Oto )` | `MONITOR_COL_NO` (1) | Integer | Nomor urut baris data |
 | **B** | `Post Date ( Otomatis )` | `MONITOR_COL_POST_DATE` (2) | String | Waktu pembuatan (`dd/MM/yyyy HH:mm:ss`) |
 | **C** | `No. LF ( Counting Manual )` | `MONITOR_COL_NOLF` (3) | String | Nomor KPM unik (`001/PPO/LF/VIII/2026`) |
@@ -171,12 +173,12 @@ Data KPM disimpan pada sheet **`KPM Monitor 2026`** mulai dari baris 10:
 
 ---
 
-## 🔐 Keamanan & Hak Akses (RBAC)
+## Keamanan dan Hak Akses RBAC
 
 Sistem menggunakan otorisasi berbasis peran ganda (*Role-Based Access Control*) yang dikontrol secara server-side:
 
 | Aksi API | Endpoint Method | Peran ADMIN | Peran DRIVER / USER | Keterangan |
-|:---|:---:|:---:|:---:|:---|
+| :--- | :---: | :---: | :---: | :--- |
 | `getMasterData` | `GET` | ✅ Diizinkan | ✅ Diizinkan | Mengambil daftar workshop, PIC, UOM, dan status |
 | `getMonitoring` | `GET` | ✅ Diizinkan | ❌ Ditolak (403) | Mengambil daftar KPM aktif beserta progres |
 | `getDeliveries` | `GET` | ✅ Diizinkan | ✅ Diizinkan | Mengambil KPM yang siap diupdate driver |
@@ -186,11 +188,12 @@ Sistem menggunakan otorisasi berbasis peran ganda (*Role-Based Access Control*) 
 
 ---
 
-## 📡 Spesifikasi API Backend
+## Spesifikasi API Backend
 
 Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified Response Envelope*):
 
 ### Format Sukses (`HTTP 200`)
+
 ```json
 {
   "success": true,
@@ -207,6 +210,7 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
 ```
 
 ### Format Error (`HTTP 200` dengan envelope error)
+
 ```json
 {
   "success": false,
@@ -221,7 +225,7 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
 
 ---
 
-## 🚀 Panduan Instalasi & Deployment
+## Panduan Instalasi dan Deployment
 
 ### 1. Konfigurasi Google Apps Script
 
@@ -231,13 +235,15 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
    - [`Web.gs`](file:///d:/MyCode/KPMscirpt/Web.gs) (Controller API & State Machine)
    - [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs) (Engine Spreadsheet & Print Modul)
    - [`Code.gs`](file:///d:/MyCode/KPMscirpt/Code.gs) (Menu UI & Dialog)
-   - [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs), [`About.html`](file:///d:/MyCode/KPMscirpt/About.html), [`MasterKPM.html`](file:///d:/MyCode/KPMscirpt/MasterKPM.html), [`PrintKPM.html`](file:///d:/MyCode/KPMscirpt/PrintKPM.html)
+   - [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs), [`AboutDialog.html`](file:///d:/MyCode/KPMscirpt/AboutDialog.html), [`MasterKPM.html`](file:///d:/MyCode/KPMscirpt/MasterKPM.html), [`PrintKPM.html`](file:///d:/MyCode/KPMscirpt/PrintKPM.html)
    - [`Test.gs`](file:///d:/MyCode/KPMscirpt/Test.gs) (Unit test suite)
 4. Atur **Script Properties**:
    - Buka **⚙️ Project Settings** → **Script Properties**.
    - Tambahkan property:
      - `ADMIN_TOKEN` = `(Token rahasia Admin Anda)`
      - `DRIVER_TOKEN` = `(Token rahasia Driver Anda)`
+     - `ABOUT_LOGO_ID` = `(Google Drive ID untuk logo modal About)` *(Opsional)*
+     - `KPM_LOGO_ID` = `(Google Drive ID untuk logo cetak KPM)` *(Opsional)*
 5. Jalankan inisialisasi:
    - Pilih fungsi `setupTrackingHeaders` pada toolbar lalu klik **▶ Run**.
 6. Deploy Web App:
@@ -247,19 +253,21 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
    - **Who has access:** `Anyone` (*Siapa saja*).
    - Klik **Deploy** dan salin URL Web App (`https://script.google.com/macros/s/.../exec`).
 
-### 2. Konfigurasi Netlify Frontend
+### 2. Konfigurasi Vercel Frontend
 
-1. Buka project Netlify Anda di [app.netlify.com](https://app.netlify.com).
-2. Buka **Site configuration** → **Environment variables**.
-3. Tambahkan 3 variabel lingkungan:
+1. Buka project Anda di [vercel.com](https://vercel.com).
+2. Buka **Settings** → **Environment Variables**.
+3. Tambahkan 3 variabel lingkungan untuk Production & Preview:
+
    ```env
    GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec
    ADMIN_TOKEN=7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM
    DRIVER_TOKEN=A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3
    ```
-4. Upload file bundle `kpm-netlify-upload.zip` atau hubungkan repositori Git.
 
-### 3. Menjalankan Lokal (Development)
+4. Deploy otomatis terhubung via GitHub atau jalankan `vercel --prod`.
+
+### 3. Menjalankan Lokal Development
 
 ```bash
 cd WKPM/combined-app
@@ -271,17 +279,17 @@ Buka browser di `http://localhost:5173/` untuk Admin dan `http://localhost:5173/
 
 ---
 
-## 📱 Akses QR Code & Link Publik
+## Akses QR Code dan Link Publik
 
 | Portal | URL Publik | QR Code File |
-|:---|:---|:---:|
-| **Admin Dashboard** | `https://linefeedingd.netlify.app/kpm` | [`qr code/qr_admin_kpm.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_admin_kpm.png) |
-| **Driver / Personel** | `https://linefeedingd.netlify.app/kpm/personel` | [`qr code/qr_personel_driver.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_personel_driver.png) |
+| :--- | :--- | :---: |
+| **Admin Dashboard** | `https://combined-app-theta.vercel.app/kpm` | [`qr code/qr_admin_kpm.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_admin_kpm.png) |
+| **Driver / Personel** | `https://combined-app-theta.vercel.app/kpm/personel` | [`qr code/qr_personel_driver.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_personel_driver.png) |
 | **Kartu Cetak Siap Print** | Buka di browser: [`qr code/print_qr_codes.html`](file:///d:/MyCode/KPMscirpt/qr%20code/print_qr_codes.html) | *(Halaman Cetak A4)* |
 
 ---
 
-## 🧪 Pengujian Otomatis (Test.gs)
+## Pengujian Otomatis
 
 Aplikasi dilengkapi test suite menyeluruh di [`Test.gs`](file:///d:/MyCode/KPMscirpt/Test.gs):
 
@@ -289,7 +297,8 @@ Aplikasi dilengkapi test suite menyeluruh di [`Test.gs`](file:///d:/MyCode/KPMsc
 2. `testWebCreationStatusLockdown`: Memastikan KPM baru dipaksa berstatus `Baru Dibuat`.
 3. `testWebMalformedJsonRejection`: Memastikan JSON material yang rusak ditolak secara tepat.
 4. `testWebInvalidRouteRejection`: Memastikan workshop/rute yang tidak terdaftar ditolak.
-5. `testWebStateMachineValidations`: Menguji siklus lengkap 7 langkah:
+5. `testSystemIntegrityVerification`: Memvalidasi integritas digital seal kriptografis anti-tamper.
+6. `testWebStateMachineValidations`: Menguji siklus lengkap 7 langkah:
    - Step 1: Create KPM
    - Step 2: Blokir loncatan status ilegal (`Baru Dibuat` ➔ `Tiba`)
    - Step 3: Transisi `Baru Dibuat` ➔ `Belum Berangkat`
@@ -301,7 +310,10 @@ Aplikasi dilengkapi test suite menyeluruh di [`Test.gs`](file:///d:/MyCode/KPMsc
 
 ---
 
-## 📄 Lisensi & Pembuat
+## Lisensi dan Pembuat
 
-Sistem ini dikembangkan khusus untuk operasional **KPM Line Feeding System**.  
-Seluruh hak cipta dan logika bisnis dilindungi oleh modul integritas [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs).
+- **Pengembang:** Setyo Guntur Samudro
+- **Instansi:** SMK Negeri 1 Madiun
+- **Jurusan / Fakultas:** T.I.T.L (Teknik Instalasi Tenaga Listrik)
+- **Sistem:** KPM Line Feeding Tracking System (v8.0.0, 2026)
+- **Lisensi:** Hak cipta dan logika bisnis dilindungi oleh modul integritas kriptografis [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs).
