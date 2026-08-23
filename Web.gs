@@ -58,14 +58,19 @@ function normalizeKpmStatus(value) {
   return _STATUS_ALIASES[status] || status;
 }
 
-function isFiveMinutesOld(timestamp) {
+function isOneMinuteOld(timestamp) {
   var parts = String(timestamp || '').trim().split(/[\/ :]/);
   if (parts.length < 6) return false;
   var createdAt = new Date(
     Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]),
     Number(parts[3]), Number(parts[4]), Number(parts[5])
   );
-  return !isNaN(createdAt.getTime()) && (new Date().getTime() - createdAt.getTime() >= 5 * 60 * 1000);
+  return !isNaN(createdAt.getTime()) && (new Date().getTime() - createdAt.getTime() >= 1 * 60 * 1000);
+}
+
+// Backward-compatible alias
+function isFiveMinutesOld(timestamp) {
+  return isOneMinuteOld(timestamp);
 }
 
 // ============================================

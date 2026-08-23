@@ -237,21 +237,32 @@ function openPrintView(data) {
 // ============================================
 var _logoMemoryCache = null;
 
+function getEffectivePrintLogoId() {
+  try {
+    var envLogoId = PropertiesService.getScriptProperties().getProperty('KPM_LOGO_ID');
+    if (envLogoId && String(envLogoId).trim() && String(envLogoId).trim() !== "PASTE_YOUR_LOGO_FILE_ID_HERE") {
+      return String(envLogoId).trim();
+    }
+  } catch (e) {}
+  return PRINT.LOGO_ID || "";
+}
+
 function getLogoSafe() {
   var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='50' viewBox='0 0 120 50'><rect width='120' height='50' fill='%2316233B' rx='4'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='%23FFFFFF'>REKAINDO</text></svg>";
-  if (!PRINT.LOGO_ID || PRINT.LOGO_ID === "PASTE_YOUR_LOGO_FILE_ID_HERE") {
+  var logoId = getEffectivePrintLogoId();
+  if (!logoId || logoId === "PASTE_YOUR_LOGO_FILE_ID_HERE") {
     return defaultLogo;
   }
 
   // 1. RAM in-memory cache
-  if (_logoMemoryCache) return _logoMemoryCache;
+  if (_logoMemoryCache && _logoMemoryCache.logoId === logoId) return _logoMemoryCache.dataUrl;
 
   // 2. ScriptCache
   try {
     var cache = CacheService.getScriptCache();
-    var cached = cache.get("APP_PRINT_LOGO_" + PRINT.LOGO_ID);
+    var cached = cache.get("APP_PRINT_LOGO_" + logoId);
     if (cached) {
-      _logoMemoryCache = cached;
+      _logoMemoryCache = { logoId: logoId, dataUrl: cached };
       return cached;
     }
   } catch (e) {}

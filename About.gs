@@ -18,6 +18,22 @@ var ABOUT_CONFIG = {
 var SYSTEM_TOKEN = "SG-SMKN1MDN-KPM2026-SETYO-GUNTUR-SAMUDRO";
 
 /**
+ * Reads the institution logo file ID from Script Properties (ABOUT_LOGO_ID or KPM_ABOUT_LOGO_ID) with fallback to ABOUT_CONFIG.LOGO_ID.
+ */
+function getEffectiveLogoId() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var envLogoId = props.getProperty('ABOUT_LOGO_ID') || props.getProperty('KPM_ABOUT_LOGO_ID');
+    if (envLogoId && String(envLogoId).trim() && String(envLogoId).trim() !== "PASTE_YOUR_ABOUT_LOGO_FILE_ID_HERE") {
+      return String(envLogoId).trim();
+    }
+  } catch (e) {
+    Logger.log("getEffectiveLogoId warning: " + e.message);
+  }
+  return ABOUT_CONFIG.LOGO_ID || "";
+}
+
+/**
  * Returns author and institution metadata.
  */
 function getAppAuthorInfo() {
@@ -46,41 +62,45 @@ function verifyAppSignature() {
 
 /**
  * Safely fetches the author/school logo from Google Drive using DriveApp.
+ * Uses KPM_LOGO_ID Script Property if configured.
  */
 var _aboutLogoMemoryCache = null;
 
 function getAboutLogoSafe() {
-  var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230B57D0'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='36' font-weight='bold' fill='%23FFFFFF'>SG</text></svg>";
+  var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><circle cx='60' cy='60' r='54' fill='none' stroke='%233b82f6' stroke-width='4'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' font-weight='bold' fill='%23FFFFFF'>SMKN 1</text></svg>";
 
-  if (!ABOUT_CONFIG.LOGO_ID || ABOUT_CONFIG.LOGO_ID === "PASTE_YOUR_ABOUT_LOGO_FILE_ID_HERE") {
+  var logoId = getEffectiveLogoId();
+  if (!logoId || logoId === "PASTE_YOUR_ABOUT_LOGO_FILE_ID_HERE") {
     return defaultLogo;
   }
 
   // 1. RAM in-memory cache
-  if (_aboutLogoMemoryCache) return _aboutLogoMemoryCache;
+  if (_aboutLogoMemoryCache && _aboutLogoMemoryCache.logoId === logoId) {
+    return _aboutLogoMemoryCache.dataUrl;
+  }
 
   // 2. ScriptCache
   try {
     var cache = CacheService.getScriptCache();
-    var cached = cache.get("APP_ABOUT_LOGO_" + ABOUT_CONFIG.LOGO_ID);
+    var cached = cache.get("APP_ABOUT_LOGO_" + logoId);
     if (cached) {
-      _aboutLogoMemoryCache = cached;
+      _aboutLogoMemoryCache = { logoId: logoId, dataUrl: cached };
       return cached;
     }
   } catch (e) {}
 
   // 3. Fallback: DriveApp fetch
   try {
-    var file = DriveApp.getFileById(ABOUT_CONFIG.LOGO_ID);
+    var file = DriveApp.getFileById(logoId);
     var blob = file.getBlob();
     var contentType = blob.getContentType();
     var base64 = Utilities.base64Encode(blob.getBytes());
     var dataUrl = "data:" + contentType + ";base64," + base64;
-    _aboutLogoMemoryCache = dataUrl;
+    _aboutLogoMemoryCache = { logoId: logoId, dataUrl: dataUrl };
 
     try {
       if (dataUrl.length < 100000) {
-        CacheService.getScriptCache().put("APP_ABOUT_LOGO_" + ABOUT_CONFIG.LOGO_ID, dataUrl, 21600); // 6 hours
+        CacheService.getScriptCache().put("APP_ABOUT_LOGO_" + logoId, dataUrl, 21600); // 6 hours
       }
     } catch (ce) {}
 
@@ -92,7 +112,7 @@ function getAboutLogoSafe() {
 }
 
 /**
- * Opens the modern About dialog.
+ * Opens the modern About dialog with larger dimensions.
  */
 function openAboutDialog() {
   if (!verifyAppSignature()) {
@@ -104,8 +124,8 @@ function openAboutDialog() {
   template.info = getAppAuthorInfo();
 
   var htmlOutput = template.evaluate()
-    .setWidth(450)
-    .setHeight(480);
+    .setWidth(520)
+    .setHeight(560);
 
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Tentang Pembuat');
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Tentang Pembuat & Instansi');
 }
