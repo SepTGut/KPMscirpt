@@ -1056,6 +1056,10 @@ function archiveKpm(nomorKPM) {
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action).trim() : "getMonitoring";
   try {
+    if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+      throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
+    }
+
     var params = (e && e.parameter) ? e.parameter : {};
     var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring"];
     if (allowedGetActions.indexOf(action) === -1) {
@@ -1104,6 +1108,9 @@ function doPost(e) {
 
   var lockAcquired = false;
   try {
+    if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+      throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
+    }
     if (["createKpm", "archiveKpm", "updateStatus"].indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
     }

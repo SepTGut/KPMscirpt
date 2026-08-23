@@ -454,3 +454,12 @@ function testWebStateMachineValidations() {
     }
   }
 }
+
+function testSystemIntegrityVerification() {
+  Logger.log("=== RUNNING SYSTEM INTEGRITY VERIFICATION TEST ===");
+  var isValid = verifyAppSignature();
+  Logger.log("verifyAppSignature() Result: " + (isValid ? "PASS (Valid Signature)" : "FAIL (Tampered Signature)"));
+  if (!isValid) {
+    throw new Error("System integrity verification failed!");
+  }
+}

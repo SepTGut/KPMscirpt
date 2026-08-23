@@ -3,19 +3,106 @@
 // ============================================
 // Author      : Setyo Guntur Samudro
 // Institution : SMK Negeri 1 Madiun
+// Faculty     : T.I.T.L (Teknik Instalasi Tenaga Listrik)
 // ============================================
 
 var ABOUT_CONFIG = {
   AUTHOR: "Setyo Guntur Samudro",
   INSTITUTION: "SMK Negeri 1 Madiun",
+  FACULTY: "T.I.T.L (Teknik Instalasi Tenaga Listrik)",
   APP_NAME: "Sistem Otomasi KPM 2026",
   VERSION: "8.0.0",
   YEAR: "2026",
   LOGO_ID: "1UWZKajgW8l1vJX7pTL8kYuF7A6tprIjT"
 };
 
-// Cryptographic hash / signature token to verify integrity
-var SYSTEM_TOKEN = "SG-SMKN1MDN-KPM2026-SETYO-GUNTUR-SAMUDRO";
+// ============================================
+// PRE-HASHED DIGITAL SIGNATURE & SYSTEM SEAL
+// ============================================
+var _SYSTEM_SEAL = Object.freeze({
+  _M_SEED: ["53475f53","4d4b4e31","4d414449","554e5f54","49544c5f","32303236","5f415554","484f525f","494e5445","47524954","595f5341","4c545f56","38"],
+  _H_SEED: ["53475f53","4d4b4e31","4d414449","554e5f54","49544c5f","32303236","5f48544d","4c5f4449","414c4f47","5f494e54","45475249","54595f53","414c545f","5638"],
+  EXPECTED_META_SEAL: "098c6958a07027c8e1e80ca4d8f4b932803bd74d60473906c5b6d601e72c762f",
+  EXPECTED_HTML_SEAL: "5f00735ba8e8422282fdb5d1cbf5f859f886b1b95aeb512c3058ea0231d9f367"
+});
+
+var _cachedIntegrityVerified = null;
+
+function _decodeSeedChunks(chunks) {
+  var hex = chunks.join('');
+  var str = '';
+  for (var i = 0; i < hex.length; i += 2) {
+    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  }
+  return str;
+}
+
+function _computeSha256Hex(text) {
+  var signature = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8);
+  var hex = '';
+  for (var i = 0; i < signature.length; i++) {
+    var byteVal = signature[i];
+    if (byteVal < 0) byteVal += 256;
+    var byteHex = byteVal.toString(16);
+    if (byteHex.length === 1) byteHex = '0' + byteHex;
+    hex += byteHex;
+  }
+  return hex;
+}
+
+/**
+ * Core security integrity check.
+ * Validates pre-hashed digital signatures.
+ * If validation fails, all automation, web endpoints, and spreadsheet actions lockdown.
+ */
+function verifyAppSignature() {
+  if (_cachedIntegrityVerified !== null) return _cachedIntegrityVerified;
+
+  if (typeof ABOUT_CONFIG === 'undefined' || !ABOUT_CONFIG) {
+    Logger.log("CRITICAL SECURITY: ABOUT_CONFIG is undefined.");
+    _cachedIntegrityVerified = false;
+    return false;
+  }
+
+  var metaSecret = _decodeSeedChunks(_SYSTEM_SEAL._M_SEED);
+  var htmlSecret = _decodeSeedChunks(_SYSTEM_SEAL._H_SEED);
+
+  // 1. Verify Metadata Seal
+  var metaPayload = metaSecret + "::" +
+    (ABOUT_CONFIG.AUTHOR || "") + "|" +
+    (ABOUT_CONFIG.INSTITUTION || "") + "|" +
+    (ABOUT_CONFIG.FACULTY || "") + "|" +
+    (ABOUT_CONFIG.APP_NAME || "") + "|" +
+    (ABOUT_CONFIG.YEAR || "") + "::" +
+    metaSecret;
+
+  var metaHash = _computeSha256Hex(metaPayload);
+  if (metaHash !== _SYSTEM_SEAL.EXPECTED_META_SEAL) {
+    Logger.log("CRITICAL SECURITY: Metadata integrity signature mismatch!");
+    _cachedIntegrityVerified = false;
+    return false;
+  }
+
+  // 2. Verify AboutDialog.html Template Seal
+  try {
+    var rawHtml = HtmlService.createHtmlOutputFromFile('AboutDialog').getContent();
+    var normalizedHtml = String(rawHtml || '').replace(/\r\n/g, '\n').trim();
+    var htmlPayload = htmlSecret + "::" + normalizedHtml + "::" + htmlSecret;
+    var htmlHash = _computeSha256Hex(htmlPayload);
+    if (htmlHash !== _SYSTEM_SEAL.EXPECTED_HTML_SEAL) {
+      Logger.log("CRITICAL SECURITY: AboutDialog.html integrity signature mismatch!");
+      _cachedIntegrityVerified = false;
+      return false;
+    }
+  } catch (err) {
+    Logger.log("CRITICAL SECURITY: AboutDialog template missing or unreadable: " + err.message);
+    _cachedIntegrityVerified = false;
+    return false;
+  }
+
+  _cachedIntegrityVerified = true;
+  return true;
+}
 
 /**
  * Reads the institution logo file ID from Script Properties (ABOUT_LOGO_ID or KPM_ABOUT_LOGO_ID) with fallback to ABOUT_CONFIG.LOGO_ID.
@@ -34,7 +121,7 @@ function getEffectiveLogoId() {
 }
 
 /**
- * Returns author and institution metadata.
+ * Returns author, institution, and faculty metadata.
  */
 function getAppAuthorInfo() {
   var version = ABOUT_CONFIG.VERSION;
@@ -48,6 +135,7 @@ function getAppAuthorInfo() {
   return {
     author: ABOUT_CONFIG.AUTHOR,
     institution: ABOUT_CONFIG.INSTITUTION,
+    faculty: ABOUT_CONFIG.FACULTY,
     appName: ABOUT_CONFIG.APP_NAME,
     version: version,
     year: ABOUT_CONFIG.YEAR,
@@ -56,21 +144,8 @@ function getAppAuthorInfo() {
 }
 
 /**
- * Core security integrity check.
- * If About.gs is deleted, renamed, or modified without matching tokens,
- * all automation and printing functions across the project will immediately stop.
- */
-function verifyAppSignature() {
-  if (typeof ABOUT_CONFIG === 'undefined' || !ABOUT_CONFIG) return false;
-  if (ABOUT_CONFIG.AUTHOR !== "Setyo Guntur Samudro") return false;
-  if (ABOUT_CONFIG.INSTITUTION !== "SMK Negeri 1 Madiun") return false;
-  if (typeof SYSTEM_TOKEN === 'undefined' || SYSTEM_TOKEN !== "SG-SMKN1MDN-KPM2026-SETYO-GUNTUR-SAMUDRO") return false;
-  return true;
-}
-
-/**
  * Safely fetches the author/school logo from Google Drive using DriveApp.
- * Uses KPM_LOGO_ID Script Property if configured.
+ * Uses ABOUT_LOGO_ID Script Property if configured.
  */
 var _aboutLogoMemoryCache = null;
 
@@ -124,7 +199,7 @@ function getAboutLogoSafe() {
  */
 function openAboutDialog() {
   if (!verifyAppSignature()) {
-    SpreadsheetApp.getUi().alert("Peringatan: Integritas sistem tidak valid.");
+    SpreadsheetApp.getUi().alert("Peringatan Kritis: Integritas sistem tidak valid. Hak cipta telah dimodifikasi.");
     return;
   }
 
@@ -132,8 +207,8 @@ function openAboutDialog() {
   template.info = getAppAuthorInfo();
 
   var htmlOutput = template.evaluate()
-    .setWidth(520)
-    .setHeight(560);
+    .setWidth(530)
+    .setHeight(580);
 
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Tentang Pembuat & Instansi');
 }
