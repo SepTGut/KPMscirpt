@@ -9,7 +9,7 @@ var ABOUT_CONFIG = {
   AUTHOR: "Setyo Guntur Samudro",
   INSTITUTION: "SMK Negeri 1 Madiun",
   APP_NAME: "Sistem Otomasi KPM 2026",
-  VERSION: "2.5.0",
+  VERSION: "8.0.0",
   YEAR: "2026",
   LOGO_ID: "1UWZKajgW8l1vJX7pTL8kYuF7A6tprIjT"
 };
@@ -37,11 +37,19 @@ function getEffectiveLogoId() {
  * Returns author and institution metadata.
  */
 function getAppAuthorInfo() {
+  var version = ABOUT_CONFIG.VERSION;
+  try {
+    var envVersion = PropertiesService.getScriptProperties().getProperty('APP_VERSION');
+    if (envVersion && String(envVersion).trim()) {
+      version = String(envVersion).trim();
+    }
+  } catch (e) {}
+
   return {
     author: ABOUT_CONFIG.AUTHOR,
     institution: ABOUT_CONFIG.INSTITUTION,
     appName: ABOUT_CONFIG.APP_NAME,
-    version: ABOUT_CONFIG.VERSION,
+    version: version,
     year: ABOUT_CONFIG.YEAR,
     logo: getAboutLogoSafe()
   };
