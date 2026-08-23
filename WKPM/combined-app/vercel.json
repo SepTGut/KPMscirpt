@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/api", "destination": "/api" },
+    { "source": "/kpm/personel/(.*)", "destination": "/index.html" },
+    { "source": "/kpm/personel", "destination": "/index.html" },
+    { "source": "/kpm/(.*)", "destination": "/index.html" },
+    { "source": "/kpm", "destination": "/index.html" },
+    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+  ]
+}

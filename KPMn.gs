@@ -4,11 +4,12 @@
 
 // KPM Monitor Sheet Config
 var MONITOR_SHEET_NAME = "KPM Monitor 2026";
+var MONITOR_SHEET_NAME_LOWER = MONITOR_SHEET_NAME.trim().toLowerCase();
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
-var MONITOR_TOTAL_COLS = 18;   // Total 18 columns (A to R)
+var MONITOR_TOTAL_COLS = 24;   // Total 24 columns (A to X)
 
-// Column mapping (1-indexed, A to R):
+// Column mapping (1-indexed, A to X):
 var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
@@ -27,20 +28,40 @@ var MONITOR_COL_PIC = 15;           // Column O: PIC KPM
 var MONITOR_COL_KET = 16;           // Column P: Keterangan
 var MONITOR_COL_WSAWAL = 17;        // Column Q: Dari/ws awal
 var MONITOR_COL_WSTUJUAN = 18;      // Column R: Tujuan/ws tujuan
+var MONITOR_COL_WKT_BERANGKAT = 19; // Column S: Waktu Berangkat
+var MONITOR_COL_WKT_TIBA = 20;      // Column T: Waktu Tiba
+var MONITOR_COL_DURASI = 21;        // Column U: Durasi Perjalanan
+var MONITOR_COL_STATUS = 22;        // Column V: Status Tracking
+var MONITOR_COL_FOTO_BER = 23;      // Column W: Foto Berangkat (URL Drive)
+var MONITOR_COL_FOTO_TIB = 24;      // Column X: Foto Tiba (URL Drive)
 
 // ============================================
 // FAST IN-MEMORY HELPERS FOR NO LF, ITEM & GROUP
 // ============================================
 
+var _cachedScriptTimeZone = null;
+function getCachedScriptTimeZone() {
+  if (!_cachedScriptTimeZone) {
+    _cachedScriptTimeZone = Session.getScriptTimeZone();
+  }
+  return _cachedScriptTimeZone;
+}
+
+var _cachedPrevActiveRow = null;
+var _cachedPrevActiveRowKey = null;
+
 /**
  * FAST IN-MEMORY SEARCH: Reads preceding data block in 1 batch call and scans in RAM.
  */
 function getPreviousActiveRow(sheet, currentRow) {
+  var key = sheet.getName() + "_" + currentRow;
+  if (_cachedPrevActiveRowKey === key) return _cachedPrevActiveRow;
+
   var lookback = Math.min(currentRow - MONITOR_START_ROW, 20);
   if (lookback <= 0) return null;
 
   var startR = currentRow - lookback;
-  var block = sheet.getRange(startR, 1, lookback, 6).getValues();
+  var block = sheet.getRange(startR, 1, lookback, MONITOR_TOTAL_COLS).getValues();
   for (var i = block.length - 1; i >= 0; i--) {
     var itemVal = block[i][MONITOR_COL_ITEM - 1];
     var nolfVal = block[i][MONITOR_COL_NOLF - 1];
@@ -48,13 +69,19 @@ function getPreviousActiveRow(sheet, currentRow) {
     var spekVal = block[i][MONITOR_COL_SPEK - 1];
 
     if (itemVal || nolfVal || kodeVal || spekVal) {
-      return {
+      var res = {
         row: startR + i,
         item: parseInt(itemVal, 10) || 1,
-        noLf: nolfVal ? nolfVal.toString().trim() : ""
+        noLf: nolfVal ? nolfVal.toString().trim() : "",
+        rowData: block[i]
       };
+      _cachedPrevActiveRow = res;
+      _cachedPrevActiveRowKey = key;
+      return res;
     }
   }
+  _cachedPrevActiveRow = null;
+  _cachedPrevActiveRowKey = key;
   return null;
 }
 
@@ -105,25 +132,35 @@ function getDefaultNoLf(startSeq) {
 /**
  * FAST BATCH GROUP SYNC: Updates downstream rows in 1 single setValues call.
  */
-function syncDownstreamGroupMetadata(sheet, row, col, newValue) {
+function syncDownstreamGroupMetadata(sheet, row, col, newValue, currentNoLf) {
   var maxLookahead = 25;
   var maxRow = sheet.getLastRow();
   var count = Math.min(maxRow - row, maxLookahead);
   if (count <= 0) return;
 
-  var currentNoLf = sheet.getRange(row, MONITOR_COL_NOLF).getValue();
-  if (!currentNoLf) return;
-  var targetNoLf = currentNoLf.toString().trim();
+  var noLfVal = (currentNoLf !== undefined && currentNoLf !== null && currentNoLf !== "")
+    ? currentNoLf
+    : sheet.getRange(row, MONITOR_COL_NOLF).getValue();
+  if (!noLfVal) return;
+  var targetNoLf = noLfVal.toString().trim();
 
-  // Read downstream slice in 1 batch call
-  var dataNolf = sheet.getRange(row + 1, MONITOR_COL_NOLF, count, 1).getValues();
-  var dataTarget = sheet.getRange(row + 1, col, count, 1).getValues();
+  // Read downstream slice in 1 single batch call
+  var minCol = Math.min(MONITOR_COL_NOLF, col);
+  var maxCol = Math.max(MONITOR_COL_NOLF, col);
+  var numColsToRead = maxCol - minCol + 1;
+  var dataBlock = sheet.getRange(row + 1, minCol, count, numColsToRead).getValues();
+  var nolfOffset = MONITOR_COL_NOLF - minCol;
+  var targetOffset = col - minCol;
+  var targetColVals = new Array(count);
   var hasChanges = false;
 
+  var scannedCount = 0;
   for (var i = 0; i < count; i++) {
-    var rNoLf = dataNolf[i][0] ? dataNolf[i][0].toString().trim() : "";
+    var rNoLf = dataBlock[i][nolfOffset] ? dataBlock[i][nolfOffset].toString().trim() : "";
+    targetColVals[i] = [dataBlock[i][targetOffset]];
+    scannedCount++;
     if (rNoLf === targetNoLf) {
-      dataTarget[i][0] = newValue;
+      targetColVals[i][0] = newValue;
       hasChanges = true;
     } else if (rNoLf !== "") {
       break; // Stop when next group begins
@@ -131,7 +168,7 @@ function syncDownstreamGroupMetadata(sheet, row, col, newValue) {
   }
 
   if (hasChanges) {
-    sheet.getRange(row + 1, col, count, 1).setValues(dataTarget);
+    sheet.getRange(row + 1, col, scannedCount, 1).setValues(targetColVals.slice(0, scannedCount));
   }
 }
 
@@ -162,10 +199,12 @@ function inheritGroupMetadataInMemory(sheet, row, rowData) {
   if (itemVal > 1 && currentNoLf) {
     var prev = getPreviousActiveRow(sheet, row);
     if (prev && prev.noLf === currentNoLf.toString().trim()) {
-      var prevRowData = sheet.getRange(prev.row, 1, 1, MONITOR_TOTAL_COLS).getValues()[0];
+      var prevRowData = prev.rowData || sheet.getRange(prev.row, 1, 1, MONITOR_TOTAL_COLS).getValues()[0];
       var groupCols = [
         MONITOR_COL_WSAWAL, MONITOR_COL_WSTUJUAN, MONITOR_COL_PROYEK,
-        MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR
+        MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR,
+        MONITOR_COL_STATUS, MONITOR_COL_WKT_BERANGKAT, MONITOR_COL_WKT_TIBA,
+        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB
       ];
       for (var i = 0; i < groupCols.length; i++) {
         var cIdx = groupCols[i] - 1;
@@ -191,7 +230,7 @@ function onEdit(e) {
   if (!e || !e.range) return;
 
   var sheet = e.range.getSheet();
-  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME.trim().toLowerCase()) return;
+  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME_LOWER) return;
 
   var startRow = e.range.getRow();
   var numRows = e.range.getNumRows();
@@ -244,6 +283,7 @@ function onEdit(e) {
   var modified = false;
 
   var autoNoValue = row - MONITOR_START_ROW + 1; // Row 10 = 1, Row 11 = 2, etc.
+  var nowFormatted = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
   // Current values on this row
   var currentKode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
@@ -284,7 +324,7 @@ function onEdit(e) {
         rowData[MONITOR_COL_NO - 1] = autoNoValue;
       }
       if (!rowData[MONITOR_COL_POST_DATE - 1]) {
-        rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+        rowData[MONITOR_COL_POST_DATE - 1] = nowFormatted;
       }
       modified = true;
     }
@@ -299,7 +339,7 @@ function onEdit(e) {
       rowData[MONITOR_COL_NO - 1] = autoNoValue;
     }
     if (!rowData[MONITOR_COL_POST_DATE - 1]) {
-      rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      rowData[MONITOR_COL_POST_DATE - 1] = nowFormatted;
     }
     modified = true;
   }
@@ -307,8 +347,11 @@ function onEdit(e) {
   // Case C: Editing Group Metadata fields
   if (col === MONITOR_COL_WSAWAL || col === MONITOR_COL_WSTUJUAN ||
       col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
-      col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR) {
-    syncDownstreamGroupMetadata(sheet, row, col, cellVal);
+      col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR ||
+      col === MONITOR_COL_STATUS || col === MONITOR_COL_WKT_BERANGKAT ||
+      col === MONITOR_COL_WKT_TIBA || col === MONITOR_COL_DURASI ||
+      col === MONITOR_COL_FOTO_BER || col === MONITOR_COL_FOTO_TIB) {
+    syncDownstreamGroupMetadata(sheet, row, col, cellVal, rowData[MONITOR_COL_NOLF - 1]);
   }
 
   // Case D: Editing "Kode Material" (Column 5 / Col E)
@@ -326,7 +369,7 @@ function onEdit(e) {
       rowData[MONITOR_COL_NO - 1] = autoNoValue;
     }
     if (!rowData[MONITOR_COL_POST_DATE - 1]) {
-      rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      rowData[MONITOR_COL_POST_DATE - 1] = nowFormatted;
     }
     modified = true;
   }
@@ -341,7 +384,7 @@ function onEdit(e) {
         rowData[MONITOR_COL_NO - 1] = autoNoValue;
       }
       if (!rowData[MONITOR_COL_POST_DATE - 1]) {
-        rowData[MONITOR_COL_POST_DATE - 1] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+        rowData[MONITOR_COL_POST_DATE - 1] = nowFormatted;
       }
       modified = true;
     }
@@ -427,7 +470,7 @@ function printKpmM() {
   var sheet = ss.getActiveSheet();
   var ui = SpreadsheetApp.getUi();
 
-  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME.trim().toLowerCase()) {
+  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME_LOWER) {
     ui.alert('Fitur ini hanya dapat digunakan pada sheet "' + MONITOR_SHEET_NAME + '".');
     return;
   }
@@ -443,11 +486,15 @@ function printKpmM() {
   }
 
   var latestNoLf = "";
-  for (var r = lastRow; r >= MONITOR_START_ROW; r--) {
-    var val = sheet.getRange(r, MONITOR_COL_NOLF).getValue();
-    if (val && val.toString().trim() !== "") {
-      latestNoLf = val.toString().trim();
-      break;
+  var numDataRows = Math.max(0, lastRow - MONITOR_START_ROW + 1);
+  if (numDataRows > 0) {
+    var nolfColData = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numDataRows, 1).getValues();
+    for (var r = nolfColData.length - 1; r >= 0; r--) {
+      var val = nolfColData[r][0];
+      if (val && val.toString().trim() !== "") {
+        latestNoLf = val.toString().trim();
+        break;
+      }
     }
   }
 
@@ -521,7 +568,7 @@ function printKpmM() {
           if (!headerInfo.tanggal) {
             var rawPostDate = rowArray[MONITOR_COL_POST_DATE - 1];
             if (rawPostDate instanceof Date) {
-              headerInfo.tanggal = Utilities.formatDate(rawPostDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
+              headerInfo.tanggal = Utilities.formatDate(rawPostDate, getCachedScriptTimeZone(), "dd/MM/yyyy");
             } else if (rawPostDate) {
               var s = rawPostDate.toString().trim();
               if (s.indexOf(" ") !== -1 && s.indexOf("/") !== -1) {
@@ -558,7 +605,7 @@ function printKpmM() {
     .replace(/\{year\}/g, year)
     .replace(/\{month\}/g, monthRoman);
 
-  var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
+  var today = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy");
   var displayTanggal = headerInfo.tanggal || today;
   var totalPage = Math.max(1, Math.ceil(materialList.length / PAGE_SIZE));
 

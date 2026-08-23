@@ -43,6 +43,7 @@ function onOpen() {
     .createMenu('Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
+    .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
     .addSeparator()
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
@@ -64,13 +65,17 @@ function openMasterKpm() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Pengaturan Master KPM');
 }
 
+var _masterSettingsCache = null;
+
 function getMasterSettings() {
+  if (_masterSettingsCache) return _masterSettingsCache;
   var props = PropertiesService.getDocumentProperties();
-  return {
+  _masterSettingsCache = {
     template: props.getProperty('KPM_TEMPLATE') || '{no}/PPO/LF/{month}/{year}',
     lampiranTemplate: props.getProperty('KPM_LAMPIRAN_TEMPLATE') || '{no}/KPM/{month}/{year}',
     startNo: props.getProperty('KPM_START_NO') || '1'
   };
+  return _masterSettingsCache;
 }
 
 function saveMasterSettings(settings) {
@@ -78,6 +83,11 @@ function saveMasterSettings(settings) {
   props.setProperty('KPM_TEMPLATE', settings.template);
   props.setProperty('KPM_LAMPIRAN_TEMPLATE', settings.lampiranTemplate);
   props.setProperty('KPM_START_NO', settings.startNo);
+  _masterSettingsCache = {
+    template: settings.template,
+    lampiranTemplate: settings.lampiranTemplate,
+    startNo: settings.startNo
+  };
   return true;
 }
 
@@ -113,29 +123,38 @@ function getGeneratedKpmNumbers() {
 // FAST CACHED LOOKUP FOR KODE MATERIAL
 // ============================================
 var _materialMemoryCache = {};
+var _materialsLoadedInRam = false;
 
-function getMaterialByKode(kode) {
-  if (!kode) return null;
-  var kodeTrimmed = kode.toString().trim().toUpperCase();
-  if (kodeTrimmed === "") return null;
+function getMaterialDatabaseMap() {
+  if (_materialsLoadedInRam) return _materialMemoryCache;
 
-  // 1. Check in-memory RAM cache (0.001ms instant)
-  if (_materialMemoryCache[kodeTrimmed]) {
-    return _materialMemoryCache[kodeTrimmed];
-  }
+  // 1. Try ScriptCache
+  try {
+    var cache = CacheService.getScriptCache();
+    var countStr = cache.get("ALL_MATS_count");
+    if (countStr) {
+      var totalChunks = parseInt(countStr, 10);
+      if (!isNaN(totalChunks) && totalChunks > 0) {
+        var keys = [];
+        for (var k = 0; k < totalChunks; k++) keys.push("ALL_MATS_" + k);
+        var chunks = cache.getAll(keys);
+        var json = "";
+        var complete = true;
+        for (var c = 0; c < totalChunks; c++) {
+          if (!chunks["ALL_MATS_" + c]) { complete = false; break; }
+          json += chunks["ALL_MATS_" + c];
+        }
+        if (complete && json) {
+          var parsed = JSON.parse(json);
+          _materialMemoryCache = parsed;
+          _materialsLoadedInRam = true;
+          return _materialMemoryCache;
+        }
+      }
+    }
+  } catch (e) {}
 
-  // 2. Check ScriptCache (2ms)
-  var cache = CacheService.getScriptCache();
-  var cachedJson = cache.get("MAT_" + encodeURIComponent(kodeTrimmed));
-  if (cachedJson) {
-    try {
-      var parsed = JSON.parse(cachedJson);
-      _materialMemoryCache[kodeTrimmed] = parsed;
-      return parsed;
-    } catch(e) {}
-  }
-
-  // 3. Fallback: Fetch DataBase sheet (Read ONLY Cols B to E = 4 columns)
+  // 2. Fallback: Fetch DataBase sheet (Read ONLY Cols B to E = 4 columns)
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(MATERIALDB_SHEET_NAME);
   if (!sheet) {
@@ -147,19 +166,16 @@ function getMaterialByKode(kode) {
       }
     }
   }
-  if (!sheet) return null;
+  if (!sheet) return _materialMemoryCache;
 
   var lastRow = sheet.getLastRow();
-  if (lastRow < MATERIALDB_START_ROW) return null;
+  if (lastRow < MATERIALDB_START_ROW) return _materialMemoryCache;
 
   var numRows = lastRow - MATERIALDB_START_ROW + 1;
   var data = sheet.getRange(MATERIALDB_START_ROW, 2, numRows, 4).getValues();
 
-  var found = null;
-  var batchToCache = {};
-
   for (var i = 0; i < data.length; i++) {
-    var rowKode = data[i][0]; // Col B (index 0)
+    var rowKode = data[i][0]; // Col B
     if (rowKode) {
       var kStr = rowKode.toString().trim().toUpperCase();
       var itemObj = {
@@ -168,22 +184,37 @@ function getMaterialByKode(kode) {
         satuan: data[i][3] ? data[i][3].toString().trim() : "" // Col E
       };
       _materialMemoryCache[kStr] = itemObj;
-
-      if (kStr === kodeTrimmed) {
-        found = itemObj;
-      }
-      if (kStr.length < 40) {
-        batchToCache["MAT_" + encodeURIComponent(kStr)] = JSON.stringify(itemObj);
-      }
     }
   }
+  _materialsLoadedInRam = true;
 
-  // Cache materials for fast subsequent lookups
+  // Cache in ScriptCache chunked
   try {
-    cache.putAll(batchToCache, 21600);
-  } catch(e) {}
+    var cacheService = CacheService.getScriptCache();
+    var fullJson = JSON.stringify(_materialMemoryCache);
+    var chunkSize = 90000;
+    var count = Math.ceil(fullJson.length / chunkSize);
+    var batch = { "ALL_MATS_count": String(count) };
+    for (var j = 0; j < count; j++) {
+      batch["ALL_MATS_" + j] = fullJson.substr(j * chunkSize, chunkSize);
+    }
+    cacheService.putAll(batch, 21600); // 6 hours
+  } catch (e) {}
 
-  return found;
+  return _materialMemoryCache;
+}
+
+function getMaterialByKode(kode) {
+  if (!kode) return null;
+  var kodeTrimmed = kode.toString().trim().toUpperCase();
+  if (kodeTrimmed === "") return null;
+
+  if (_materialMemoryCache[kodeTrimmed]) {
+    return _materialMemoryCache[kodeTrimmed];
+  }
+
+  var map = getMaterialDatabaseMap();
+  return map[kodeTrimmed] || null;
 }
 
 // ============================================
@@ -204,17 +235,54 @@ function openPrintView(data) {
 // ============================================
 // LOGO
 // ============================================
+var _logoMemoryCache = null;
+
+function getEffectivePrintLogoId() {
+  try {
+    var envLogoId = PropertiesService.getScriptProperties().getProperty('KPM_LOGO_ID');
+    if (envLogoId && String(envLogoId).trim() && String(envLogoId).trim() !== "PASTE_YOUR_LOGO_FILE_ID_HERE") {
+      return String(envLogoId).trim();
+    }
+  } catch (e) {}
+  return PRINT.LOGO_ID || "";
+}
+
 function getLogoSafe() {
   var defaultLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='50' viewBox='0 0 120 50'><rect width='120' height='50' fill='%2316233B' rx='4'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='%23FFFFFF'>REKAINDO</text></svg>";
-  if (!PRINT.LOGO_ID || PRINT.LOGO_ID === "PASTE_YOUR_LOGO_FILE_ID_HERE") {
+  var logoId = getEffectivePrintLogoId();
+  if (!logoId || logoId === "PASTE_YOUR_LOGO_FILE_ID_HERE") {
     return defaultLogo;
   }
+
+  // 1. RAM in-memory cache
+  if (_logoMemoryCache && _logoMemoryCache.logoId === logoId) return _logoMemoryCache.dataUrl;
+
+  // 2. ScriptCache
+  try {
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("APP_PRINT_LOGO_" + logoId);
+    if (cached) {
+      _logoMemoryCache = { logoId: logoId, dataUrl: cached };
+      return cached;
+    }
+  } catch (e) {}
+
+  // 3. Fallback: DriveApp fetch
   try {
     var file = DriveApp.getFileById(PRINT.LOGO_ID);
     var blob = file.getBlob();
     var contentType = blob.getContentType();
     var base64 = Utilities.base64Encode(blob.getBytes());
-    return "data:" + contentType + ";base64," + base64;
+    var dataUrl = "data:" + contentType + ";base64," + base64;
+    _logoMemoryCache = dataUrl;
+
+    try {
+      if (dataUrl.length < 100000) {
+        CacheService.getScriptCache().put("APP_PRINT_LOGO_" + PRINT.LOGO_ID, dataUrl, 21600); // 6 hours
+      }
+    } catch (ce) {}
+
+    return dataUrl;
   } catch (err) {
     Logger.log("getLogoSafe warning: " + err.message);
     return defaultLogo;
