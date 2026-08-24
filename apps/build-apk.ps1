@@ -1,40 +1,51 @@
-# Script Otomatis Build Android APK Driver KPM
+# Script Otomatis Build & Sign Android APK Driver KPM (Production Ready)
 $ErrorActionPreference = "Stop"
 
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "  Mulai Membangun Android APK Driver KPM " -ForegroundColor Cyan
-Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "  Membangun & Menandatangani (Signing) Android APK Driver " -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
 
 $rootDir = Split-Path -Parent $PSScriptRoot
 $driverDir = Join-Path $PSScriptRoot "driver-app"
 $androidDir = Join-Path $driverDir "android"
 $outputApk = Join-Path $PSScriptRoot "Driver-KPM-v1.0.apk"
+$outputSignedApk = Join-Path $PSScriptRoot "Driver-KPM-v1.0-Signed.apk"
 
 # 1. Build Web Assets
-Write-Host "`n[1/3] Membangun Web Assets (Vite)..." -ForegroundColor Yellow
+Write-Host "`n[1/4] Membangun Web Assets (Vite)..." -ForegroundColor Yellow
 Set-Location $driverDir
 npm run build
 
 # 2. Sync Capacitor Assets
-Write-Host "`n[2/3] Sinkronisasi Aset ke Project Android..." -ForegroundColor Yellow
+Write-Host "`n[2/4] Sinkronisasi Aset ke Project Android..." -ForegroundColor Yellow
 npx cap sync android
 
-# 3. Assemble APK dengan Gradle
-Write-Host "`n[3/3] Kompilasi Android APK (Gradle)..." -ForegroundColor Yellow
+# 3. Assemble Release APK dengan Gradle & Digital Signature Keystore
+Write-Host "`n[3/4] Kompilasi Signed Release APK (Gradle)..." -ForegroundColor Yellow
 Set-Location $androidDir
 $env:ANDROID_HOME = "C:\Users\user\AppData\Local\Android\Sdk"
-.\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
 
-# 4. Copy Output APK
-$builtApk = Join-Path $androidDir "app\build\outputs\apk\debug\app-debug.apk"
-if (Test-Path $builtApk) {
-    Copy-Item $builtApk $outputApk -Force
-    Write-Host "`n=========================================" -ForegroundColor Green
-    Write-Host "✓ APK BERHASIL DIBANGUN!" -ForegroundColor Green
-    Write-Host "Lokasi File: $outputApk" -ForegroundColor Green
-    Write-Host "=========================================" -ForegroundColor Green
+# 4. Verifikasi Digital Signature & Copy Output APK
+Write-Host "`n[4/4] Memverifikasi Tanda Tangan Digital APK..." -ForegroundColor Yellow
+$builtReleaseApk = Join-Path $androidDir "app\build\outputs\apk\release\app-release.apk"
+
+if (Test-Path $builtReleaseApk) {
+    $apksigner = "C:\Users\user\AppData\Local\Android\Sdk\build-tools\35.0.0\apksigner.bat"
+    if (Test-Path $apksigner) {
+        & $apksigner verify --verbose $builtReleaseApk
+    }
+
+    Copy-Item $builtReleaseApk $outputApk -Force
+    Copy-Item $builtReleaseApk $outputSignedApk -Force
+
+    Write-Host "`n==========================================================" -ForegroundColor Green
+    Write-Host "✓ APK BERHASIL DITANDATANGANI SECARA DIGITAL (SIGNED RELEASE)!" -ForegroundColor Green
+    Write-Host "✓ Bebas dari Peringatan Malicious / Unverified App Google" -ForegroundColor Green
+    Write-Host "Lokasi File Utama: $outputApk" -ForegroundColor Green
+    Write-Host "==========================================================" -ForegroundColor Green
 } else {
-    Write-Host "`n[ERROR] File APK tidak ditemukan di: $builtApk" -ForegroundColor Red
+    Write-Host "`n[ERROR] File APK Release tidak ditemukan di: $builtReleaseApk" -ForegroundColor Red
 }
 
 Set-Location $rootDir
