@@ -183,8 +183,10 @@ function initMap() {
   fitAllMarkers()
 }
 
+const DEFAULT_FIREBASE_URL = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app'
+
 async function fetchFirebaseTracking() {
-  const url = props.firebaseDbUrl || localStorage.getItem('kpm_firebase_url')
+  const url = props.firebaseDbUrl || localStorage.getItem('kpm_firebase_url') || DEFAULT_FIREBASE_URL
   if (!url || !url.startsWith('http')) return {}
 
   try {

@@ -4,13 +4,14 @@
 // Single Source of Truth for KPM/LF Web System (Admin & Driver/User)
 
 var WEB_CONFIG = {
+  VERSION: "2026.2.0-ULTRA",
+  DEFAULT_FIREBASE_DB_URL: "https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app",
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],
   PICS: ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"],
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-  DEFAULT_FIREBASE_DB_URL: "",
   // Tokens must be configured in Apps Script Script Properties.
   DEFAULT_ADMIN_TOKEN: "",
   DEFAULT_DRIVER_TOKEN: ""

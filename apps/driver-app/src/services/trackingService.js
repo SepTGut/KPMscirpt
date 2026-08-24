@@ -5,7 +5,7 @@
 
 import { reactive } from 'vue'
 
-const DEFAULT_FIREBASE_DB_URL = ''
+const DEFAULT_FIREBASE_DB_URL = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app'
 
 export const WORKSHOP_COORDINATES = {
   'Candi Sewu': { lat: -7.7495, lng: 110.4932, label: 'Workshop Candi Sewu' },
