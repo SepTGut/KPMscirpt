@@ -1,7 +1,8 @@
 /**
  * Direct Google Apps Script (GAS) API Client for Driver Mobile App
- * Direct connection without intermediary web proxy
+ * Supports both Native Android (CapacitorHttp) and Web (fetch)
  */
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
 const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
@@ -63,21 +64,42 @@ export async function getDriverDeliveries() {
   const url = `${gasUrl}?action=getDeliveries&apiToken=${encodeURIComponent(token)}&_t=${Date.now()}`
 
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow'
-    })
+    let json
 
-    if (!res.ok) {
-      throw new Error(`Google Apps Script mengembalikan error (HTTP ${res.status}).`)
+    if (Capacitor.isNativePlatform()) {
+      // Native Android OS-level HTTP request (bypasses browser CORS & Webview restrictions)
+      const res = await CapacitorHttp.get({
+        url: url,
+        headers: { 'Accept': 'application/json' },
+        connectTimeout: 15000,
+        readTimeout: 20000
+      })
+
+      if (res.status < 200 || res.status >= 400) {
+        throw new Error(`Google Apps Script mengembalikan HTTP ${res.status}.`)
+      }
+
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      // Browser / Dev fallback
+      const res = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow'
+      })
+
+      if (!res.ok) {
+        throw new Error(`Google Apps Script mengembalikan error (HTTP ${res.status}).`)
+      }
+
+      json = await res.json()
     }
 
-    const json = await res.json()
-    if (json.success) {
+    if (json && json.success) {
       const raw = Array.isArray(json.data) ? json.data : []
       return raw.map(normalizeDelivery)
     }
-    throw new Error(json.error?.message || 'Gagal memuat tugas pengiriman dari Google Apps Script.')
+
+    throw new Error(json?.error?.message || 'Gagal memuat tugas pengiriman dari Google Apps Script.')
   } catch (err) {
     console.error('[GAS Direct API Error]', err)
     throw new Error(err.message || 'Gagal terhubung langsung ke Google Apps Script.')
@@ -103,26 +125,49 @@ export async function sendStatusUpdate(payload) {
   if (payload.lokasiWorkshop) form.set('lokasiWorkshop', payload.lokasiWorkshop)
 
   try {
-    const res = await fetch(gasUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-      redirect: 'follow'
-    })
+    let json
 
-    if (!res.ok) {
-      throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
+    if (Capacitor.isNativePlatform()) {
+      // Native Android OS-level HTTP request
+      const res = await CapacitorHttp.post({
+        url: gasUrl,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        data: form.toString(),
+        connectTimeout: 20000,
+        readTimeout: 30000
+      })
+
+      if (res.status < 200 || res.status >= 400) {
+        throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
+      }
+
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      // Browser fallback
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+        redirect: 'follow'
+      })
+
+      if (!res.ok) {
+        throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
+      }
+
+      json = await res.json()
     }
 
-    const json = await res.json()
-    if (json.success) {
+    if (json && json.success) {
       return json.data
     }
-    throw new Error(json.error?.message || 'Google Apps Script menolak pembaruan status.')
+
+    throw new Error(json?.error?.message || 'Google Apps Script menolak pembaruan status.')
   } catch (err) {
     console.error('[GAS Update Error]', err)
     throw new Error(err.message || 'Gagal mengirim update status ke Google Apps Script.')
   }
 }
-
-
