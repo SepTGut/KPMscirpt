@@ -1,103 +1,100 @@
 /**
- * Universal Driver API Client with Multi-Endpoint Fallback
+ * Direct Google Apps Script (GAS) API Client for Driver Mobile App
+ * Direct connection without intermediary web proxy
  */
 
-const ENDPOINTS = [
-  'https://combined-app-theta.vercel.app/api',
-  'https://combined-app-samudroguntur06-2380s-projects.vercel.app/api'
-]
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
 
-export function getActiveServerUrl() {
-  const custom = localStorage.getItem('kpm_server_url')
-  return custom ? custom.trim().replace(/\/+$/, '') : ENDPOINTS[0]
+export function getActiveGasUrl() {
+  return localStorage.getItem('kpm_gas_url') || DEFAULT_GAS_URL
 }
 
-export function setCustomServerUrl(url) {
-  if (url && url.trim()) {
-    localStorage.setItem('kpm_server_url', url.trim().replace(/\/+$/, ''))
+export function getActiveDriverToken() {
+  return localStorage.getItem('kpm_driver_token') || DEFAULT_DRIVER_TOKEN
+}
+
+export function setCustomConfig(gasUrl, driverToken) {
+  if (gasUrl && gasUrl.trim()) {
+    localStorage.setItem('kpm_gas_url', gasUrl.trim())
   } else {
-    localStorage.removeItem('kpm_server_url')
+    localStorage.removeItem('kpm_gas_url')
+  }
+
+  if (driverToken && driverToken.trim()) {
+    localStorage.setItem('kpm_driver_token', driverToken.trim())
+  } else {
+    localStorage.removeItem('kpm_driver_token')
   }
 }
 
-async function tryFetchJson(url, options = {}) {
-  const res = await fetch(url, options)
-  
-  // Detect Vercel Deployment Protection / SSO redirect
-  if (res.status === 302 || res.redirected || (res.headers.get('content-type') && !res.headers.get('content-type').includes('application/json'))) {
-    const text = await res.text()
-    if (text.includes('Log in to Vercel') || text.includes('sso-api') || text.includes('Protected Deployment')) {
-      throw new Error('Vercel Deployment Protection aktif. Harap nonaktifkan Vercel Authentication di dashboard Vercel.')
-    }
-  }
-
-  if (!res.ok) {
-    throw new Error(`Server mengembalikan error (HTTP ${res.status}).`)
-  }
-
-  const json = await res.json()
-  return json
-}
-
+/**
+ * Loads delivery assignments directly from Google Apps Script
+ */
 export async function getDriverDeliveries() {
-  const customUrl = localStorage.getItem('kpm_server_url')
-  const candidateUrls = customUrl
-    ? [customUrl.trim().replace(/\/+$/, ''), ...ENDPOINTS]
-    : ENDPOINTS
+  const gasUrl = getActiveGasUrl()
+  const token = getActiveDriverToken()
 
-  let lastError = null
+  const url = `${gasUrl}?action=getDeliveries&apiToken=${encodeURIComponent(token)}&_t=${Date.now()}`
 
-  for (const baseUrl of candidateUrls) {
-    try {
-      const url = `${baseUrl}?action=getDeliveries&role=user&_t=${Date.now()}`
-      const json = await tryFetchJson(url)
-      if (json.success) {
-        return json.data || []
-      }
-      throw new Error(json.error?.message || 'Gagal memuat tugas pengiriman.')
-    } catch (err) {
-      lastError = err
-      console.warn(`[KPM API] Failed on ${baseUrl}:`, err.message)
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow'
+    })
+
+    if (!res.ok) {
+      throw new Error(`Google Apps Script mengembalikan error (HTTP ${res.status}).`)
     }
-  }
 
-  throw lastError || new Error('Gagal terhubung ke server KPM.')
+    const json = await res.json()
+    if (json.success) {
+      return json.data || []
+    }
+    throw new Error(json.error?.message || 'Gagal memuat tugas pengiriman dari Google Apps Script.')
+  } catch (err) {
+    console.error('[GAS Direct API Error]', err)
+    throw new Error(err.message || 'Gagal terhubung langsung ke Google Apps Script.')
+  }
 }
 
+/**
+ * Sends status update and compressed photo directly to Google Apps Script
+ */
 export async function sendStatusUpdate(payload) {
-  const customUrl = localStorage.getItem('kpm_server_url')
-  const candidateUrls = customUrl
-    ? [customUrl.trim().replace(/\/+$/, ''), ...ENDPOINTS]
-    : ENDPOINTS
+  const gasUrl = getActiveGasUrl()
+  const token = getActiveDriverToken()
 
   const form = new URLSearchParams()
   form.set('action', 'updateStatus')
-  form.set('role', 'user')
+  form.set('apiToken', token)
   form.set('nomorKPM', payload.nomorKPM)
   form.set('statusKPM', payload.statusKPM)
   form.set('fotoData', payload.fotoData)
   if (payload.namaPIC) form.set('namaPIC', payload.namaPIC)
   if (payload.lokasiWorkshop) form.set('lokasiWorkshop', payload.lokasiWorkshop)
 
-  let lastError = null
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      redirect: 'follow'
+    })
 
-  for (const baseUrl of candidateUrls) {
-    try {
-      const json = await tryFetchJson(baseUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form.toString()
-      })
-      if (json.success) {
-        return json.data
-      }
-      throw new Error(json.error?.message || 'Gagal memperbarui status KPM.')
-    } catch (err) {
-      lastError = err
-      console.warn(`[KPM API] Failed POST on ${baseUrl}:`, err.message)
+    if (!res.ok) {
+      throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
     }
-  }
 
-  throw lastError || new Error('Gagal mengirim data update status.')
+    const json = await res.json()
+    if (json.success) {
+      return json.data
+    }
+    throw new Error(json.error?.message || 'Google Apps Script menolak pembaruan status.')
+  } catch (err) {
+    console.error('[GAS Update Error]', err)
+    throw new Error(err.message || 'Gagal mengirim update status ke Google Apps Script.')
+  }
 }
+
 

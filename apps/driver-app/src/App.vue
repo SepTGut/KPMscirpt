@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <!-- Server Settings Modal -->
+    <!-- Server Settings Modal (Direct Google Apps Script Config) -->
     <div
       v-if="showSettingsModal"
       class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -272,44 +272,48 @@
         <div class="flex items-center justify-between border-b border-google-surface-700 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-base">⚙️</span>
-            <h3 class="text-sm font-bold text-white">Pengaturan Koneksi Server</h3>
+            <h3 class="text-sm font-bold text-white">Pengaturan Google Apps Script</h3>
           </div>
           <button @click="showSettingsModal = false" class="text-google-surface-300 hover:text-white text-lg font-bold p-1">✕</button>
         </div>
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="font-bold text-google-surface-200 block mb-1">Server URL Aktif:</label>
+            <label class="font-bold text-google-surface-200 block mb-1">Google Apps Script Web App URL:</label>
             <input
-              v-model="customServerUrlInput"
+              v-model="gasUrlInput"
               type="url"
-              placeholder="https://combined-app-theta.vercel.app/api"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              class="w-full px-3 py-2 bg-google-surface-800 border border-google-surface-600 rounded-xl text-xs text-white placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 font-mono"
+            />
+          </div>
+
+          <div>
+            <label class="font-bold text-google-surface-200 block mb-1">Driver API Token:</label>
+            <input
+              v-model="driverTokenInput"
+              type="password"
+              placeholder="Token rahasia Driver"
               class="w-full px-3 py-2 bg-google-surface-800 border border-google-surface-600 rounded-xl text-xs text-white placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 font-mono"
             />
             <p class="text-[11px] text-google-surface-300 mt-1">
-              Kosongkan untuk menggunakan server proxy bawaan otomatis.
+              Aplikasi terhubung langsung ke backend Google Sheets tanpa perantara web proxy.
             </p>
-          </div>
-
-          <div class="bg-google-surface-800 p-3 rounded-2xl border border-google-surface-700 space-y-1 text-[11px] text-google-surface-300">
-            <div class="font-bold text-white">Status Endpoint Bawaan:</div>
-            <div>• Endpoint 1: <span class="font-mono text-google-blue-300">combined-app-theta.vercel.app/api</span></div>
-            <div>• Endpoint 2: <span class="font-mono text-google-blue-300">combined-app-samudroguntur...vercel.app/api</span></div>
           </div>
         </div>
 
         <div class="flex gap-2.5 pt-2 border-t border-google-surface-700">
           <button
-            @click="resetDefaultServerUrl"
+            @click="resetDefaultConfig"
             class="flex-1 py-2.5 bg-google-surface-800 hover:bg-google-surface-700 rounded-full text-xs font-bold text-google-surface-200 transition border border-google-surface-600"
           >
             Reset Default
           </button>
           <button
-            @click="saveCustomServerUrl"
+            @click="saveConfig"
             class="flex-1 py-2.5 bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white rounded-full text-xs font-bold transition shadow-m3-1"
           >
-            Simpan & Tes
+            Simpan & Muat
           </button>
         </div>
       </div>
@@ -319,7 +323,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getDriverDeliveries, sendStatusUpdate, getActiveServerUrl, setCustomServerUrl } from './services/api'
+import { getDriverDeliveries, sendStatusUpdate, getActiveGasUrl, getActiveDriverToken, setCustomConfig } from './services/api'
 import { compressImage } from './services/imageCompressor'
 
 const deliveries = ref([])
@@ -329,7 +333,8 @@ const isSubmitting = ref(false)
 const driverName = ref(localStorage.getItem('kpm_driver_name') || 'AANG')
 
 const showSettingsModal = ref(false)
-const customServerUrlInput = ref(localStorage.getItem('kpm_server_url') || '')
+const gasUrlInput = ref(getActiveGasUrl())
+const driverTokenInput = ref(getActiveDriverToken())
 
 const selectedItem = ref(null)
 const photoPreview = ref('')
@@ -357,18 +362,19 @@ function saveDriverName() {
   }
 }
 
-function saveCustomServerUrl() {
-  setCustomServerUrl(customServerUrlInput.value)
+function saveConfig() {
+  setCustomConfig(gasUrlInput.value, driverTokenInput.value)
   showSettingsModal.value = false
-  showNotice('Pengaturan server disimpan. Memuat ulang data...', 'success')
+  showNotice('Konfigurasi Google Apps Script disimpan.', 'success')
   loadData()
 }
 
-function resetDefaultServerUrl() {
-  customServerUrlInput.value = ''
-  setCustomServerUrl('')
+function resetDefaultConfig() {
+  setCustomConfig('', '')
+  gasUrlInput.value = getActiveGasUrl()
+  driverTokenInput.value = getActiveDriverToken()
   showSettingsModal.value = false
-  showNotice('Server dikembalikan ke default bawaan.', 'success')
+  showNotice('Konfigurasi dikembalikan ke default.', 'success')
   loadData()
 }
 
