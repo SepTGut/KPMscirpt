@@ -837,22 +837,28 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
 
   try {
     var folder = getTargetDriveFolder();
+    try {
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(folderShareErr) {}
 
-    var safeNomor = (nomorKPM || "KPM").replace(/\//g, "_");
-    var timestamp = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "ddMMyy_HHmm");
+    var safeNomor = (nomorKPM || "KPM").replace(/[\/\\:?*"<>|]/g, "_");
+    var timestamp = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "ddMMyy_HHmmss");
     var extension = mimeType === "image/png" ? ".png" : mimeType === "image/webp" ? ".webp" : ".jpg";
     var namaFile = safeNomor + "_" + (statusKPM || "Foto") + "_" + timestamp + extension;
 
-    var decodedBytes = Utilities.base64Decode(base64);
+    var cleanBase64 = base64.replace(/\s/g, '+');
+    var decodedBytes = Utilities.base64Decode(cleanBase64);
     var blob = Utilities.newBlob(decodedBytes, mimeType, namaFile);
     var file = folder.createFile(blob);
 
-    // Delivery evidence is intentionally viewable by anyone who has the link.
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(fileShareErr) {}
+
     return file.getUrl();
   } catch (err) {
     Logger.log("uploadProofPhoto error: " + err.message);
-    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal menyimpan foto ke Google Drive." };
+    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal menyimpan foto ke Google Drive: " + err.message };
   }
 }
 

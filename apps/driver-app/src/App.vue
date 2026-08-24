@@ -37,18 +37,6 @@
 
     <!-- Main Container -->
     <main class="max-w-xl mx-auto p-4 sm:p-5 space-y-4 sm:space-y-5">
-      <!-- Driver Name Setting (M3 Outlined Surface) -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/80 flex items-center gap-3.5 shadow-sm">
-        <span class="text-sm font-bold text-slate-700 shrink-0">Nama Driver:</span>
-        <input
-          v-model="driverName"
-          @change="saveDriverName"
-          type="text"
-          placeholder="Ketik nama Anda (misal: AANG)"
-          class="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-bold placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-google-blue-500 focus:ring-2 focus:ring-google-blue-500/20 uppercase transition"
-        />
-      </div>
-
       <!-- M3 Segmented Pill Tabs -->
       <div class="grid grid-cols-2 gap-2 bg-slate-200/70 p-2 rounded-full border border-slate-300/80 text-sm font-bold text-center shadow-inner">
         <button
@@ -191,8 +179,18 @@
       class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn"
     >
       <div
-        class="bg-white border border-slate-200 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-slideUp max-h-[92vh] overflow-y-auto"
+        class="bg-white border border-slate-200 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-slideUp max-h-[92vh] overflow-y-auto relative"
       >
+        <!-- Loading Overlay during submission -->
+        <div
+          v-if="isSubmitting"
+          class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-t-3xl sm:rounded-3xl p-6 space-y-3"
+        >
+          <div class="w-12 h-12 border-4 border-google-blue-200 border-t-google-blue-600 rounded-full animate-spin"></div>
+          <p class="text-base font-bold text-slate-900">Mengunggah Bukti & Memperbarui Status...</p>
+          <p class="text-xs text-slate-500">Harap tunggu sebentar, foto sedang disimpan ke Google Drive.</p>
+        </div>
+
         <!-- Bottom Sheet Grab Handle -->
         <div class="w-16 h-2 bg-slate-300 rounded-full mx-auto sm:hidden mb-2"></div>
 
@@ -206,7 +204,13 @@
               {{ selectedItem.nomor || selectedItem.kpmId }}
             </p>
           </div>
-          <button @click="closeModal" class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center text-base font-bold transition">✕</button>
+          <button
+            @click="closeModal"
+            :disabled="isSubmitting"
+            class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center text-base font-bold transition disabled:opacity-40"
+          >
+            ✕
+          </button>
         </div>
 
         <!-- Route Visual Box -->
@@ -229,7 +233,7 @@
 
           <div
             v-if="!photoPreview"
-            @click="triggerCamera"
+            @click="!isSubmitting && triggerCamera()"
             class="border-2 border-dashed border-google-blue-300 hover:border-google-blue-400 bg-google-blue-50/50 hover:bg-google-blue-100/50 rounded-3xl p-8 sm:p-10 text-center cursor-pointer transition active:scale-98 shadow-inner"
           >
             <div class="w-16 h-16 rounded-2xl bg-google-blue-100 text-google-blue-600 flex items-center justify-center text-3xl mx-auto mb-3 border border-google-blue-200">
@@ -248,7 +252,8 @@
             </div>
             <button
               @click="triggerCamera"
-              class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-google-blue-700 rounded-xl text-xs sm:text-sm font-bold transition border border-slate-300"
+              :disabled="isSubmitting"
+              class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-google-blue-700 rounded-xl text-xs sm:text-sm font-bold transition border border-slate-300 disabled:opacity-50"
             >
               Ambil Ulang Foto ↺
             </button>
@@ -270,7 +275,8 @@
             class="flex-[2] py-3.5 rounded-full text-xs sm:text-sm font-bold text-white shadow-m3-2 transition active:scale-98 disabled:opacity-50"
             :class="selectedItem.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 shadow-google-blue-500/25'"
           >
-            {{ isSubmitting ? 'Mengirim Data...' : 'Kirim Sekarang ✓' }}
+            <span v-if="isSubmitting" class="animate-spin inline-block mr-1.5">↻</span>
+            <span>{{ isSubmitting ? 'Mengirim Data...' : 'Kirim Sekarang ✓' }}</span>
           </button>
         </div>
       </div>
@@ -343,7 +349,6 @@ const deliveries = ref([])
 const activeTab = ref('siap')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
-const driverName = ref(localStorage.getItem('kpm_driver_name') || '')
 
 const showSettingsModal = ref(false)
 const gasUrlInput = ref(getActiveGasUrl())
@@ -383,15 +388,6 @@ const jalanList = computed(() =>
 
 const currentList = computed(() => activeTab.value === 'siap' ? siapList.value : jalanList.value)
 
-function saveDriverName() {
-  if (driverName.value && driverName.value.trim()) {
-    driverName.value = driverName.value.trim().toUpperCase()
-    localStorage.setItem('kpm_driver_name', driverName.value)
-  } else {
-    localStorage.removeItem('kpm_driver_name')
-  }
-}
-
 function saveConfig() {
   setCustomConfig(gasUrlInput.value, driverTokenInput.value)
   showSettingsModal.value = false
@@ -421,6 +417,7 @@ async function loadData() {
 }
 
 function openModalFor(item) {
+  if (isSubmitting.value) return
   selectedItem.value = item
   photoPreview.value = ''
 }
@@ -432,6 +429,7 @@ function closeModal() {
 }
 
 function triggerCamera() {
+  if (isSubmitting.value) return
   if (nativeCameraInput.value) {
     nativeCameraInput.value.click()
   }
@@ -452,12 +450,12 @@ async function onPhotoSelected(e) {
 }
 
 async function submitUpdate() {
+  if (isSubmitting.value) return
   if (!selectedItem.value || !photoPreview.value) {
     showNotice('Foto bukti wajib diambil terlebih dahulu.', 'error')
     return
   }
 
-  saveDriverName()
   isSubmitting.value = true
   const isJalan = (selectedItem.value.status === 'Jalan' || selectedItem.value.statusCode === 'BERANGKAT')
   const targetStatus = isJalan ? 'Tiba' : 'Jalan'
@@ -468,7 +466,6 @@ async function submitUpdate() {
       nomorKPM: kpmNo,
       statusKPM: targetStatus,
       fotoData: photoPreview.value,
-      namaPIC: driverName.value || 'DRIVER',
       lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`
     })
 
