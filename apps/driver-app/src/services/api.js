@@ -1,7 +1,7 @@
 /**
- * Lightweight Driver API Client
+ * Universal Driver API Client for Android APK & Web
  */
-const API_URL = '/api'
+const API_URL = 'https://combined-app-theta.vercel.app/api'
 
 export async function getDriverDeliveries() {
   const res = await fetch(`${API_URL}?action=getDeliveries&role=user&_t=${Date.now()}`)

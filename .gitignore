@@ -20,10 +20,16 @@ dist/
 dist-ssr/
 *.local
 *.zip
+*.apk
 *-upload/
 WKPM/combined-app/dist/
 WKPM/admin/config.js
 WKPM/user/config.js
+.gradle/
+build/
+android/.gradle/
+android/build/
+android/app/build/
 
 # Deployment platform caches
 .vercel/

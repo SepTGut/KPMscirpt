@@ -4,6 +4,13 @@ node_modules/
 # Production build
 dist/
 
+# Android Build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+
 # Local Environment
 .env
 .env.local
