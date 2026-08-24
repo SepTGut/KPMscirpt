@@ -5,17 +5,31 @@
 html, body {
   overscroll-behavior-y: none;
   touch-action: manipulation;
+  background-color: #131314;
 }
 
-/* Custom scrollbars */
+/* Material 3 Custom scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #1e1f20;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
+  background: #444746;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5f6368;
+}
+
+/* Material 3 Smooth Transitions */
+.m3-transition {
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Google 4-Color Gradient Border & Highlights */
+.google-border-gradient {
+  border-image: linear-gradient(135deg, #4285f4, #ea4335, #fbbc04, #34a853) 1;
 }

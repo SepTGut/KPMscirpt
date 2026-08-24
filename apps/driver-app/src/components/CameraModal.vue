@@ -1,10 +1,13 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+    <div class="bg-google-surface-900 border border-google-surface-700 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-m3-4 overflow-hidden max-h-[92vh] flex flex-col">
+      <!-- Bottom Sheet Grab Handle Bar -->
+      <div class="w-12 h-1 bg-google-surface-600 rounded-full mx-auto sm:hidden mb-2"></div>
+
       <!-- Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center justify-between pb-3 border-b border-google-surface-700">
         <div>
-          <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider font-mono">
+          <span class="text-[10px] font-bold text-google-blue-400 uppercase tracking-wider font-mono">
             {{ targetDelivery?.nomor || targetDelivery?.kpmId }}
           </span>
           <h3 class="text-base font-bold text-white">
@@ -14,22 +17,28 @@
         <button
           @click="$emit('close')"
           :disabled="isSubmitting"
-          class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center disabled:opacity-50"
+          class="w-8 h-8 rounded-full bg-google-surface-800 text-google-surface-300 hover:text-white flex items-center justify-center disabled:opacity-50 transition"
         >
           <X class="w-4 h-4" />
         </button>
       </div>
 
-      <!-- Route pill -->
-      <div class="my-3 py-2 px-3 bg-slate-800/80 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs">
-        <span class="text-slate-300 font-semibold truncate">{{ targetDelivery?.wsAwal }}</span>
-        <ArrowRight class="w-3.5 h-3.5 text-sky-400 shrink-0 mx-2" />
-        <span class="text-emerald-400 font-semibold truncate">{{ targetDelivery?.wsTujuan }}</span>
+      <!-- Route Stepper Pill (Google Blue origin -> Google Green dest) -->
+      <div class="my-3 py-2 px-3 bg-google-surface-800/80 rounded-xl border border-google-surface-700/60 flex items-center justify-between text-xs">
+        <span class="text-slate-200 font-semibold truncate flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-google-blue-400"></span>
+          {{ targetDelivery?.wsAwal }}
+        </span>
+        <ArrowRight class="w-3.5 h-3.5 text-google-blue-400 shrink-0 mx-2" />
+        <span class="text-google-green-400 font-semibold truncate flex items-center gap-1">
+          {{ targetDelivery?.wsTujuan }}
+          <span class="w-1.5 h-1.5 rounded-full bg-google-green-400"></span>
+        </span>
       </div>
 
-      <!-- Error notice -->
-      <div v-if="errorMessage" class="mb-3 p-2.5 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 text-xs flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 shrink-0" />
+      <!-- Error notice (Google Red) -->
+      <div v-if="errorMessage" class="mb-3 p-3 bg-google-red-900/30 border border-google-red-600/50 rounded-2xl text-google-red-200 text-xs flex items-center gap-2">
+        <AlertCircle class="w-4 h-4 shrink-0 text-google-red-400" />
         <span>{{ errorMessage }}</span>
       </div>
 
@@ -38,21 +47,21 @@
         <div
           v-if="!photoDataUrl"
           @click="triggerFileInput"
-          class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-slate-800/40 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-[0.99] min-h-[180px]"
+          class="border-2 border-dashed border-google-blue-500/50 hover:border-google-blue-400 bg-google-surface-800/40 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-[0.99] min-h-[180px] shadow-inner"
         >
-          <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-3">
+          <div class="w-12 h-12 rounded-2xl bg-google-blue-500/20 text-google-blue-400 flex items-center justify-center mb-3">
             <Camera class="w-6 h-6" />
           </div>
           <span class="text-xs font-bold text-white mb-1">Ambil Foto Bukti Kamera</span>
-          <span class="text-[11px] text-slate-400">Tekan di sini untuk membuka kamera HP</span>
+          <span class="text-[11px] text-google-surface-300">Tekan di sini untuk membuka kamera HP</span>
         </div>
 
-        <div v-else class="relative rounded-2xl overflow-hidden border border-slate-700 bg-black max-h-[260px] flex items-center justify-center">
+        <div v-else class="relative rounded-2xl overflow-hidden border border-google-surface-700 bg-black max-h-[260px] flex items-center justify-center">
           <img :src="photoDataUrl" alt="Preview Bukti" class="w-full h-auto object-contain max-h-[260px]" />
           <button
             @click="clearPhoto"
             :disabled="isSubmitting"
-            class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 hover:bg-black/80"
+            class="absolute top-2 right-2 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-google-red-300 border border-google-red-500/40 text-xs font-bold flex items-center gap-1 hover:bg-black/90 transition"
           >
             <RotateCcw class="w-3.5 h-3.5" />
             <span>Foto Ulang</span>
@@ -80,15 +89,15 @@
           <button
             type="button"
             @click="triggerCamera"
-            class="text-[11px] font-semibold text-sky-400 flex items-center gap-1 hover:underline py-1"
+            class="text-[11px] font-semibold text-google-blue-400 flex items-center gap-1 hover:underline py-1"
           >
             <Camera class="w-3.5 h-3.5" /> Kamera HP
           </button>
-          <span class="text-slate-600">·</span>
+          <span class="text-google-surface-500">·</span>
           <button
             type="button"
             @click="triggerGallery"
-            class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 hover:underline py-1"
+            class="text-[11px] font-semibold text-google-surface-300 flex items-center gap-1 hover:underline py-1"
           >
             <ImageIcon class="w-3.5 h-3.5" /> Galeri File
           </button>
@@ -96,30 +105,30 @@
 
         <!-- PIC Selector -->
         <div class="mt-4">
-          <label class="block text-[11px] font-bold text-slate-300 mb-1">Nama PIC Pengemudi / Personel</label>
+          <label class="block text-[11px] font-bold text-google-surface-200 mb-1">Nama PIC Pengemudi / Personel</label>
           <input
             v-model="driverName"
             type="text"
             placeholder="Contoh: AANG / EKO"
-            class="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-google-surface-800 border border-google-surface-600 text-white text-xs placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 uppercase transition"
           />
         </div>
       </div>
 
-      <!-- Footer Buttons -->
-      <div class="pt-3 border-t border-slate-800 flex gap-2">
+      <!-- Footer Buttons (M3 Pills) -->
+      <div class="pt-3 border-t border-google-surface-700 flex gap-2.5">
         <button
           @click="$emit('close')"
           :disabled="isSubmitting"
-          class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition disabled:opacity-50"
+          class="flex-1 py-3 rounded-full bg-google-surface-800 hover:bg-google-surface-700 text-slate-300 font-bold text-xs transition disabled:opacity-50 border border-google-surface-600"
         >
           Batal
         </button>
         <button
           @click="submit"
           :disabled="isSubmitting || !photoDataUrl"
-          class="flex-[2] py-3 rounded-xl font-bold text-xs text-white shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          :class="isTiba ? 'bg-gradient-to-r from-emerald-600 to-teal-500' : 'bg-gradient-to-r from-sky-600 to-blue-600'"
+          class="flex-[2] py-3 rounded-full font-bold text-xs text-white shadow-m3-2 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ring-1 ring-white/10"
+          :class="isTiba ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 shadow-google-blue-500/25'"
         >
           <Loader2 v-if="isSubmitting" class="w-4 h-4 animate-spin" />
           <CheckCircle2 v-else class="w-4 h-4" />
