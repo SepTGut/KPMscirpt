@@ -241,6 +241,23 @@ function extractHyperlinkUrl(dispVal, formulaVal, rawVal) {
 }
 
 /**
+ * Creates locale-aware =HYPERLINK("url"; "[Link]") formula for setValues().
+ * Uses semicolon (;) for Indonesian and comma (,) for US English locales.
+ */
+function createHyperlinkFormula(url, label) {
+  if (!url) return "";
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var loc = "";
+  try {
+    loc = (ss.getSpreadsheetLocale() || "").toLowerCase();
+  } catch(e) {}
+  // Indonesia, German, French, Spanish, Italian use semicolon formula separator
+  var isSemicolon = (!loc || loc.indexOf("id") === 0 || loc.indexOf("in") === 0 || loc.indexOf("de") === 0 || loc.indexOf("fr") === 0 || loc.indexOf("es") === 0 || loc.indexOf("it") === 0);
+  var sep = isSemicolon ? ";" : ",";
+  return '=HYPERLINK("' + url + '"' + sep + ' "' + (label || '[Link]') + '")';
+}
+
+/**
  * Validates route/workshop string against WEB_CONFIG.WORKSHOPS.
  */
 function validateWorkshopRoute(routeStr) {
@@ -1001,7 +1018,7 @@ function validateAndUpdateStatus(params) {
     if (targetStatus === KPM_STATUS.BERANGKAT) {
       allData[rIndex][MONITOR_COL_WKT_BERANGKAT - 1] = waktuSekarang;
       if (urlFoto && idx === 0) {
-        allData[rIndex][MONITOR_COL_FOTO_BER - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
+        allData[rIndex][MONITOR_COL_FOTO_BER - 1] = createHyperlinkFormula(urlFoto, "[Link]");
       }
     } else if (targetStatus === KPM_STATUS.TIBA) {
       allData[rIndex][MONITOR_COL_WKT_TIBA - 1] = waktuSekarang;
@@ -1011,7 +1028,7 @@ function validateAndUpdateStatus(params) {
         allData[rIndex][MONITOR_COL_DURASI - 1] = hasilDurasi;
       }
       if (urlFoto && idx === 0) {
-        allData[rIndex][MONITOR_COL_FOTO_TIB - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
+        allData[rIndex][MONITOR_COL_FOTO_TIB - 1] = createHyperlinkFormula(urlFoto, "[Link]");
       }
     }
 
