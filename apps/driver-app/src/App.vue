@@ -15,14 +15,23 @@
             <span class="text-[11px] text-google-surface-200 mt-0.5 block">Line Feeding System</span>
           </div>
         </div>
-        <button
-          @click="loadData"
-          :disabled="isLoading"
-          class="px-3.5 py-1.5 rounded-full bg-google-surface-700 hover:bg-google-surface-600 text-xs font-bold text-google-blue-300 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5 border border-google-surface-600 shadow-sm"
-        >
-          <span :class="{ 'animate-spin inline-block': isLoading }">↻</span>
-          <span>{{ isLoading ? 'Memuat...' : 'Segarkan' }}</span>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            @click="showSettingsModal = true"
+            class="p-2 rounded-full bg-google-surface-700 hover:bg-google-surface-600 text-xs font-bold text-google-surface-200 hover:text-white active:scale-95 transition border border-google-surface-600 shadow-sm"
+            title="Pengaturan Server"
+          >
+            ⚙️
+          </button>
+          <button
+            @click="loadData"
+            :disabled="isLoading"
+            class="px-3.5 py-1.5 rounded-full bg-google-surface-700 hover:bg-google-surface-600 text-xs font-bold text-google-blue-300 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5 border border-google-surface-600 shadow-sm"
+          >
+            <span :class="{ 'animate-spin inline-block': isLoading }">↻</span>
+            <span>{{ isLoading ? 'Memuat...' : 'Segarkan' }}</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -60,7 +69,7 @@
         </button>
       </div>
 
-      <!-- Alert Messages (Google Green / Google Red) -->
+      <!-- Alert Messages -->
       <div
         v-if="noticeMsg"
         class="p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between shadow-m3-1 transition animate-fadeIn"
@@ -79,7 +88,7 @@
         Memuat data tugas pengiriman...
       </div>
 
-      <!-- Empty State (M3 Surface Card) -->
+      <!-- Empty State -->
       <div v-else-if="!currentList.length" class="text-center py-12 bg-google-surface-800/60 rounded-3xl border border-google-surface-700/60 p-6 text-google-surface-300 shadow-m3-1">
         <p class="text-4xl mb-3">📦</p>
         <p class="text-sm font-bold text-white">Tidak ada KPM pada tab ini</p>
@@ -88,7 +97,7 @@
         </p>
       </div>
 
-      <!-- Delivery List (M3 Cards) -->
+      <!-- Delivery List -->
       <div v-else class="space-y-3.5">
         <div
           v-for="item in currentList"
@@ -112,105 +121,136 @@
             </span>
           </div>
 
-          <!-- Route Stepper Info (Google Blue origin -> Google Green dest) -->
+          <!-- Route Stepper -->
           <div class="bg-google-surface-900/70 p-3 rounded-xl border border-google-surface-700/50 flex items-center justify-between text-xs font-semibold">
             <div class="text-slate-200 truncate max-w-[45%]">
               <div class="text-[10px] text-google-blue-300 font-bold uppercase tracking-wider flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-google-blue-400"></span> ASAL
               </div>
-              <div class="truncate mt-0.5">{{ item.wsAwal || '-' }}</div>
+              <div class="truncate mt-0.5 font-bold">{{ item.wsAwal || '-' }}</div>
             </div>
-            <span class="text-google-blue-400 font-bold px-2">➔</span>
-            <div class="text-right text-google-green-400 truncate max-w-[45%]">
+            <span class="text-google-surface-400 font-bold">➔</span>
+            <div class="text-right text-slate-200 truncate max-w-[45%]">
               <div class="text-[10px] text-google-green-300 font-bold uppercase tracking-wider flex items-center justify-end gap-1">
                 TUJUAN <span class="w-1.5 h-1.5 rounded-full bg-google-green-400"></span>
               </div>
-              <div class="truncate mt-0.5">{{ item.wsTujuan || '-' }}</div>
+              <div class="truncate mt-0.5 font-bold text-google-green-400">{{ item.wsTujuan || '-' }}</div>
             </div>
           </div>
 
-          <!-- Items Info (Google Yellow Chip) -->
-          <div class="text-xs text-google-surface-200 flex items-center gap-2">
-            <span class="text-google-yellow-400 font-bold">📦</span>
-            <span class="truncate">
-              {{ item.items?.map(i => i.spek || i.deskripsi).join(', ') || item.spek || item.deskripsi || 'Material KPM' }}
-            </span>
+          <!-- Items Accordion -->
+          <div class="text-xs text-google-surface-200 bg-google-surface-900/50 p-2.5 rounded-xl border border-google-surface-700/40 space-y-1">
+            <div class="flex items-center justify-between font-bold text-white mb-1">
+              <span>Daftar Material:</span>
+              <span class="text-google-blue-400 font-mono text-[11px]">{{ item.daftarBarang?.length || 1 }} Macam</span>
+            </div>
+            <div
+              v-for="(barang, bIdx) in (item.daftarBarang || [{ nama: item.spek || 'Material', qty: item.qty || 1, uom: item.uom || 'PCS' }])"
+              :key="bIdx"
+              class="flex justify-between items-center text-[11px] py-0.5 border-b border-google-surface-700/40 last:border-0"
+            >
+              <span class="truncate pr-2">{{ barang.nama || barang.spek }}</span>
+              <span class="font-bold text-google-green-300 font-mono shrink-0">{{ barang.qty }} {{ barang.uom || 'PCS' }}</span>
+            </div>
           </div>
 
-          <!-- Action Button (M3 Pill with Google Depth Gradient) -->
+          <!-- PIC & Waktu -->
+          <div class="flex items-center justify-between text-[11px] text-google-surface-300 px-0.5">
+            <span>PIC: <b class="text-white">{{ item.pic || '-' }}</b></span>
+            <span v-if="item.waktuBerangkat" class="text-google-yellow-300 font-mono">🕒 {{ item.waktuBerangkat }}</span>
+          </div>
+
+          <!-- Action Button -->
           <button
             @click="openModalFor(item)"
-            class="w-full py-3 rounded-full font-bold text-xs text-white shadow-m3-2 active:scale-98 transition flex items-center justify-center gap-2 ring-1 ring-white/10"
-            :class="item.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 shadow-google-blue-500/25'"
+            class="w-full py-3 px-4 rounded-full font-bold text-xs tracking-wide flex items-center justify-center gap-2 shadow-m3-2 transition active:scale-[0.98] ring-1 ring-white/10"
+            :class="item.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 text-white shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 text-white shadow-google-blue-500/25'"
           >
-            <span>{{ item.status === 'Jalan' ? '🏁 Konfirmasi Tiba (Ambil Foto)' : '🚚 Mulai Jalan (Ambil Foto)' }}</span>
+            <span>📷</span>
+            <span>{{ item.status === 'Jalan' ? 'Konfirmasi Tiba (Foto Bukti)' : 'Mulai Jalan (Foto Muat)' }}</span>
           </button>
         </div>
       </div>
     </main>
 
-    <!-- Modal Ambil Foto & Konfirmasi (Google M3 Bottom Sheet) -->
-    <div v-if="selectedItem" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-      <div class="bg-google-surface-900 border border-google-surface-700 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-m3-4">
-        <!-- Bottom Sheet Grab Handle Bar -->
-        <div class="w-12 h-1 bg-google-surface-600 rounded-full mx-auto sm:hidden mb-2"></div>
+    <!-- Hidden Native Camera File Input -->
+    <input
+      ref="nativeCameraInput"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      class="hidden"
+      @change="onPhotoSelected"
+    />
 
-        <!-- Modal Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-google-surface-700">
+    <!-- Camera / Action Modal (M3 Bottom Sheet) -->
+    <div
+      v-if="selectedItem"
+      class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    >
+      <div
+        class="bg-google-surface-900 border border-google-surface-700 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl animate-slideUp max-h-[92vh] overflow-y-auto"
+      >
+        <div class="w-12 h-1.5 bg-google-surface-600 rounded-full mx-auto sm:hidden mb-1"></div>
+
+        <div class="flex items-center justify-between border-b border-google-surface-700 pb-3">
           <div>
-            <span class="text-xs font-mono font-bold text-google-blue-400 uppercase tracking-wider">{{ selectedItem.nomor || selectedItem.kpmId }}</span>
-            <h3 class="text-base font-bold text-white">
-              {{ selectedItem.status === 'Jalan' ? 'Upload Bukti Tiba (Selesai)' : 'Upload Bukti Berangkat (Muat)' }}
+            <h3 class="text-sm font-bold text-white">
+              {{ selectedItem.status === 'Jalan' ? 'Konfirmasi Kedatangan' : 'Konfirmasi Keberangkatan' }}
             </h3>
+            <p class="text-xs text-google-blue-400 font-mono font-bold mt-0.5">
+              {{ selectedItem.nomor || selectedItem.kpmId }}
+            </p>
           </div>
-          <button @click="closeModal" :disabled="isSubmitting" class="w-8 h-8 rounded-full bg-google-surface-800 text-google-surface-300 hover:text-white flex items-center justify-center text-sm font-bold">✕</button>
+          <button @click="closeModal" class="text-google-surface-300 hover:text-white text-lg font-bold p-1">✕</button>
         </div>
 
-        <!-- Hidden Native File Input (Direct Camera on Android) -->
-        <input
-          ref="nativeCameraInput"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          @change="onPhotoSelected"
-          class="hidden"
-        />
+        <div class="bg-google-surface-800 p-3 rounded-2xl border border-google-surface-700 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-google-surface-300">Rute:</span>
+            <span class="font-bold text-google-green-400">{{ selectedItem.wsAwal }} ➔ {{ selectedItem.wsTujuan }}</span>
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-google-surface-300">Status Berikutnya:</span>
+            <span class="font-bold text-google-yellow-300">{{ selectedItem.status === 'Jalan' ? 'Tiba di Workshop Tujuan' : 'Dalam Perjalanan (Jalan)' }}</span>
+          </div>
+        </div>
 
-        <!-- Camera Area (Google M3 Rounded Frame) -->
         <div class="space-y-2">
+          <label class="text-xs font-bold text-google-surface-200 block">
+            {{ selectedItem.status === 'Jalan' ? '📷 Foto Bukti Kedatangan (Wajib)' : '📷 Foto Muatan Berangkat (Wajib)' }}
+          </label>
+
           <div
             v-if="!photoPreview"
             @click="triggerCamera"
-            class="border-2 border-dashed border-google-blue-500/50 hover:border-google-blue-400 bg-google-surface-800/50 rounded-2xl p-8 text-center cursor-pointer active:scale-[0.99] transition shadow-inner"
+            class="border-2 border-dashed border-google-blue-500/50 hover:border-google-blue-400 bg-google-surface-800/80 rounded-2xl p-6 text-center cursor-pointer transition active:scale-98"
           >
-            <div class="w-12 h-12 rounded-2xl bg-google-blue-500/20 text-google-blue-400 flex items-center justify-center mx-auto mb-3">
-              <span class="text-2xl">📷</span>
+            <div class="w-12 h-12 rounded-full bg-google-blue-500/20 text-google-blue-400 flex items-center justify-center text-2xl mx-auto mb-2 border border-google-blue-500/30">
+              📷
             </div>
-            <p class="text-xs font-bold text-google-blue-300">Tekan di Sini untuk Buka Kamera</p>
-            <p class="text-[11px] text-google-surface-300 mt-1">Gunakan kamera HP untuk ambil bukti foto</p>
+            <p class="text-xs font-bold text-white">Ketuk untuk Buka Kamera</p>
+            <p class="text-[11px] text-google-surface-300 mt-1">Otomatis dikompresi berkecepatan tinggi</p>
           </div>
 
-          <div v-else class="space-y-2 text-center">
-            <img :src="photoPreview" alt="Bukti Foto" class="w-full max-h-56 object-contain rounded-2xl bg-black border border-google-surface-700" />
+          <div v-else class="space-y-2">
+            <div class="relative rounded-2xl overflow-hidden border border-google-surface-700 bg-black max-h-56 flex items-center justify-center">
+              <img :src="photoPreview" alt="Preview Foto" class="w-full h-auto max-h-56 object-contain" />
+              <div class="absolute top-2 right-2 bg-google-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                ✓ Siap Dikirim
+              </div>
+            </div>
             <button
               @click="triggerCamera"
-              :disabled="isSubmitting"
-              class="text-xs text-google-blue-400 font-bold underline py-1 hover:text-google-blue-300 transition"
+              class="w-full py-2 bg-google-surface-800 hover:bg-google-surface-700 text-google-blue-300 rounded-xl text-xs font-bold transition border border-google-surface-600"
             >
               Ambil Ulang Foto ↺
             </button>
           </div>
         </div>
 
-        <!-- Confirm Buttons (M3 Pills) -->
         <div class="flex gap-2.5 pt-2 border-t border-google-surface-700">
-          <button
-            @click="closeModal"
-            :disabled="isSubmitting"
-            class="flex-1 py-3 bg-google-surface-800 hover:bg-google-surface-700 rounded-full text-xs font-bold text-slate-300 disabled:opacity-50 transition border border-google-surface-600"
-          >
-            Batal
-          </button>
+          <button @click="closeModal" :disabled="isSubmitting" class="flex-1 py-3 bg-google-surface-800 hover:bg-google-surface-700 rounded-full text-xs font-bold text-slate-300 disabled:opacity-50 transition border border-google-surface-600">Batal</button>
           <button
             @click="submitUpdate"
             :disabled="isSubmitting || !photoPreview"
@@ -222,12 +262,64 @@
         </div>
       </div>
     </div>
+
+    <!-- Server Settings Modal -->
+    <div
+      v-if="showSettingsModal"
+      class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-google-surface-900 border border-google-surface-700 w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl animate-scaleIn">
+        <div class="flex items-center justify-between border-b border-google-surface-700 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⚙️</span>
+            <h3 class="text-sm font-bold text-white">Pengaturan Koneksi Server</h3>
+          </div>
+          <button @click="showSettingsModal = false" class="text-google-surface-300 hover:text-white text-lg font-bold p-1">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="font-bold text-google-surface-200 block mb-1">Server URL Aktif:</label>
+            <input
+              v-model="customServerUrlInput"
+              type="url"
+              placeholder="https://combined-app-theta.vercel.app/api"
+              class="w-full px-3 py-2 bg-google-surface-800 border border-google-surface-600 rounded-xl text-xs text-white placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 font-mono"
+            />
+            <p class="text-[11px] text-google-surface-300 mt-1">
+              Kosongkan untuk menggunakan server proxy bawaan otomatis.
+            </p>
+          </div>
+
+          <div class="bg-google-surface-800 p-3 rounded-2xl border border-google-surface-700 space-y-1 text-[11px] text-google-surface-300">
+            <div class="font-bold text-white">Status Endpoint Bawaan:</div>
+            <div>• Endpoint 1: <span class="font-mono text-google-blue-300">combined-app-theta.vercel.app/api</span></div>
+            <div>• Endpoint 2: <span class="font-mono text-google-blue-300">combined-app-samudroguntur...vercel.app/api</span></div>
+          </div>
+        </div>
+
+        <div class="flex gap-2.5 pt-2 border-t border-google-surface-700">
+          <button
+            @click="resetDefaultServerUrl"
+            class="flex-1 py-2.5 bg-google-surface-800 hover:bg-google-surface-700 rounded-full text-xs font-bold text-google-surface-200 transition border border-google-surface-600"
+          >
+            Reset Default
+          </button>
+          <button
+            @click="saveCustomServerUrl"
+            class="flex-1 py-2.5 bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white rounded-full text-xs font-bold transition shadow-m3-1"
+          >
+            Simpan & Tes
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getDriverDeliveries, sendStatusUpdate } from './services/api'
+import { getDriverDeliveries, sendStatusUpdate, getActiveServerUrl, setCustomServerUrl } from './services/api'
 import { compressImage } from './services/imageCompressor'
 
 const deliveries = ref([])
@@ -235,6 +327,9 @@ const activeTab = ref('siap')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 const driverName = ref(localStorage.getItem('kpm_driver_name') || 'AANG')
+
+const showSettingsModal = ref(false)
+const customServerUrlInput = ref(localStorage.getItem('kpm_server_url') || '')
 
 const selectedItem = ref(null)
 const photoPreview = ref('')
@@ -260,6 +355,21 @@ function saveDriverName() {
     driverName.value = driverName.value.trim().toUpperCase()
     localStorage.setItem('kpm_driver_name', driverName.value)
   }
+}
+
+function saveCustomServerUrl() {
+  setCustomServerUrl(customServerUrlInput.value)
+  showSettingsModal.value = false
+  showNotice('Pengaturan server disimpan. Memuat ulang data...', 'success')
+  loadData()
+}
+
+function resetDefaultServerUrl() {
+  customServerUrlInput.value = ''
+  setCustomServerUrl('')
+  showSettingsModal.value = false
+  showNotice('Server dikembalikan ke default bawaan.', 'success')
+  loadData()
 }
 
 async function loadData() {
@@ -338,4 +448,3 @@ onMounted(() => {
   loadData()
 })
 </script>
-
