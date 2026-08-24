@@ -54,6 +54,24 @@ export function normalizeDelivery(d) {
   }
 }
 
+function parseGasResponse(data) {
+  if (typeof data === 'object' && data !== null) {
+    return data
+  }
+  if (typeof data === 'string') {
+    const trimmed = data.trim()
+    if (trimmed.startsWith('<!doctype') || trimmed.startsWith('<html') || trimmed.includes('accounts.google.com') || trimmed.includes('Sign in')) {
+      throw new Error("Akses ditolak: Google Apps Script meminta login Google. Harap atur izin di script.google.com > Deploy > Manage deployments > 'Who has access: Anyone'.")
+    }
+    try {
+      return JSON.parse(trimmed)
+    } catch (parseErr) {
+      throw new Error(`Respon server tidak valid (${trimmed.substring(0, 60)}...)`)
+    }
+  }
+  throw new Error('Respon dari server kosong atau tidak valid.')
+}
+
 /**
  * Loads delivery assignments directly from Google Apps Script
  */
@@ -79,7 +97,7 @@ export async function getDriverDeliveries() {
         throw new Error(`Google Apps Script mengembalikan HTTP ${res.status}.`)
       }
 
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+      json = parseGasResponse(res.data)
     } else {
       // Browser / Dev fallback
       const res = await fetch(url, {
@@ -91,7 +109,8 @@ export async function getDriverDeliveries() {
         throw new Error(`Google Apps Script mengembalikan error (HTTP ${res.status}).`)
       }
 
-      json = await res.json()
+      const text = await res.text()
+      json = parseGasResponse(text)
     }
 
     if (json && json.success) {
@@ -144,7 +163,7 @@ export async function sendStatusUpdate(payload) {
         throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
       }
 
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+      json = parseGasResponse(res.data)
     } else {
       // Browser fallback
       const res = await fetch(gasUrl, {
@@ -158,7 +177,8 @@ export async function sendStatusUpdate(payload) {
         throw new Error(`Gagal mengirim data ke Google Apps Script (HTTP ${res.status}).`)
       }
 
-      json = await res.json()
+      const text = await res.text()
+      json = parseGasResponse(text)
     }
 
     if (json && json.success) {
