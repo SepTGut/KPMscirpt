@@ -364,8 +364,23 @@ function showNotice(msg, type = 'success') {
   }, 4000)
 }
 
-const siapList = computed(() => deliveries.value.filter(d => d.status === 'Belum Berangkat'))
-const jalanList = computed(() => deliveries.value.filter(d => d.status === 'Jalan'))
+const siapList = computed(() =>
+  deliveries.value.filter(d =>
+    d.status === 'Belum Berangkat' ||
+    d.currentStatus === 'Belum Berangkat' ||
+    d.statusCode === 'BELUM_BERANGKAT'
+  )
+)
+
+const jalanList = computed(() =>
+  deliveries.value.filter(d =>
+    d.status === 'Jalan' ||
+    d.currentStatus === 'Jalan' ||
+    d.status === 'Berangkat' ||
+    d.statusCode === 'BERANGKAT'
+  )
+)
+
 const currentList = computed(() => activeTab.value === 'siap' ? siapList.value : jalanList.value)
 
 function saveDriverName() {
@@ -394,7 +409,9 @@ function resetDefaultConfig() {
 async function loadData() {
   isLoading.value = true
   try {
-    deliveries.value = await getDriverDeliveries()
+    const data = await getDriverDeliveries()
+    deliveries.value = data
+    console.log('[KPM Driver Data Loaded]', data)
   } catch (err) {
     showNotice(err.message || 'Gagal memuat data.', 'error')
   } finally {
@@ -441,7 +458,8 @@ async function submitUpdate() {
 
   saveDriverName()
   isSubmitting.value = true
-  const targetStatus = selectedItem.value.status === 'Jalan' ? 'Tiba' : 'Jalan'
+  const isJalan = (selectedItem.value.status === 'Jalan' || selectedItem.value.statusCode === 'BERANGKAT')
+  const targetStatus = isJalan ? 'Tiba' : 'Jalan'
   const kpmNo = selectedItem.value.nomor || selectedItem.value.kpmId
 
   try {

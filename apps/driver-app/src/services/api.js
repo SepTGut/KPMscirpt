@@ -28,6 +28,31 @@ export function setCustomConfig(gasUrl, driverToken) {
   }
 }
 
+export function normalizeDelivery(d) {
+  const status = d.status || d.currentStatus || (d.statusCode === 'BERANGKAT' ? 'Jalan' : 'Belum Berangkat')
+  const lokasiParts = d.lokasi ? String(d.lokasi).split('➔') : []
+  const wsAwal = d.wsAwal || d.lokasiBerangkat || (lokasiParts[0] ? lokasiParts[0].trim() : '-')
+  const wsTujuan = d.wsTujuan || d.lokasiTiba || (lokasiParts[1] ? lokasiParts[1].trim() : '-')
+  const items = d.daftarBarang || d.items || []
+
+  return {
+    ...d,
+    nomor: d.nomor || d.kpmId || '-',
+    kpmId: d.kpmId || d.nomor || '-',
+    proyek: d.proyek || 'Line Feeding',
+    status: status,
+    currentStatus: status,
+    wsAwal: wsAwal,
+    wsTujuan: wsTujuan,
+    lokasiBerangkat: wsAwal,
+    lokasiTiba: wsTujuan,
+    daftarBarang: items,
+    items: items,
+    pic: d.pic || '-',
+    waktuBerangkat: d.waktuBerangkat || ''
+  }
+}
+
 /**
  * Loads delivery assignments directly from Google Apps Script
  */
@@ -49,7 +74,8 @@ export async function getDriverDeliveries() {
 
     const json = await res.json()
     if (json.success) {
-      return json.data || []
+      const raw = Array.isArray(json.data) ? json.data : []
+      return raw.map(normalizeDelivery)
     }
     throw new Error(json.error?.message || 'Gagal memuat tugas pengiriman dari Google Apps Script.')
   } catch (err) {
