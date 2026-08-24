@@ -59,7 +59,7 @@ function openMasterKpm() {
     return;
   }
 
-  var html = HtmlService.createHtmlOutputFromFile('MasterKpm')
+  var html = HtmlService.createHtmlOutputFromFile('MasterKPM')
     .setWidth(450)
     .setHeight(380);
   SpreadsheetApp.getUi().showModalDialog(html, 'Pengaturan Master KPM');
