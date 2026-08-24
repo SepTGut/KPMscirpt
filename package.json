@@ -12,6 +12,7 @@
     "gas:integrity": "node scripts/seal_integrity.mjs",
     "qr:generate": "node scripts/generate_qr.mjs",
     "test:gps": "node scripts/test_gps.mjs",
-    "test:gps:simulate": "node scripts/test_gps.mjs --simulate"
+    "test:gps:simulate": "node scripts/test_gps.mjs --simulate",
+    "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1"
   }
 }
