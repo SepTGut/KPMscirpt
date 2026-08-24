@@ -1,7 +1,7 @@
 # KPM Line Feeding Tracking System 📦🚀
 
 > **Sistem Informasi & Manajemen Kartu Permintaan Material (KPM) Line Feeding Real-time**  
-> Mengintegrasikan Google Sheets sebagai basis data, Google Apps Script sebagai backend API & state machine, Google Drive sebagai media penyimpanan bukti foto, dan Vue 3 + Tailwind CSS di Vercel sebagai antarmuka modern terpadu (Admin & Personel Driver).
+> Mengintegrasikan Google Sheets sebagai basis data, Google Apps Script sebagai backend API & state machine, Google Drive sebagai media penyimpanan bukti foto, antarmuka Web Portal responsif (Netlify & Vercel), dan Aplikasi Mobile Driver Android Native (APK) berdesain **Google Material Design 3**.
 
 ---
 
@@ -9,6 +9,8 @@
 
 - [Arsitektur Sistem](#arsitektur-sistem)
 - [Fitur Utama](#fitur-utama)
+- [Aplikasi Mobile Driver Android (APK)](#aplikasi-mobile-driver-android-apk)
+- [Desain Antarmuka Google Material Design 3](#desain-antarmuka-google-material-design-3)
 - [Arsitektur Performa dan Caching](#arsitektur-performa-dan-caching)
 - [Alur Status State Machine](#alur-status-state-machine)
 - [Struktur Spreadsheet Kolom A Sampai X](#struktur-spreadsheet-kolom-a-sampai-x)
@@ -16,9 +18,10 @@
 - [Spesifikasi API Backend](#spesifikasi-api-backend)
 - [Panduan Instalasi dan Deployment](#panduan-instalasi-dan-deployment)
   - [1. Konfigurasi Google Apps Script](#1-konfigurasi-google-apps-script)
-  - [2. Konfigurasi Vercel Frontend](#2-konfigurasi-vercel-frontend)
-  - [3. Menjalankan Lokal Development](#3-menjalankan-lokal-development)
-- [Akses QR Code dan Link Publik](#akses-qr-code-dan-link-publik)
+  - [2. Konfigurasi Web Portal (Netlify / Vercel)](#2-konfigurasi-web-portal-netlify--vercel)
+  - [3. Build & Rilis APK Driver Android](#3-build--rilis-apk-driver-android)
+  - [4. Menjalankan Lokal Development](#4-menjalankan-lokal-development)
+- [Akses QR Code dan Link Unduhan](#akses-qr-code-dan-link-unduhan)
 - [Pengujian Otomatis](#pengujian-otomatis)
 - [Lisensi dan Pembuat](#lisensi-dan-pembuat)
 
@@ -28,26 +31,26 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (Vercel)                               │
-│                                                                        │
-│   Portal Admin (/kpm)                 Portal Personel (/kpm/personel)  │
-│   - Buat KPM Baru                     - Lihat KPM Tersedia             │
-│   - Live Monitoring Dashboard         - Upload Foto Berangkat & Tiba   │
-│   - Arsipkan KPM Selesai              - Update Status Real-time        │
+│               APLIKASI DRIVER ANDROID (apps/driver-app)                │
+│   - Vue 3 + Tailwind CSS (Google Material Design 3 Dark Theme)         │
+│   - Capacitor 7 Native Android Engine                                  │
+│   - Kamera Native Lingkungan + Kompresor Gambar Otomatis (<1 Detik)    │
+│   - Koneksi Langsung (Direct API) ke Google Apps Script tanpa Proxy    │
 └──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ HTTPS Fetch
+                                   │ Direct HTTPS POST / GET (Follow 302)
                                    ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                VERCEL SERVERLESS PROXY (api/index.js)                  │
-│   - Menyembunyikan token API dari browser (Server-side token injection)│
-│   - Mengelola timeout koneksi hingga 30 detik                          │
+│                        WEB PORTAL (Netlify / Vercel)                   │
+│   - Portal Admin (/kpm) & Portal Personel Web (/kpm/personel)          │
+│   - Serverless Function Proxy (api/index.js / netlify/functions/api)   │
+│   - Injeksi Token Otentikasi Sisi Server (Server-Side Token Injection) │
 └──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ HTTPS POST / GET (JSON)
+                                   │ HTTPS POST / GET
                                    ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │               BACKEND GOOGLE APPS SCRIPT (Web.gs)                      │
-│   - Role-Based Access Control (Admin vs Driver Token)                  │
-│   - State Machine Validation (Baru Dibuat ➔ Belum ➔ Jalan ➔ Tiba)    │
+│   - Role-Based Access Control (Admin vs Driver Token Validation)       │
+│   - Strict State Machine (Baru Dibuat ➔ Belum ➔ Jalan ➔ Tiba ➔ Selesai)│
 │   - Concurrency Lock (LockService 15 detik)                            │
 │   - Multi-item KPM Auto-sequencing & No LF Increment Generator         │
 │   - Pre-Hashed Cryptographic Digital Seal & Anti-Tamper Protection     │
@@ -57,7 +60,7 @@
 ┌──────────────────────────────────────┐  ┌──────────────────────────────┐
 │       DATABASE GOOGLE SHEETS         │  │     GOOGLE DRIVE STORAGE     │
 │       Sheet: "KPM Monitor 2026"      │  │ Folder: Bukti_Pengiriman_KPM │
-│ - 24 Kolom (A - X)                   │  │ - Foto Bukti Keberangkatan   │
+│ - 24 Kolom Data (A - X)              │  │ - Foto Bukti Keberangkatan   │
 │ - Multi-material grouping            │  │ - Foto Bukti Ketibaan        │
 │ - Formula durasi & hyperlink         │  │ - Akses Link Publik Terpadu  │
 └──────────────────────────────────────┘  └──────────────────────────────┘
@@ -74,26 +77,66 @@
    - Filter instan berdasarkan status (`Semua`, `Baru Dibuat`, `Belum Berangkat`, `Jalan`, `Tiba`).
    - Fitur arsip sekali klik untuk memindahkan KPM tiba ke status `Selesai`.
 
-2. **Portal Personel / Driver (Mobile-Optimized)**:
-   - Antarmuka ringkas khusus dioptimalkan untuk perangkat *smartphone*.
-   - Filter KPM otomatis (hanya menampilkan KPM yang siap berangkat atau sedang dalam perjalanan).
-   - Pengambilan foto langsung dari kamera (*native environment capture*) dengan kompresi otomatis di sisi browser (JPEG 72%) sebelum diunggah untuk hemat kuota dan cepat.
+2. **Aplikasi Mobile Driver Android Native**:
+   - Antarmuka khusus smartphone berbasis Google Material Design 3.
+   - Komunikasi langsung ke backend Google Apps Script (*Direct GAS API*).
+   - Pengambilan foto langsung dari kamera (*native camera capture*) dengan kompresi kilat di sisi klien.
+   - Dialog pengaturan koneksi mandiri (⚙️) untuk fleksibilitas endpoint URL dan token.
 
 3. **Backend Aman & Terisolasi**:
-   - Google Apps Script sebagai *Single Source of Truth* bisnis logic.
-   - Menggunakan `ScriptProperties` untuk keamanan token API.
+   - Google Apps Script sebagai *Single Source of Truth* logika bisnis.
+   - Manajemen rahasia berbasis `ScriptProperties` untuk keamanan token API.
    - Proteksi konkurensi dengan `LockService` untuk mencegah duplikasi penomoran KPM saat beberapa pengguna melakukan aksi bersamaan.
-   - Proteksi tanda tangan digital kriptografis (Pre-hashed SHA-256 Seal) anti-tamper.
+   - Proteksi tanda tangan digital kriptografis (*Pre-hashed SHA-256 Seal*) anti-tamper.
 
-4. **Modul Cetak Dokumen (Print Engine)**:
+4. **Modul Cetak Dokumen & Pop-up**:
    - Modul cetak dokumen fisik KPM dengan pagination otomatis (15 item per halaman) di [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs) dan [`PrintKPM.html`](file:///d:/MyCode/KPMscirpt/PrintKPM.html).
+   - Dialog pop-up yang diperbesar untuk kemudahan input data di Google Sheets (`MasterKPM`, `PrintKPM`, dan `AboutDialog`).
 
 5. **Arsitektur Performa Tinggi & Multi-Tier Caching**:
    - Cache katalog material di memori RAM & `ScriptCache` ($O(1)$ lookup).
    - Pembacaan formula selektif 2 kolom foto (menghemat >60% network payload).
    - Penulisan bounded slice bertarget untuk pembaruan status dan sinkronisasi baris.
    - Kompresi gambar off-thread via `createImageBitmap` + `OffscreenCanvas`.
-   - Smart refresh dengan cache bypass terarah (`refresh=true`).
+
+---
+
+## Aplikasi Mobile Driver Android (APK)
+
+Aplikasi mobile driver terletak pada direktori [`apps/driver-app`](file:///d:/MyCode/KPMscirpt/apps/driver-app) dan dikompilasi menjadi file APK mandiri.
+
+### Keunggulan Driver App
+
+- **Koneksi Langsung ke Google Apps Script**: Tidak memerlukan perantara server web pihak ketiga, bebas dari kendala redirect autentikasi SSO, dan langsung terhubung ke Google Sheets.
+- **Signed Keystore Resmi**: Dibundel dengan signature release resmi untuk mencegah peringatan keamanan *Google Play Protect*.
+- **Kompatibilitas Luas**: Mendukung Android 5.0 (Lollipop) hingga Android 15+.
+- **Kompresi Gambar Cepat**: Mengompresi foto bukti muat dan tiba ke resolusi optimal 960px (~150KB) dalam hitungan milidetik sebelum dikirim ke Google Drive.
+- **Rilis Otomatis GitHub Actions**: Setiap push atau rilis versi tag (misal: `v1.0.2`) secara otomatis mengompilasi, menandatangani, dan merilis file `.apk` siap unduh di tab **GitHub Releases**.
+
+---
+
+## Desain Antarmuka Google Material Design 3
+
+Seluruh antarmuka web, mobile, dan dialog Google Apps Script telah distandardisasi mengikuti panduan desain **Google Material Design 3 (M3)**:
+
+### 1. Psikologi Warna (Google 4-Color Palette)
+
+- **Google Blue** (`#1a73e8` / `#4285f4`): Kepercayaan & Aksi Utama (Header, tombol navigasi, chip KPM, dan rute asal).
+- **Google Red** (`#ea4335` / `#d93025`): Urgensi & Peringatan (Banner error, tombol reset foto, dan validasi gagal).
+- **Google Yellow / Amber** (`#fbbc04` / `#f9ab00`): Optimisme & Status Berjalan (Badge status "Sedang Jalan", in-transit stepper).
+- **Google Green** (`#34a853` / `#188038`): Pertumbuhan & Sukses (Status tiba di tujuan, konfirmasi berhasil, rute tujuan).
+
+### 2. Gradien & Kedalaman Visual
+
+- Garis aksen pelangi 4 warna Google (`linear-gradient(90deg, #4285f4, #ea4335, #fbbc04, #34a853)`).
+- Efek elevasi berlapis Material 3 (`shadow-m3-1` hingga `shadow-m3-4`).
+- Glassmorphism lembut pada header dialog dan top bar.
+
+### 3. Bentuk & Tipografi
+
+- Tombol kapsul (*pill buttons*, `rounded-full`) untuk kemudahan interaksi sentuhan.
+- Kartu permukaan melengkung halus (`rounded-2xl` & `rounded-3xl`).
+- Tipografi modern Google (*Plus Jakarta Sans*, *Roboto*, dan *IBM Plex Mono*).
 
 ---
 
@@ -112,9 +155,9 @@ Untuk menjamin kecepatan, skalabilitas, dan responsivitas tinggi pada koneksi in
    - **Downstream Sync Precise Slice**: Sinkronisasi downstream metadata pada `onEdit` hanya menulis kembali baris yang benar-benar terscan.
    - **Eliminasi `SpreadsheetApp.flush()`**: Menghapus pemanggilan blocking flush agar write-behind spreadsheet berjalan efisien dan asinkron.
 
-3. **Frontend Acceleration (`WKPM/combined-app`)**:
+3. **Frontend Acceleration**:
    - **Off-Thread Image Compression**: `compressImage()` memanfaatkan `createImageBitmap` dan `OffscreenCanvas` untuk *decoding* dan *resizing* foto di *background thread* tanpa memblokir UI browser.
-   - **Smart Invalidation & On-Demand Sync**: Hasil query monitoring di-cache 60 detik di server. Perubahan data (buat KPM, update status, arsipkan) langsung memicu invalidasi cache seketika. Tombol "↻ Segarkan" mem-bypass cache secara eksplisit.
+   - **Smart Invalidation & On-Demand Sync**: Tombol "↻ Segarkan" mem-bypass cache secara eksplisit untuk sinkronisasi seketika.
 
 ---
 
@@ -253,11 +296,11 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
    - **Who has access:** `Anyone` (*Siapa saja*).
    - Klik **Deploy** dan salin URL Web App (`https://script.google.com/macros/s/.../exec`).
 
-### 2. Konfigurasi Vercel Frontend
+### 2. Konfigurasi Web Portal (Netlify / Vercel)
 
-1. Buka project Anda di [vercel.com](https://vercel.com).
+1. Buka project Anda di dashboard Netlify atau Vercel.
 2. Buka **Settings** → **Environment Variables**.
-3. Tambahkan 3 variabel lingkungan untuk Production & Preview:
+3. Tambahkan 3 variabel lingkungan:
 
    ```env
    GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec
@@ -265,26 +308,49 @@ Semua endpoint Google Apps Script mengembalikan format amplop terpadu (*Unified 
    DRIVER_TOKEN=A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3
    ```
 
-4. Deploy otomatis terhubung via GitHub atau jalankan `vercel --prod`.
+### 3. Build & Rilis APK Driver Android
 
-### 3. Menjalankan Lokal Development
+#### Kompilasi Otomatis (GitHub Actions)
+
+Setiap perubahan kode yang di-push ke branch atau pemberian tag rilis (misal: `git tag v1.0.2 && git push origin v1.0.2`) akan otomatis memicu GitHub Actions untuk mengompilasi file APK rilis bertanda tangan resmi (*signed release*) dan mengunggahnya ke **GitHub Releases**.
+
+#### Kompilasi Manual di Komputer Lokal
 
 ```bash
+cd apps/driver-app
+npm install
+npm run build
+npx cap sync android
+cd android
+./gradlew assembleRelease
+```
+
+File APK yang sudah ditandatangani keystore resmi berada di:  
+`apps/driver-app/android/app/build/outputs/apk/release/app-release.apk`
+
+### 4. Menjalankan Lokal Development
+
+```bash
+# Menjalankan Web Portal
 cd WKPM/combined-app
+npm install
+npm run dev
+
+# Menjalankan Driver Mobile Web
+cd apps/driver-app
 npm install
 npm run dev
 ```
 
-Buka browser di `http://localhost:5173/` untuk Admin dan `http://localhost:5173/kpm/personel` untuk Personel.
-
 ---
 
-## Akses QR Code dan Link Publik
+## Akses QR Code dan Link Unduhan
 
-| Portal | URL Publik | QR Code File |
+| Portal / Aplikasi | URL Publik / Link Unduhan | QR Code File |
 | :--- | :--- | :---: |
-| **Admin Dashboard** | `https://combined-app-theta.vercel.app/kpm` | [`qr code/qr_admin_kpm.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_admin_kpm.png) |
-| **Driver / Personel** | `https://combined-app-theta.vercel.app/kpm/personel` | [`qr code/qr_personel_driver.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_personel_driver.png) |
+| **Aplikasi Driver Mobile (APK)** | **[Unduh di GitHub Releases](https://github.com/SepTGut/KPMscirpt/releases)** | *(File APK Android)* |
+| **Web Portal Admin** | `https://combined-app-theta.vercel.app/kpm` | [`qr code/qr_admin_kpm.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_admin_kpm.png) |
+| **Web Portal Driver** | `https://combined-app-theta.vercel.app/kpm/personel` | [`qr code/qr_personel_driver.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_personel_driver.png) |
 | **Kartu Cetak Siap Print** | Buka di browser: [`qr code/print_qr_codes.html`](file:///d:/MyCode/KPMscirpt/qr%20code/print_qr_codes.html) | *(Halaman Cetak A4)* |
 
 ---
