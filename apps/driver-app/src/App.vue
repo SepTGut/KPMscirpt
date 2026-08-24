@@ -1,319 +1,322 @@
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-20">
-    <!-- Navbar Header -->
-    <Navbar
-      :is-online="isOnline"
-      :pending-count="pendingQueue.length"
-      :is-refreshing="isLoading"
-      @open-scanner="isScannerOpen = true"
-      @open-queue="isQueueOpen = true"
-      @refresh="loadData(true)"
-    />
-
-    <!-- Main Content Body -->
-    <main class="flex-1 max-w-md w-full mx-auto px-4 py-4 space-y-4">
-      <!-- Search and Filter Bar -->
-      <div class="relative">
-        <Search class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari Nomor KPM / Proyek / Workshop..."
-          class="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition shadow-inner"
-        />
+  <div class="min-h-screen bg-slate-900 text-slate-100 pb-16">
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-20 shadow-md">
+      <div class="max-w-md mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center font-bold text-white text-base">
+            🚚
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-white leading-none">Driver KPM</h1>
+            <span class="text-[11px] text-slate-400">Line Feeding System</span>
+          </div>
+        </div>
         <button
-          v-if="searchQuery"
-          @click="searchQuery = ''"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+          @click="loadData"
+          :disabled="isLoading"
+          class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-sky-400 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5"
         >
-          <X class="w-3.5 h-3.5" />
+          <span :class="{ 'animate-spin inline-block': isLoading }">↻</span>
+          <span>{{ isLoading ? 'Memuat...' : 'Segarkan' }}</span>
         </button>
       </div>
+    </header>
 
-      <!-- Category Filter Tabs -->
-      <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs font-semibold text-center">
+    <!-- Main Container -->
+    <main class="max-w-md mx-auto p-4 space-y-4">
+      <!-- Driver Name Setting -->
+      <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700 flex items-center gap-3">
+        <span class="text-xs font-bold text-slate-400 shrink-0">Nama Driver:</span>
+        <input
+          v-model="driverName"
+          @change="saveDriverName"
+          type="text"
+          placeholder="Ketik nama Anda (misal: AANG)"
+          class="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white font-bold placeholder:font-normal placeholder:text-slate-500 focus:outline-none focus:border-sky-500 uppercase"
+        />
+      </div>
+
+      <!-- Tabs -->
+      <div class="grid grid-cols-2 gap-2 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs font-bold text-center">
         <button
           @click="activeTab = 'siap'"
-          class="py-2 rounded-lg transition"
-          :class="activeTab === 'siap' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
+          class="py-2.5 rounded-lg transition"
+          :class="activeTab === 'siap' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'"
         >
-          Siap ({{ siapCount }})
+          Siap Berangkat ({{ siapList.length }})
         </button>
         <button
           @click="activeTab = 'jalan'"
-          class="py-2 rounded-lg transition"
-          :class="activeTab === 'jalan' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
+          class="py-2.5 rounded-lg transition"
+          :class="activeTab === 'jalan' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-white'"
         >
-          Jalan ({{ jalanCount }})
-        </button>
-        <button
-          @click="activeTab = 'semua'"
-          class="py-2 rounded-lg transition"
-          :class="activeTab === 'semua' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
-        >
-          Semua ({{ deliveries.length }})
+          Sedang Jalan ({{ jalanList.length }})
         </button>
       </div>
 
-      <!-- Toast Notification Alert -->
+      <!-- Alert Messages -->
       <div
-        v-if="toastMessage"
-        class="p-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-lg transition"
-        :class="toastType === 'success' ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-200 border border-rose-500/40'"
+        v-if="noticeMsg"
+        class="p-3 rounded-xl text-xs font-bold flex items-center justify-between"
+        :class="noticeType === 'success' ? 'bg-emerald-900/80 text-emerald-200 border border-emerald-600' : 'bg-rose-900/80 text-rose-200 border border-rose-600'"
       >
-        <div class="flex items-center gap-2">
-          <CheckCircle2 v-if="toastType === 'success'" class="w-4 h-4 shrink-0 text-emerald-400" />
-          <AlertCircle v-else class="w-4 h-4 shrink-0 text-rose-400" />
-          <span>{{ toastMessage }}</span>
-        </div>
-        <button @click="toastMessage = ''" class="text-slate-400 hover:text-white">
-          <X class="w-3.5 h-3.5" />
-        </button>
+        <span>{{ noticeMsg }}</span>
+        <button @click="noticeMsg = ''" class="text-lg leading-none ml-2">✕</button>
       </div>
 
       <!-- Loading State -->
-      <div v-if="isLoading && !deliveries.length" class="py-16 text-center text-slate-500 space-y-3">
-        <Loader2 class="w-8 h-8 mx-auto text-sky-400 animate-spin" />
-        <p class="text-xs">Memuat tugas pengiriman...</p>
+      <div v-if="isLoading && !deliveries.length" class="text-center py-12 text-slate-400 text-xs">
+        <p class="text-2xl mb-2">⏳</p>
+        Memuat data tugas pengiriman...
       </div>
 
       <!-- Empty State -->
-      <div
-        v-else-if="!filteredDeliveries.length"
-        class="py-16 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800/80 p-6 space-y-3"
-      >
-        <div class="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
-          <Inbox class="w-6 h-6" />
-        </div>
-        <h4 class="text-sm font-bold text-slate-300">Tidak ada pengiriman</h4>
-        <p class="text-xs text-slate-500 max-w-xs mx-auto">
-          {{ searchQuery ? 'Tidak ada KPM yang cocok dengan pencarian Anda.' : 'Semua KPM telah selesai diantar atau belum dibuat oleh Admin.' }}
+      <div v-else-if="!currentList.length" class="text-center py-12 bg-slate-800/40 rounded-2xl border border-slate-700/60 p-6 text-slate-400">
+        <p class="text-3xl mb-2">📦</p>
+        <p class="text-sm font-bold text-slate-300">Tidak ada KPM pada tab ini</p>
+        <p class="text-xs text-slate-500 mt-1">
+          {{ activeTab === 'siap' ? 'Belum ada KPM yang siap berangkat.' : 'Tidak ada KPM yang sedang dalam perjalanan.' }}
         </p>
       </div>
 
-      <!-- Deliveries Card List -->
+      <!-- Delivery List -->
       <div v-else class="space-y-3">
-        <DeliveryCard
-          v-for="item in filteredDeliveries"
+        <div
+          v-for="item in currentList"
           :key="item.nomor || item.kpmId"
-          :delivery="item"
-          @action="openCameraForDelivery"
-        />
+          class="bg-slate-800 border border-slate-700 rounded-xl p-3.5 shadow space-y-3"
+        >
+          <!-- Header Card -->
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <span class="text-xs font-mono font-bold text-sky-400 tracking-wider">
+                {{ item.nomor || item.kpmId }}
+              </span>
+              <div class="text-xs font-bold text-white mt-0.5">{{ item.proyek || 'Line Feeding' }}</div>
+            </div>
+            <span
+              class="px-2 py-0.5 rounded text-[11px] font-bold"
+              :class="item.status === 'Jalan' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'"
+            >
+              {{ item.status }}
+            </span>
+          </div>
+
+          <!-- Route Info -->
+          <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700/50 flex items-center justify-between text-xs font-semibold">
+            <div class="text-slate-300 truncate max-w-[45%]">
+              <div class="text-[10px] text-slate-500 font-bold uppercase">Asal</div>
+              {{ item.wsAwal || '-' }}
+            </div>
+            <span class="text-sky-400 font-bold">➔</span>
+            <div class="text-right text-emerald-400 truncate max-w-[45%]">
+              <div class="text-[10px] text-slate-500 font-bold uppercase">Tujuan</div>
+              {{ item.wsTujuan || '-' }}
+            </div>
+          </div>
+
+          <!-- Items Info -->
+          <div class="text-xs text-slate-300">
+            <span class="text-slate-400">Material:</span>
+            <span class="font-semibold text-white ml-1">
+              {{ item.items?.map(i => i.spek || i.deskripsi).join(', ') || item.spek || item.deskripsi || 'Material KPM' }}
+            </span>
+          </div>
+
+          <!-- Action Button -->
+          <button
+            @click="openModalFor(item)"
+            class="w-full py-3 rounded-lg font-bold text-xs text-white shadow-md active:scale-98 transition flex items-center justify-center gap-2"
+            :class="item.status === 'Jalan' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-sky-600 hover:bg-sky-500'"
+          >
+            <span>{{ item.status === 'Jalan' ? '🏁 Konfirmasi Tiba (Ambil Foto)' : '🚚 Mulai Jalan (Ambil Foto)' }}</span>
+          </button>
+        </div>
       </div>
     </main>
 
-    <!-- Floating Action Button: Quick Scan QR -->
-    <div class="fixed bottom-5 left-0 right-0 max-w-md mx-auto px-4 pointer-events-none flex justify-center z-20">
-      <button
-        @click="isScannerOpen = true"
-        class="pointer-events-auto flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-sky-600 to-blue-600 text-white font-bold text-xs shadow-xl shadow-sky-600/30 hover:scale-105 active:scale-95 transition"
-      >
-        <QrCode class="w-4 h-4" />
-        <span>Scan QR KPM Fisik</span>
-      </button>
+    <!-- Modal Ambil Foto & Konfirmasi -->
+    <div v-if="selectedItem" class="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-4 max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-slate-700">
+          <div>
+            <span class="text-xs font-mono font-bold text-sky-400">{{ selectedItem.nomor || selectedItem.kpmId }}</span>
+            <h3 class="text-sm font-bold text-white">
+              {{ selectedItem.status === 'Jalan' ? 'Upload Bukti Tiba' : 'Upload Bukti Berangkat' }}
+            </h3>
+          </div>
+          <button @click="closeModal" :disabled="isSubmitting" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+        </div>
+
+        <!-- Hidden Native File Input (Direct Camera on Android) -->
+        <input
+          ref="nativeCameraInput"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          @change="onPhotoSelected"
+          class="hidden"
+        />
+
+        <!-- Camera Area -->
+        <div class="space-y-2">
+          <div
+            v-if="!photoPreview"
+            @click="triggerCamera"
+            class="border-2 border-dashed border-sky-500/50 bg-slate-900 rounded-xl p-8 text-center cursor-pointer active:bg-slate-950"
+          >
+            <p class="text-4xl mb-2">📷</p>
+            <p class="text-xs font-bold text-sky-400">Tekan di Sini untuk Buka Kamera</p>
+            <p class="text-[11px] text-slate-500 mt-1">Gunakan kamera HP untuk ambil bukti foto</p>
+          </div>
+
+          <div v-else class="space-y-2 text-center">
+            <img :src="photoPreview" alt="Bukti Foto" class="w-full max-h-56 object-contain rounded-xl bg-black border border-slate-700" />
+            <button
+              @click="triggerCamera"
+              :disabled="isSubmitting"
+              class="text-xs text-sky-400 font-bold underline py-1"
+            >
+              Ambil Ulang Foto ↺
+            </button>
+          </div>
+        </div>
+
+        <!-- Confirm Buttons -->
+        <div class="flex gap-2 pt-2 border-t border-slate-700">
+          <button
+            @click="closeModal"
+            :disabled="isSubmitting"
+            class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-300 disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            @click="submitUpdate"
+            :disabled="isSubmitting || !photoPreview"
+            class="flex-[2] py-2.5 rounded-lg text-xs font-bold text-white shadow transition disabled:opacity-50"
+            :class="selectedItem.status === 'Jalan' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-sky-600 hover:bg-sky-500'"
+          >
+            {{ isSubmitting ? 'Mengirim Data...' : 'Kirim Sekarang ✓' }}
+          </button>
+        </div>
+      </div>
     </div>
-
-    <!-- Modals -->
-    <CameraModal
-      :is-open="isCameraOpen"
-      :target-delivery="selectedDelivery"
-      :is-submitting="isSubmitting"
-      :error-message="submitError"
-      @close="isCameraOpen = false"
-      @submit="handleStatusSubmit"
-    />
-
-    <QrScannerModal
-      :is-open="isScannerOpen"
-      @close="isScannerOpen = false"
-      @scanned="handleQrScanned"
-    />
-
-    <OfflineQueueModal
-      :is-open="isQueueOpen"
-      :items="pendingQueue"
-      :is-syncing="isSyncing"
-      @close="isQueueOpen = false"
-      @sync="handleManualSync"
-      @cleared="refreshQueue"
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { Search, X, Loader2, Inbox, QrCode, CheckCircle2, AlertCircle } from 'lucide-vue-next'
-import Navbar from './components/Navbar.vue'
-import DeliveryCard from './components/DeliveryCard.vue'
-import CameraModal from './components/CameraModal.vue'
-import QrScannerModal from './components/QrScannerModal.vue'
-import OfflineQueueModal from './components/OfflineQueueModal.vue'
-import { fetchDeliveries, submitStatusUpdate, syncOfflineQueue } from './services/api'
-import { getPendingUpdates } from './services/offlineQueue'
+import { ref, computed, onMounted } from 'vue'
+import { getDriverDeliveries, sendStatusUpdate } from './services/api'
+import { compressImage } from './services/imageCompressor'
 
-// State
-const isOnline = ref(navigator.onLine)
 const deliveries = ref([])
-const pendingQueue = ref([])
+const activeTab = ref('siap')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
-const isSyncing = ref(false)
-const searchQuery = ref('')
-const activeTab = ref('siap') // 'siap' | 'jalan' | 'semua'
+const driverName = ref(localStorage.getItem('kpm_driver_name') || 'AANG')
 
-// Modals
-const isCameraOpen = ref(false)
-const isScannerOpen = ref(false)
-const isQueueOpen = ref(false)
-const selectedDelivery = ref(null)
-const submitError = ref('')
+const selectedItem = ref(null)
+const photoPreview = ref('')
+const nativeCameraInput = ref(null)
 
-// Toasts
-const toastMessage = ref('')
-const toastType = ref('success')
+const noticeMsg = ref('')
+const noticeType = ref('success')
 
-function showToast(msg, type = 'success') {
-  toastMessage.value = msg
-  toastType.value = type
+function showNotice(msg, type = 'success') {
+  noticeMsg.value = msg
+  noticeType.value = type
   setTimeout(() => {
-    if (toastMessage.value === msg) toastMessage.value = ''
-  }, 4500)
+    if (noticeMsg.value === msg) noticeMsg.value = ''
+  }, 4000)
 }
 
-// Counts
-const siapCount = computed(() => deliveries.value.filter(d => d.status === 'Belum Berangkat').length)
-const jalanCount = computed(() => deliveries.value.filter(d => d.status === 'Jalan').length)
+const siapList = computed(() => deliveries.value.filter(d => d.status === 'Belum Berangkat'))
+const jalanList = computed(() => deliveries.value.filter(d => d.status === 'Jalan'))
+const currentList = computed(() => activeTab.value === 'siap' ? siapList.value : jalanList.value)
 
-// Filtered List
-const filteredDeliveries = computed(() => {
-  let list = deliveries.value
-
-  if (activeTab.value === 'siap') {
-    list = list.filter(d => d.status === 'Belum Berangkat')
-  } else if (activeTab.value === 'jalan') {
-    list = list.filter(d => d.status === 'Jalan')
+function saveDriverName() {
+  if (driverName.value) {
+    driverName.value = driverName.value.trim().toUpperCase()
+    localStorage.setItem('kpm_driver_name', driverName.value)
   }
+}
 
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase().trim()
-    list = list.filter(d => {
-      const no = (d.nomor || d.kpmId || '').toLowerCase()
-      const proyek = (d.proyek || '').toLowerCase()
-      const wsAwal = (d.wsAwal || '').toLowerCase()
-      const wsTujuan = (d.wsTujuan || '').toLowerCase()
-      const pic = (d.pic || '').toLowerCase()
-      return no.includes(q) || proyek.includes(q) || wsAwal.includes(q) || wsTujuan.includes(q) || pic.includes(q)
-    })
-  }
-
-  return list
-})
-
-async function loadData(bypass = false) {
+async function loadData() {
   isLoading.value = true
   try {
-    const data = await fetchDeliveries(bypass)
-    deliveries.value = data
+    deliveries.value = await getDriverDeliveries()
   } catch (err) {
-    showToast(err.message || 'Gagal mengambil data KPM.', 'error')
+    showNotice(err.message || 'Gagal memuat data.', 'error')
   } finally {
     isLoading.value = false
-    await refreshQueue()
   }
 }
 
-async function refreshQueue() {
-  try {
-    pendingQueue.value = await getPendingUpdates()
-  } catch (e) {}
+function openModalFor(item) {
+  selectedItem.value = item
+  photoPreview.value = ''
 }
 
-function openCameraForDelivery(delivery) {
-  selectedDelivery.value = delivery
-  submitError.value = ''
-  isCameraOpen.value = true
+function closeModal() {
+  if (isSubmitting.value) return
+  selectedItem.value = null
+  photoPreview.value = ''
 }
 
-async function handleStatusSubmit(payload) {
-  isSubmitting.value = true
-  submitError.value = ''
+function triggerCamera() {
+  if (nativeCameraInput.value) {
+    nativeCameraInput.value.click()
+  }
+}
+
+async function onPhotoSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+
   try {
-    const res = await submitStatusUpdate(payload)
-    isCameraOpen.value = false
-    if (res?.offlineQueued) {
-      showToast('Status tersimpan di HP. Akan di-sync saat online.', 'success')
-    } else {
-      showToast(`Status KPM ${payload.nomorKPM} berhasil diperbarui ke '${payload.statusKPM}'.`, 'success')
-    }
-    await loadData(true)
+    isLoading.value = true
+    photoPreview.value = await compressImage(file, 960, 0.7)
   } catch (err) {
-    submitError.value = err.message || 'Gagal mengirim status KPM.'
+    showNotice(err.message || 'Gagal memproses foto.', 'error')
   } finally {
-    isSubmitting.value = false
-    await refreshQueue()
+    isLoading.value = false
   }
 }
 
-function handleQrScanned(decodedText) {
-  const clean = decodedText.trim()
-  searchQuery.value = clean
-  activeTab.value = 'semua'
-
-  // Look for match
-  const match = deliveries.value.find(d => {
-    const no = (d.nomor || d.kpmId || '').trim()
-    return no.toLowerCase() === clean.toLowerCase()
-  })
-
-  if (match) {
-    openCameraForDelivery(match)
-  } else {
-    showToast(`KPM ${clean} ditemukan dalam pencarian.`, 'success')
-  }
-}
-
-async function handleManualSync() {
-  if (!navigator.onLine) {
-    showToast('HP Anda sedang offline. Tunggu hingga koneksi kembali.', 'error')
+async function submitUpdate() {
+  if (!selectedItem.value || !photoPreview.value) {
+    showNotice('Foto bukti wajib diambil terlebih dahulu.', 'error')
     return
   }
-  isSyncing.value = true
+
+  saveDriverName()
+  isSubmitting.value = true
+  const targetStatus = selectedItem.value.status === 'Jalan' ? 'Tiba' : 'Jalan'
+  const kpmNo = selectedItem.value.nomor || selectedItem.value.kpmId
+
   try {
-    const { synced, failed } = await syncOfflineQueue()
-    if (synced > 0) {
-      showToast(`Berhasil mengunggah ${synced} antrean offline!`, 'success')
-      await loadData(true)
-    }
-    if (failed > 0) {
-      showToast(`${failed} antrean gagal di-sync.`, 'error')
-    }
+    await sendStatusUpdate({
+      nomorKPM: kpmNo,
+      statusKPM: targetStatus,
+      fotoData: photoPreview.value,
+      namaPIC: driverName.value || 'DRIVER',
+      lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`
+    })
+
+    showNotice(`KPM ${kpmNo} berhasil diubah ke '${targetStatus}'!`, 'success')
+    closeModal()
+    await loadData()
+  } catch (err) {
+    showNotice(err.message || 'Gagal mengirim update status.', 'error')
   } finally {
-    isSyncing.value = false
-    await refreshQueue()
+    isSubmitting.value = false
   }
-}
-
-// Network state listeners
-function onOnline() {
-  isOnline.value = true
-  showToast('Koneksi internet kembali online.', 'success')
-  handleManualSync()
-}
-
-function onOffline() {
-  isOnline.value = false
-  showToast('Anda sedang offline. Mode antrean lokal aktif.', 'error')
 }
 
 onMounted(() => {
-  window.addEventListener('online', onOnline)
-  window.addEventListener('offline', onOffline)
   loadData()
-  refreshQueue()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('online', onOnline)
-  window.removeEventListener('offline', onOffline)
 })
 </script>
