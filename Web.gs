@@ -408,6 +408,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     if (rawKpm) {
       lastSeenKpm = rawKpm;
       lastSeenPic = String(row[MONITOR_COL_PIC - 1] || "").trim();
+      lastSeenDriver = String(row[MONITOR_COL_DRIVER - 1] || "").trim();
       lastSeenProyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim();
       lastSeenWaktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim();
       lastSeenWaktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim();
@@ -454,6 +455,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     if (!kpm) continue;
 
     var pic = String(row[MONITOR_COL_PIC - 1] || "").trim() || lastSeenPic;
+    var driver = String(row[MONITOR_COL_DRIVER - 1] || "").trim() || lastSeenDriver;
     var proyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim() || lastSeenProyek;
     var waktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim() || lastSeenWaktuBuat;
     var waktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim() || lastSeenWaktuBer;
@@ -487,6 +489,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         kpmId: kpm,
         nomor: kpm,
         pic: pic,
+        driver: driver,
         status: statusAkhir,
         statusCode: statusCode,
         lokasi: lokasi,
@@ -570,6 +573,7 @@ function getAvailableDeliveries() {
         lokasiBerangkat: item.lokasiBerangkat,
         lokasiTiba: item.lokasiTiba,
         pic: item.pic,
+        driver: item.driver || "",
         currentStatus: item.status,
         statusCode: item.statusCode,
         nextAction: nextAction,
@@ -997,6 +1001,8 @@ function validateAndUpdateStatus(params) {
     namaPIC = picMatched;
   }
 
+  var namaDriver = (params.namaDriver || params.driver || "").trim().toUpperCase();
+
   var lokasiWorkshop = "";
   var workshopOrigin = "";
   var workshopDest = "";
@@ -1033,6 +1039,7 @@ function validateAndUpdateStatus(params) {
     }
 
     if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = namaPIC;
+    if (namaDriver) allData[rIndex][MONITOR_COL_DRIVER - 1] = namaDriver;
     allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
     if (lokasiWorkshop) {
       if (targetStatus === KPM_STATUS.TIBA) {
@@ -1206,10 +1213,10 @@ function setupTrackingHeaders() {
   }
 
   var headers = [
-    ["Waktu Berangkat", "Waktu Tiba", "Durasi", "Status Tracking", "Foto Berangkat", "Foto Tiba"]
+    ["Driver", "Waktu Berangkat", "Waktu Tiba", "Durasi", "Status Tracking", "Foto Berangkat", "Foto Tiba"]
   ];
 
-  sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_WKT_BERANGKAT, 1, 6).setValues(headers);
+  sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_DRIVER, 1, 7).setValues(headers);
 
   // Keep the visible tracking choices limited to the four tracking states.
   // Selesai is still written internally when an item is archived, so invalid
@@ -1229,6 +1236,6 @@ function setupTrackingHeaders() {
     .setDataValidation(statusValidation);
 
   if (typeof SpreadsheetApp.getUi === "function") {
-    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga X dan dropdown status telah dikonfigurasi.");
+    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga Y (Driver, Waktu Berangkat, Waktu Tiba, Durasi, Status, Foto Berangkat, Foto Tiba) telah dikonfigurasi.");
   }
 }

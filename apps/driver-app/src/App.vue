@@ -37,6 +37,18 @@
 
     <!-- Main Container -->
     <main class="max-w-xl mx-auto p-4 sm:p-5 space-y-4 sm:space-y-5">
+      <!-- Driver Name Input (Saved directly to Column S in Google Sheets) -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/80 flex items-center gap-3.5 shadow-sm">
+        <span class="text-sm font-bold text-slate-700 shrink-0">Nama Driver:</span>
+        <input
+          v-model="driverName"
+          @change="saveDriverName"
+          type="text"
+          placeholder="Ketik nama Anda (tersimpan di Kolom S)"
+          class="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-bold placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-google-blue-500 focus:ring-2 focus:ring-google-blue-500/20 uppercase transition"
+        />
+      </div>
+
       <!-- M3 Segmented Pill Tabs -->
       <div class="grid grid-cols-2 gap-2 bg-slate-200/70 p-2 rounded-full border border-slate-300/80 text-sm font-bold text-center shadow-inner">
         <button
@@ -144,10 +156,13 @@
             </div>
           </div>
 
-          <!-- PIC & Waktu -->
-          <div class="flex items-center justify-between text-xs sm:text-sm text-slate-500 px-1 font-medium">
-            <span>PIC: <b class="text-slate-800">{{ item.pic || '-' }}</b></span>
-            <span v-if="item.waktuBerangkat" class="text-amber-700 font-mono font-bold">🕒 {{ item.waktuBerangkat }}</span>
+          <!-- PIC, Driver & Waktu -->
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-slate-500 px-1 font-medium">
+            <div class="flex items-center gap-3">
+              <span>PIC: <b class="text-slate-800">{{ item.pic || '-' }}</b></span>
+              <span v-if="item.driver">Driver: <b class="text-google-blue-700">{{ item.driver }}</b></span>
+            </div>
+            <span v-if="item.departureAt || item.waktuBerangkat" class="text-amber-700 font-mono font-bold">🕒 {{ item.departureAt || item.waktuBerangkat }}</span>
           </div>
 
           <!-- Action Button -->
@@ -205,7 +220,7 @@
             </p>
           </div>
           <button
-            @click="closeModal"
+            @click="closeModal()"
             :disabled="isSubmitting"
             class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center text-base font-bold transition disabled:opacity-40"
           >
@@ -263,7 +278,7 @@
         <!-- Confirm Buttons -->
         <div class="flex gap-3 pt-3 border-t border-slate-200">
           <button
-            @click="closeModal"
+            @click="closeModal()"
             :disabled="isSubmitting"
             class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 rounded-full text-xs sm:text-sm font-bold text-slate-700 disabled:opacity-50 transition border border-slate-300"
           >
@@ -349,6 +364,7 @@ const deliveries = ref([])
 const activeTab = ref('siap')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
+const driverName = ref(localStorage.getItem('kpm_driver_name') || '')
 
 const showSettingsModal = ref(false)
 const gasUrlInput = ref(getActiveGasUrl())
@@ -387,6 +403,15 @@ const jalanList = computed(() =>
 )
 
 const currentList = computed(() => activeTab.value === 'siap' ? siapList.value : jalanList.value)
+
+function saveDriverName() {
+  if (driverName.value && driverName.value.trim()) {
+    driverName.value = driverName.value.trim().toUpperCase()
+    localStorage.setItem('kpm_driver_name', driverName.value)
+  } else {
+    localStorage.removeItem('kpm_driver_name')
+  }
+}
 
 function saveConfig() {
   setCustomConfig(gasUrlInput.value, driverTokenInput.value)
@@ -456,6 +481,7 @@ async function submitUpdate() {
     return
   }
 
+  saveDriverName()
   isSubmitting.value = true
   const isJalan = (selectedItem.value.status === 'Jalan' || selectedItem.value.statusCode === 'BERANGKAT')
   const targetStatus = isJalan ? 'Tiba' : 'Jalan'
@@ -466,6 +492,7 @@ async function submitUpdate() {
       nomorKPM: kpmNo,
       statusKPM: targetStatus,
       fotoData: photoPreview.value,
+      namaDriver: driverName.value || '',
       lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`
     })
 

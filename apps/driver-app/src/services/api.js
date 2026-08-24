@@ -138,6 +138,9 @@ export async function sendStatusUpdate(payload) {
   form.set('nomorKPM', payload.nomorKPM)
   form.set('statusKPM', payload.statusKPM)
   form.set('fotoData', payload.fotoData)
+  if (payload.namaDriver && payload.namaDriver.trim()) {
+    form.set('namaDriver', payload.namaDriver.trim().toUpperCase())
+  }
   if (payload.namaPIC && payload.namaPIC.trim() && payload.namaPIC !== 'DRIVER') {
     form.set('namaPIC', payload.namaPIC.trim())
   }
