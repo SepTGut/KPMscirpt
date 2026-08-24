@@ -60,8 +60,8 @@ function openMasterKpm() {
   }
 
   var html = HtmlService.createHtmlOutputFromFile('MasterKPM')
-    .setWidth(450)
-    .setHeight(380);
+    .setWidth(580)
+    .setHeight(480);
   SpreadsheetApp.getUi().showModalDialog(html, 'Pengaturan Master KPM');
 }
 
@@ -225,8 +225,8 @@ function openPrintView(data) {
   template.data = data;
 
   var htmlOutput = template.evaluate()
-    .setWidth(1100)
-    .setHeight(750);
+    .setWidth(1200)
+    .setHeight(820);
 
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Preview KPM - ' + data.header.noRefKpp);
   return true;

@@ -205,8 +205,8 @@ function openAboutDialog() {
   template.info = getAppAuthorInfo();
 
   var htmlOutput = template.evaluate()
-    .setWidth(530)
-    .setHeight(580);
+    .setWidth(580)
+    .setHeight(620);
 
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Tentang Pembuat & Instansi');
 }
