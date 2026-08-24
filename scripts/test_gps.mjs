@@ -1,24 +1,67 @@
 #!/usr/bin/env node
 /**
- * Automated GPS & Firebase Realtime Database Integration Test
+ * Automated GPS & Firebase Realtime Database Integration Test & Ultra-Smooth Simulation
  * 
  * Usage:
  *   node scripts/test_gps.mjs             -> Runs automated connection, CRUD, and payload validation tests
- *   node scripts/test_gps.mjs --simulate  -> Simulates live truck movement for visual Leaflet testing
+ *   node scripts/test_gps.mjs --simulate  -> Simulates ultra-smooth live truck movement with interpolation
  */
 
 const FIREBASE_DB_URL = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app';
 const TEST_KPM_ID = 'TEST_TRUCK_GPS_01';
 
-// Waypoints between Workshop Candi Sewu and Workshop Sukosari
-const WAYPOINTS = [
-  { lat: -7.7495, lng: 110.4932, speed: 0, note: 'Berangkat dari Workshop Candi Sewu' },
-  { lat: -7.7210, lng: 110.5340, speed: 42, note: 'Melintasi Jl. Raya Jogja-Solo' },
-  { lat: -7.6850, lng: 110.6010, speed: 55, note: 'Jalan Lingkar Klaten' },
-  { lat: -7.6320, lng: 110.6980, speed: 48, note: 'Menuju Boyolali / Solo' },
-  { lat: -7.5890, lng: 110.7650, speed: 38, note: 'Memasuki kawasan Kartasura' },
-  { lat: -7.5621, lng: 110.8245, speed: 15, note: 'Mendekati Workshop Sukosari (Tiba)' }
+// Key Anchor Waypoints between Workshop Candi Sewu and Workshop Sukosari
+const ANCHOR_WAYPOINTS = [
+  { lat: -7.7495, lng: 110.4932, speed: 0, note: 'Workshop Candi Sewu (Asal)' },
+  { lat: -7.7210, lng: 110.5340, speed: 45, note: 'Jl. Raya Jogja-Solo' },
+  { lat: -7.6850, lng: 110.6010, speed: 58, note: 'Jalan Lingkar Klaten' },
+  { lat: -7.6320, lng: 110.6980, speed: 52, note: 'Arah Boyolali / Solo' },
+  { lat: -7.5890, lng: 110.7650, speed: 40, note: 'Kawasan Kartasura' },
+  { lat: -7.5621, lng: 110.8245, speed: 10, note: 'Workshop Sukosari (Tujuan)' }
 ];
+
+// Helper to calculate bearing angle between two points
+function calculateBearing(lat1, lon1, lat2, lon2) {
+  const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
+  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+            Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
+  const deg = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  return Math.round(deg);
+}
+
+// Generate smooth sub-waypoints
+function generateSmoothRoute(anchors, stepsPerSegment = 5) {
+  const result = [];
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i];
+    const b = anchors[i + 1];
+    const bearing = calculateBearing(a.lat, a.lng, b.lat, b.lng);
+
+    for (let s = 0; s < stepsPerSegment; s++) {
+      const t = s / stepsPerSegment;
+      const lat = a.lat + (b.lat - a.lat) * t;
+      const lng = a.lng + (b.lng - a.lng) * t;
+      const speed = Math.round(a.speed + (b.speed - a.speed) * t);
+      result.push({
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+        speed: speed,
+        heading: bearing,
+        note: s === 0 ? a.note : `Meluncur menuju ${b.note}`
+      });
+    }
+  }
+  // Add final point
+  const last = anchors[anchors.length - 1];
+  result.push({
+    lat: last.lat,
+    lng: last.lng,
+    speed: 0,
+    heading: 0,
+    note: last.note
+  });
+  return result;
+}
 
 async function runAutomatedTests() {
   console.log('====================================================');
@@ -41,9 +84,9 @@ async function runAutomatedTests() {
     proyek: 'Line Feeding Unit Testing',
     latitude: -7.7495,
     longitude: 110.4932,
-    accuracy: 6,
-    speedKmh: 45,
-    heading: 42,
+    accuracy: 5,
+    speedKmh: 48,
+    heading: 45,
     lastUpdated: Date.now()
   };
 
@@ -136,52 +179,53 @@ async function runAutomatedTests() {
 }
 
 async function runLiveSimulation() {
-  console.log('====================================================');
-  console.log('🚚 SIMULATING LIVE TRUCK MOVEMENT FOR LEAFLET RADAR');
-  console.log('====================================================');
-  console.log('Buka tab "🗺️ Live Radar Armada" di Admin Web Anda sekarang!');
-  console.log('Truk simulasi akan bergerak dari Candi Sewu ➔ Sukosari...\n');
+  const smoothRoute = generateSmoothRoute(ANCHOR_WAYPOINTS, 5); // 26 high-density points
 
-  for (let i = 0; i < WAYPOINTS.length; i++) {
-    const wp = WAYPOINTS[i];
+  console.log('====================================================');
+  console.log('🚚 ULTRA-SMOOTH FLEET MOVEMENT SIMULATION (LEAFLET)');
+  console.log('====================================================');
+  console.log('Buka tab "🗺️ Live Radar Armada" di Admin Web Anda!');
+  console.log(`Total 26 titik interpolasi halus (interval 1.5 detik per update)...\n`);
+
+  for (let i = 0; i < smoothRoute.length; i++) {
+    const pt = smoothRoute[i];
+    const isArrival = (i === smoothRoute.length - 1);
     const payload = {
-      kpmId: 'SIMULASI_TRUK_01',
-      driverName: 'DRIVER SIMULASI',
-      status: i === WAYPOINTS.length - 1 ? 'Tiba' : 'Jalan',
+      kpmId: 'ARMADA_SMOOTH_01',
+      driverName: 'DRIVER BUDI (SMOOTH RADAR)',
+      status: isArrival ? 'Tiba' : 'Jalan',
       origin: 'Candi Sewu',
       destination: 'Sukosari',
-      proyek: 'Line Feeding Demo GPS',
-      latitude: wp.lat,
-      longitude: wp.lng,
-      accuracy: 5,
-      speedKmh: wp.speed,
-      heading: 35,
+      proyek: 'Line Feeding Smooth Radar',
+      latitude: pt.lat,
+      longitude: pt.lng,
+      accuracy: 4,
+      speedKmh: pt.speed,
+      heading: pt.heading,
       lastUpdated: Date.now()
     };
 
-    console.log(`[Titik ${i + 1}/${WAYPOINTS.length}] Lat: ${wp.lat}, Lng: ${wp.lng} | Kecepatan: ${wp.speed} km/h | ${wp.note}`);
+    const progress = Math.round(((i + 1) / smoothRoute.length) * 100);
+    process.stdout.write(`\r[${progress}%] 🚚 Pos: ${pt.lat}, ${pt.lng} | ${pt.speed} km/h | Heading: ${pt.heading}° | ${pt.note}                    `);
 
     try {
-      const url = `${FIREBASE_DB_URL}/active_tracking/SIMULASI_TRUK_01.json`;
+      const url = `${FIREBASE_DB_URL}/active_tracking/ARMADA_SMOOTH_01.json`;
       await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-    } catch (e) {
-      console.warn('Gagal mengirim koordinat:', e.message);
-    }
+    } catch (e) {}
 
-    if (i < WAYPOINTS.length - 1) {
-      console.log('   Menunggu 4 detik untuk update posisi berikutnya...\n');
-      await new Promise(res => setTimeout(res, 4000));
+    if (!isArrival) {
+      await new Promise(res => setTimeout(res, 1500));
     }
   }
 
-  console.log('\n🎉 Simulasi selesai! Membersihkan marker simulasi...');
-  await new Promise(res => setTimeout(res, 3000));
+  console.log('\n\n🎉 Simulasi rute selesai! Membersihkan marker...');
+  await new Promise(res => setTimeout(res, 3500));
   try {
-    await fetch(`${FIREBASE_DB_URL}/active_tracking/SIMULASI_TRUK_01.json`, { method: 'DELETE' });
+    await fetch(`${FIREBASE_DB_URL}/active_tracking/ARMADA_SMOOTH_01.json`, { method: 'DELETE' });
     console.log('✅ Marker simulasi dibersihkan.');
   } catch (e) {}
 }
