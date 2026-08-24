@@ -849,6 +849,21 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
     var cleanBase64 = base64.replace(/\s/g, '+');
     var decodedBytes = Utilities.base64Decode(cleanBase64);
     var blob = Utilities.newBlob(decodedBytes, mimeType, namaFile);
+
+    // Remove older duplicate photo files in Drive for this exact KPM & Status
+    try {
+      var existingFiles = folder.getFiles();
+      var targetPrefix = safeNomor + "_" + (statusKPM || "Foto");
+      while (existingFiles.hasNext()) {
+        var existingFile = existingFiles.next();
+        if (existingFile.getName().indexOf(targetPrefix) === 0) {
+          existingFile.setTrashed(true);
+        }
+      }
+    } catch(dedupErr) {
+      Logger.log("dedup prior photo notice: " + dedupErr.message);
+    }
+
     var file = folder.createFile(blob);
 
     try {
@@ -985,7 +1000,7 @@ function validateAndUpdateStatus(params) {
 
     if (targetStatus === KPM_STATUS.BERANGKAT) {
       allData[rIndex][MONITOR_COL_WKT_BERANGKAT - 1] = waktuSekarang;
-      if (urlFoto) {
+      if (urlFoto && idx === 0) {
         allData[rIndex][MONITOR_COL_FOTO_BER - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
       }
     } else if (targetStatus === KPM_STATUS.TIBA) {
@@ -995,7 +1010,7 @@ function validateAndUpdateStatus(params) {
       if (hasilDurasi !== "") {
         allData[rIndex][MONITOR_COL_DURASI - 1] = hasilDurasi;
       }
-      if (urlFoto) {
+      if (urlFoto && idx === 0) {
         allData[rIndex][MONITOR_COL_FOTO_TIB - 1] = '=HYPERLINK("' + urlFoto + '", "[Link]")';
       }
     }
