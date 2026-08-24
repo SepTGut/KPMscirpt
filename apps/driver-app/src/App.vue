@@ -16,9 +16,20 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <!-- GPS Status Pill -->
+          <div
+            class="px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border shadow-sm"
+            :class="trackingState.isTracking ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-500 border-slate-200'"
+            :title="trackingState.isTracking ? `GPS Aktif: ${trackingState.speedKmh} km/jam (±${trackingState.accuracy}m)` : 'GPS Standby'"
+          >
+            <span class="w-2 h-2 rounded-full" :class="trackingState.isTracking ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'"></span>
+            <span class="hidden sm:inline">{{ trackingState.isTracking ? `GPS Live (${trackingState.speedKmh} km/h)` : 'GPS Standby' }}</span>
+            <span class="sm:hidden">{{ trackingState.isTracking ? 'Live' : 'Standby' }}</span>
+          </div>
+
           <button
             @click="showSettingsModal = true"
-            class="p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 active:scale-95 transition border border-slate-200 shadow-sm"
+            class="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 active:scale-95 transition border border-slate-200 shadow-sm"
             title="Pengaturan Server"
           >
             ⚙️
@@ -26,10 +37,10 @@
           <button
             @click="loadData"
             :disabled="isLoading"
-            class="px-4 py-2 rounded-full bg-google-blue-50 hover:bg-google-blue-100 text-xs sm:text-sm font-bold text-google-blue-700 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5 border border-google-blue-200 shadow-sm"
+            class="px-3.5 py-1.5 rounded-full bg-google-blue-50 hover:bg-google-blue-100 text-xs font-bold text-google-blue-700 active:scale-95 transition disabled:opacity-50 flex items-center gap-1 border border-google-blue-200 shadow-sm"
           >
             <span :class="{ 'animate-spin inline-block': isLoading }">↻</span>
-            <span>{{ isLoading ? 'Memuat...' : 'Segarkan' }}</span>
+            <span>{{ isLoading ? '...' : 'Segarkan' }}</span>
           </button>
         </div>
       </div>
@@ -165,15 +176,29 @@
             <span v-if="item.departureAt || item.waktuBerangkat" class="text-amber-700 font-mono font-bold">🕒 {{ item.departureAt || item.waktuBerangkat }}</span>
           </div>
 
-          <!-- Action Button -->
-          <button
-            @click="openModalFor(item)"
-            class="w-full py-3.5 px-5 rounded-full font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-m3-2 transition active:scale-[0.98] ring-1 ring-black/5"
-            :class="item.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 text-white shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 text-white shadow-google-blue-500/25'"
-          >
-            <span class="text-base">📷</span>
-            <span>{{ item.status === 'Jalan' ? 'Konfirmasi Tiba (Foto Bukti)' : 'Mulai Jalan (Foto Muat)' }}</span>
-          </button>
+          <!-- Actions: 1-Click GMaps Navigation + Primary Photo Button -->
+          <div class="space-y-2.5 pt-1">
+            <!-- 1-Click Google Maps Navigation -->
+            <a
+              :href="getNavUrl(item.wsTujuan)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-4 rounded-full font-bold text-xs sm:text-sm tracking-wide flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-google-blue-700 active:scale-[0.98] transition border border-slate-200 shadow-sm"
+            >
+              <span class="text-base">🗺️</span>
+              <span>Buka Navigasi GMaps ({{ item.wsTujuan || 'Tujuan' }})</span>
+            </a>
+
+            <!-- Action Button -->
+            <button
+              @click="openModalFor(item)"
+              class="w-full py-3.5 px-5 rounded-full font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-m3-2 transition active:scale-[0.98] ring-1 ring-black/5"
+              :class="item.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 text-white shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 text-white shadow-google-blue-500/25'"
+            >
+              <span class="text-base">📷</span>
+              <span>{{ item.status === 'Jalan' ? 'Konfirmasi Tiba (Foto Bukti)' : 'Mulai Jalan (Foto Muat)' }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -330,8 +355,18 @@
               placeholder="Token rahasia Driver"
               class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-google-blue-500 focus:ring-2 focus:ring-google-blue-500/20 font-mono"
             />
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 block mb-1.5">Firebase Realtime DB URL (Opsional):</label>
+            <input
+              v-model="firebaseUrlInput"
+              type="url"
+              placeholder="https://...-default-rtdb.firebaseio.com"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-google-blue-500 focus:ring-2 focus:ring-google-blue-500/20 font-mono"
+            />
             <p class="text-xs text-slate-500 mt-1.5">
-              Aplikasi terhubung langsung ke backend Google Sheets tanpa perantara web proxy.
+              Digunakan untuk aliran koordinat GPS realtime per 10 detik ke peta admin.
             </p>
           </div>
         </div>
@@ -356,9 +391,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getDriverDeliveries, sendStatusUpdate, getActiveGasUrl, getActiveDriverToken, setCustomConfig } from './services/api'
 import { compressImage } from './services/imageCompressor'
+import { trackingState, startTracking, stopTracking, getCurrentCoordinates, getNavigationUrl, getFirebaseDbUrl, setFirebaseDbUrl, clearFirebaseTracking } from './services/trackingService'
 
 const deliveries = ref([])
 const activeTab = ref('siap')
@@ -369,6 +405,11 @@ const driverName = ref(localStorage.getItem('kpm_driver_name') || '')
 const showSettingsModal = ref(false)
 const gasUrlInput = ref(getActiveGasUrl())
 const driverTokenInput = ref(getActiveDriverToken())
+const firebaseUrlInput = ref(getFirebaseDbUrl())
+
+function getNavUrl(dest) {
+  return getNavigationUrl(dest)
+}
 
 const selectedItem = ref(null)
 const photoPreview = ref('')
@@ -415,15 +456,18 @@ function saveDriverName() {
 
 function saveConfig() {
   setCustomConfig(gasUrlInput.value, driverTokenInput.value)
+  setFirebaseDbUrl(firebaseUrlInput.value)
   showSettingsModal.value = false
-  showNotice('Konfigurasi Google Apps Script disimpan.', 'success')
+  showNotice('Konfigurasi server & tracking disimpan.', 'success')
   loadData()
 }
 
 function resetDefaultConfig() {
   setCustomConfig('', '')
+  setFirebaseDbUrl('')
   gasUrlInput.value = getActiveGasUrl()
   driverTokenInput.value = getActiveDriverToken()
+  firebaseUrlInput.value = getFirebaseDbUrl()
   showSettingsModal.value = false
   showNotice('Konfigurasi dikembalikan ke default.', 'success')
   loadData()
@@ -434,6 +478,12 @@ async function loadData() {
   try {
     const data = await getDriverDeliveries()
     deliveries.value = data
+    // Auto start/stop tracking based on active Jalan deliveries
+    if (jalanList.value.length > 0) {
+      startTracking(deliveries.value, driverName.value)
+    } else {
+      stopTracking()
+    }
   } catch (err) {
     showNotice(err.message || 'Gagal memuat data.', 'error')
   } finally {
@@ -487,14 +537,27 @@ async function submitUpdate() {
   const targetStatus = isJalan ? 'Tiba' : 'Jalan'
   const kpmNo = selectedItem.value.nomor || selectedItem.value.kpmId
 
+  let coords = null
+  try {
+    coords = await getCurrentCoordinates()
+  } catch (e) {
+    console.warn('Current coords warning:', e)
+  }
+
   try {
     await sendStatusUpdate({
       nomorKPM: kpmNo,
       statusKPM: targetStatus,
       fotoData: photoPreview.value,
       namaDriver: driverName.value || '',
-      lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`
+      lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`,
+      latitude: coords?.latitude || '',
+      longitude: coords?.longitude || ''
     })
+
+    if (targetStatus === 'Tiba') {
+      clearFirebaseTracking(kpmNo)
+    }
 
     // Instantly close modal and clean state
     closeModal(true)
@@ -517,5 +580,9 @@ async function submitUpdate() {
 
 onMounted(() => {
   loadData()
+})
+
+onUnmounted(() => {
+  stopTracking()
 })
 </script>

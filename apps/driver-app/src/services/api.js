@@ -145,6 +145,8 @@ export async function sendStatusUpdate(payload) {
     form.set('namaPIC', payload.namaPIC.trim())
   }
   if (payload.lokasiWorkshop) form.set('lokasiWorkshop', payload.lokasiWorkshop)
+  if (payload.latitude) form.set('latitude', String(payload.latitude))
+  if (payload.longitude) form.set('longitude', String(payload.longitude))
 
   try {
     let json

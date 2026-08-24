@@ -10,6 +10,7 @@ var WEB_CONFIG = {
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+  DEFAULT_FIREBASE_DB_URL: "",
   // Tokens must be configured in Apps Script Script Properties.
   DEFAULT_ADMIN_TOKEN: "",
   DEFAULT_DRIVER_TOKEN: ""
@@ -164,15 +165,17 @@ function authenticateRequest(params, action) {
 // ============================================
 
 /**
- * Returns centralized master data for dropdowns and forms.
+ * Returns centralized master data for dropdowns, forms, and client config.
  */
 function getMasterData() {
+  var fbConfig = getFirebaseConfig();
   return {
     workshops: WEB_CONFIG.WORKSHOPS,
     pics: WEB_CONFIG.PICS,
     uoms: WEB_CONFIG.UOMS,
     statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BELUM_BERANGKAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA, KPM_STATUS.SELESAI],
-    statusCodes: STATUS_CODES
+    statusCodes: STATUS_CODES,
+    firebaseDbUrl: fbConfig.firebaseDbUrl
   };
 }
 
@@ -250,7 +253,7 @@ function createHyperlinkFormula(url, label) {
   var loc = "";
   try {
     loc = (ss.getSpreadsheetLocale() || "").toLowerCase();
-  } catch(e) {}
+  } catch (e) { }
   // Indonesia, German, French, Spanish, Italian use semicolon formula separator
   var isSemicolon = (!loc || loc.indexOf("id") === 0 || loc.indexOf("in") === 0 || loc.indexOf("de") === 0 || loc.indexOf("fr") === 0 || loc.indexOf("es") === 0 || loc.indexOf("it") === 0);
   var sep = isSemicolon ? ";" : ",";
@@ -349,7 +352,7 @@ function invalidateMonitoringCache() {
       keysToRemove.push("MONITORING_ALL_" + i);
     }
     cache.removeAll(keysToRemove);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 /**
@@ -363,7 +366,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     if (cached) {
       try {
         return JSON.parse(cached);
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -377,12 +380,13 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
   var numRows = lastRow - MONITOR_START_ROW + 1;
   var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
   var displayData = range.getDisplayValues();
-  // Fetch formulas ONLY for the 2 photo columns (Col W & Col X) instead of entire 24-col matrix
-  var photoFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 2).getFormulas();
+  // Fetch formulas for photo & GPS Track columns (Cols X, Y, Z: 3 columns)
+  var photoAndGpsFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 3).getFormulas();
   var kpmMap = {};
 
   var lastSeenKpm = "";
   var lastSeenPic = "";
+  var lastSeenDriver = "";
   var lastSeenProyek = "";
   var lastSeenWsAwal = "";
   var lastSeenWsTujuan = "";
@@ -393,6 +397,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
   var lastSeenStatus = "";
   var lastSeenBuktiBer = "";
   var lastSeenBuktiTib = "";
+  var lastSeenGpsTrack = "";
 
   var pendingStatusRowUpdates = [];
 
@@ -441,13 +446,18 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
 
       lastSeenBuktiBer = extractHyperlinkUrl(
         displayData[i][MONITOR_COL_FOTO_BER - 1],
-        photoFormulas[i][0],
+        photoAndGpsFormulas[i][0],
         displayData[i][MONITOR_COL_FOTO_BER - 1]
       );
       lastSeenBuktiTib = extractHyperlinkUrl(
         displayData[i][MONITOR_COL_FOTO_TIB - 1],
-        photoFormulas[i][1],
+        photoAndGpsFormulas[i][1],
         displayData[i][MONITOR_COL_FOTO_TIB - 1]
+      );
+      lastSeenGpsTrack = extractHyperlinkUrl(
+        displayData[i][MONITOR_COL_GPS_TRACK - 1],
+        photoAndGpsFormulas[i][2],
+        displayData[i][MONITOR_COL_GPS_TRACK - 1]
       );
     }
 
@@ -467,14 +477,19 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
     var buktiBerangkat = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_BER - 1],
-      photoFormulas[i][0],
+      photoAndGpsFormulas[i][0],
       displayData[i][MONITOR_COL_FOTO_BER - 1]
     ) || lastSeenBuktiBer;
     var buktiTiba = extractHyperlinkUrl(
       displayData[i][MONITOR_COL_FOTO_TIB - 1],
-      photoFormulas[i][1],
+      photoAndGpsFormulas[i][1],
       displayData[i][MONITOR_COL_FOTO_TIB - 1]
     ) || lastSeenBuktiTib;
+    var gpsTrack = extractHyperlinkUrl(
+      displayData[i][MONITOR_COL_GPS_TRACK - 1],
+      photoAndGpsFormulas[i][2],
+      displayData[i][MONITOR_COL_GPS_TRACK - 1]
+    ) || lastSeenGpsTrack;
 
     var isArchived = (statusAkhir === KPM_STATUS.SELESAI || statusAkhir.toLowerCase() === "selesai");
     if (!includeArchived && isArchived) continue;
@@ -508,6 +523,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         isArrived: isArrived,
         buktiBerangkat: buktiBerangkat,
         buktiTiba: buktiTiba,
+        gpsTrack: gpsTrack,
         daftarBarang: []
       };
     }
@@ -530,7 +546,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         statusSlice[localIdx][0] = pendingStatusRowUpdates[u].status;
       }
       sheet.getRange(MONITOR_START_ROW + minPendIdx, MONITOR_COL_STATUS, pendSliceLen, 1).setValues(statusSlice);
-    } catch(e) {
+    } catch (e) {
       Logger.log("Batch status update error: " + e.message);
     }
   }
@@ -624,7 +640,7 @@ function parseMaterialItems(rawInput) {
         }
       }
       return parsed;
-    } catch(e) {
+    } catch (e) {
       throw { code: "INVALID_MATERIAL", message: "Format JSON daftar barang tidak valid: " + e.message };
     }
   }
@@ -820,14 +836,14 @@ function getTargetDriveFolder() {
     try {
       _cachedDriveFolder = DriveApp.getFolderById(folderId);
       return _cachedDriveFolder;
-    } catch(e) {}
+    } catch (e) { }
   }
   var folders = DriveApp.getFoldersByName(WEB_CONFIG.DRIVE_FOLDER_NAME);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(WEB_CONFIG.DRIVE_FOLDER_NAME);
   _cachedDriveFolder = folder;
   try {
     cache.put("TARGET_DRIVE_FOLDER_ID", folder.getId(), 21600); // 6 hours
-  } catch(e) {}
+  } catch (e) { }
   return folder;
 }
 
@@ -860,7 +876,7 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
     var folder = getTargetDriveFolder();
     try {
       folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch(folderShareErr) {}
+    } catch (folderShareErr) { }
 
     var safeNomor = (nomorKPM || "KPM").replace(/[\/\\:?*"<>|]/g, "_");
     var timestamp = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "ddMMyy_HHmmss");
@@ -881,7 +897,7 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
           existingFile.setTrashed(true);
         }
       }
-    } catch(dedupErr) {
+    } catch (dedupErr) {
       Logger.log("dedup prior photo notice: " + dedupErr.message);
     }
 
@@ -889,7 +905,7 @@ function uploadProofPhoto(fotoData, nomorKPM, statusKPM) {
 
     try {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch(fileShareErr) {}
+    } catch (fileShareErr) { }
 
     return file.getUrl();
   } catch (err) {
@@ -985,7 +1001,7 @@ function validateAndUpdateStatus(params) {
   }
 
   var waktuSekarang = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-  
+
   var namaPIC = (params.namaPIC || "").trim();
   if (namaPIC) {
     var picMatched = "";
@@ -1018,6 +1034,10 @@ function validateAndUpdateStatus(params) {
     }
   }
 
+  var lat = params.latitude || params.lat || "";
+  var lng = params.longitude || params.lng || "";
+  var currentCoordStr = (lat && lng) ? (String(lat).trim() + "," + String(lng).trim()) : "";
+
   for (var idx = 0; idx < matchingRows.length; idx++) {
     var rIndex = matchingRows[idx];
 
@@ -1025,6 +1045,10 @@ function validateAndUpdateStatus(params) {
       allData[rIndex][MONITOR_COL_WKT_BERANGKAT - 1] = waktuSekarang;
       if (urlFoto && idx === 0) {
         allData[rIndex][MONITOR_COL_FOTO_BER - 1] = createHyperlinkFormula(urlFoto, "[Link]");
+      }
+      if (currentCoordStr && idx === 0) {
+        var liveGpsUrl = "https://www.google.com/maps?q=" + encodeURIComponent(currentCoordStr);
+        allData[rIndex][MONITOR_COL_GPS_TRACK - 1] = createHyperlinkFormula(liveGpsUrl, "🔴 Live Track");
       }
     } else if (targetStatus === KPM_STATUS.TIBA) {
       allData[rIndex][MONITOR_COL_WKT_TIBA - 1] = waktuSekarang;
@@ -1035,6 +1059,21 @@ function validateAndUpdateStatus(params) {
       }
       if (urlFoto && idx === 0) {
         allData[rIndex][MONITOR_COL_FOTO_TIB - 1] = createHyperlinkFormula(urlFoto, "[Link]");
+      }
+      if (idx === 0) {
+        var prevGpsLink = String(allData[rIndex][MONITOR_COL_GPS_TRACK - 1] || "");
+        var originCoord = "";
+        var qMatch = prevGpsLink.match(/q=([^&"'\s\)]+)/i);
+        if (qMatch) {
+          originCoord = qMatch[1];
+        }
+        if (originCoord && currentCoordStr) {
+          var routerUrl = "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(originCoord) + "&destination=" + encodeURIComponent(currentCoordStr) + "&travelmode=driving";
+          allData[rIndex][MONITOR_COL_GPS_TRACK - 1] = createHyperlinkFormula(routerUrl, "🗺️ Rute Selesai");
+        } else if (currentCoordStr) {
+          var destGpsUrl = "https://www.google.com/maps?q=" + encodeURIComponent(currentCoordStr);
+          allData[rIndex][MONITOR_COL_GPS_TRACK - 1] = createHyperlinkFormula(destGpsUrl, "🗺️ Titik Tiba");
+        }
       }
     }
 
@@ -1056,6 +1095,36 @@ function validateAndUpdateStatus(params) {
     var sliceCount = maxIdx - minIdx + 1;
     var sliceData = allData.slice(minIdx, maxIdx + 1);
     sheet.getRange(MONITOR_START_ROW + minIdx, 1, sliceCount, MONITOR_TOTAL_COLS).setValues(sliceData);
+
+    // Auto-archive completed trip summary into T.Log sheet for cold retention
+    if (targetStatus === KPM_STATUS.TIBA) {
+      try {
+        var firstRow = allData[minIdx];
+        var rAsal = String(firstRow[MONITOR_COL_WSAWAL - 1] || "");
+        var rTujuan = String(firstRow[MONITOR_COL_WSTUJUAN - 1] || "");
+        var ruteLengkap = (rAsal && rTujuan) ? (rAsal + " ➔ " + rTujuan) : (rAsal || rTujuan);
+        var fotoBerLink = extractHyperlinkUrl(firstRow[MONITOR_COL_FOTO_BER - 1], "", firstRow[MONITOR_COL_FOTO_BER - 1]);
+        var fotoTibLink = urlFoto || extractHyperlinkUrl(firstRow[MONITOR_COL_FOTO_TIB - 1], "", firstRow[MONITOR_COL_FOTO_TIB - 1]);
+        var gpsTrackLink = extractHyperlinkUrl(firstRow[MONITOR_COL_GPS_TRACK - 1], "", firstRow[MONITOR_COL_GPS_TRACK - 1]);
+
+        appendTLogRecord({
+          tanggal: String(firstRow[MONITOR_COL_POST_DATE - 1] || waktuSekarang).split(" ")[0],
+          nomorKPM: nomorKPM,
+          driver: String(firstRow[MONITOR_COL_DRIVER - 1] || namaDriver || ""),
+          pic: String(firstRow[MONITOR_COL_PIC - 1] || namaPIC || ""),
+          proyek: String(firstRow[MONITOR_COL_PROYEK - 1] || ""),
+          rute: ruteLengkap,
+          waktuBerangkat: String(firstRow[MONITOR_COL_WKT_BERANGKAT - 1] || ""),
+          waktuTiba: waktuSekarang,
+          durasi: String(allData[minIdx][MONITOR_COL_DURASI - 1] || ""),
+          gpsTrack: gpsTrackLink,
+          fotoBerangkat: fotoBerLink,
+          fotoTiba: fotoTibLink
+        });
+      } catch(tlogErr) {
+        Logger.log("T.Log archiving notice: " + tlogErr.message);
+      }
+    }
   }
 
   // Invalidate cache so subsequent queries fetch updated status
@@ -1068,7 +1137,8 @@ function validateAndUpdateStatus(params) {
     currentStatus: targetStatus,
     statusCode: STATUS_CODES[targetStatus] || "",
     updatedAt: waktuSekarang,
-    photoUrl: urlFoto
+    photoUrl: urlFoto,
+    gpsCoord: currentCoordStr
   };
 }
 
@@ -1110,7 +1180,7 @@ function doGet(e) {
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
     }
-    
+
     // Authenticate GET request
     authenticateRequest(params, action);
 
@@ -1195,47 +1265,4 @@ function doPost(e) {
   }
 }
 
-// ============================================
-// 12. SETUP TRACKING HEADERS UTILITY
-// ============================================
 
-/**
- * Automatically sets up tracking column headers on row 8 of "KPM Monitor 2026".
- */
-function setupTrackingHeaders() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
-  if (!sheet) {
-    if (typeof SpreadsheetApp.getUi === "function") {
-      SpreadsheetApp.getUi().alert("Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan.");
-    }
-    return;
-  }
-
-  var headers = [
-    ["Driver", "Waktu Berangkat", "Waktu Tiba", "Durasi", "Status Tracking", "Foto Berangkat", "Foto Tiba"]
-  ];
-
-  sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_DRIVER, 1, 7).setValues(headers);
-
-  // Keep the visible tracking choices limited to the four tracking states.
-  // Selesai is still written internally when an item is archived, so invalid
-  // values remain allowed for that internal archive state.
-  var statusValidation = SpreadsheetApp.newDataValidation()
-    .requireValueInList([
-      KPM_STATUS.BARU_DIBUAT,
-      KPM_STATUS.BELUM_BERANGKAT,
-      KPM_STATUS.BERANGKAT,
-      KPM_STATUS.TIBA,
-      KPM_STATUS.SELESAI
-    ], true)
-    .setAllowInvalid(true)
-    .build();
-  var statusRowCount = Math.max(1, sheet.getMaxRows() - MONITOR_START_ROW + 1);
-  sheet.getRange(MONITOR_START_ROW, MONITOR_COL_STATUS, statusRowCount, 1)
-    .setDataValidation(statusValidation);
-
-  if (typeof SpreadsheetApp.getUi === "function") {
-    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga Y (Driver, Waktu Berangkat, Waktu Tiba, Durasi, Status, Foto Berangkat, Foto Tiba) telah dikonfigurasi.");
-  }
-}

@@ -7,9 +7,9 @@ var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_SHEET_NAME_LOWER = MONITOR_SHEET_NAME.trim().toLowerCase();
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
-var MONITOR_TOTAL_COLS = 25;   // Total 25 columns (A to Y)
+var MONITOR_TOTAL_COLS = 26;   // Total 26 columns (A to Z)
 
-// Column mapping (1-indexed, A to Y):
+// Column mapping (1-indexed, A to Z):
 var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
@@ -35,6 +35,9 @@ var MONITOR_COL_DURASI = 22;        // Column V: Durasi Perjalanan
 var MONITOR_COL_STATUS = 23;        // Column W: Status Tracking
 var MONITOR_COL_FOTO_BER = 24;      // Column X: Foto Berangkat (URL Drive)
 var MONITOR_COL_FOTO_TIB = 25;      // Column Y: Foto Tiba (URL Drive)
+var MONITOR_COL_GPS_TRACK = 26;     // Column Z: GPS Track (Link Google Maps Router / Live Link)
+
+var TLOG_SHEET_NAME = "T.Log";
 
 // ============================================
 // FAST IN-MEMORY HELPERS FOR NO LF, ITEM & GROUP
@@ -347,12 +350,12 @@ function onEdit(e) {
 
   // Case C: Editing Group Metadata fields
   if (col === MONITOR_COL_WSAWAL || col === MONITOR_COL_WSTUJUAN ||
-      col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
-      col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR ||
-      col === MONITOR_COL_DRIVER || col === MONITOR_COL_STATUS ||
-      col === MONITOR_COL_WKT_BERANGKAT || col === MONITOR_COL_WKT_TIBA ||
-      col === MONITOR_COL_DURASI || col === MONITOR_COL_FOTO_BER ||
-      col === MONITOR_COL_FOTO_TIB) {
+    col === MONITOR_COL_PROYEK || col === MONITOR_COL_WBS ||
+    col === MONITOR_COL_PIC || col === MONITOR_COL_TYPECAR ||
+    col === MONITOR_COL_DRIVER || col === MONITOR_COL_STATUS ||
+    col === MONITOR_COL_WKT_BERANGKAT || col === MONITOR_COL_WKT_TIBA ||
+    col === MONITOR_COL_DURASI || col === MONITOR_COL_FOTO_BER ||
+    col === MONITOR_COL_FOTO_TIB) {
     syncDownstreamGroupMetadata(sheet, row, col, cellVal, rowData[MONITOR_COL_NOLF - 1]);
   }
 
@@ -502,7 +505,7 @@ function printKpmM() {
 
   var defaultChoice = selectedNoLf || latestNoLf;
   var promptMsg = 'Masukkan No. LF yang ingin dicetak:\n' +
-                    '(Kosongkan untuk mencetak No. LF terbaru' + (defaultChoice ? ': "' + defaultChoice + '"' : '') + ')';
+    '(Kosongkan untuk mencetak No. LF terbaru' + (defaultChoice ? ': "' + defaultChoice + '"' : '') + ')';
 
   var response = ui.prompt('Cetak KPM dari Monitor', promptMsg, ui.ButtonSet.OK_CANCEL);
   if (response.getSelectedButton() !== ui.Button.OK) {
@@ -538,7 +541,7 @@ function printKpmM() {
       if (rNoLf) {
         var rNoLfStr = rNoLf.toString().trim();
         var isMatch = (rNoLfStr.toLowerCase() === targetNoLfStr.toLowerCase()) ||
-                      (targetNoLfStr.length < 10 && rNoLfStr.toLowerCase().indexOf(targetNoLfStr.toLowerCase()) === 0);
+          (targetNoLfStr.length < 10 && rNoLfStr.toLowerCase().indexOf(targetNoLfStr.toLowerCase()) === 0);
 
         if (isMatch) {
           if (!headerInfo.noRefKpp || headerInfo.noRefKpp === inputNoLf) {

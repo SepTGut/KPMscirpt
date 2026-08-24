@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import LiveTrackingMap from './components/LiveTrackingMap.vue'
 
 const scriptUrl = import.meta.env.VITE_API_URL || '/api'
 const requestTimeout = 30000
@@ -285,7 +286,7 @@ onMounted(() => {
           </div>
 
           <!-- M3 Segmented Navigation Tabs -->
-          <div class="flex bg-google-surface-100 p-1 rounded-full border border-google-surface-300/70 shadow-sm">
+          <div class="flex bg-google-surface-100 p-1 rounded-full border border-google-surface-300/70 shadow-sm flex-wrap gap-1">
             <button
               class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
               :class="adminView === 'create' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
@@ -299,6 +300,13 @@ onMounted(() => {
               @click="adminView = 'monitor'; loadMonitoring()"
             >
               📊 Pantau KPM ({{ monitoring.length }})
+            </button>
+            <button
+              class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+              :class="adminView === 'map' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
+              @click="adminView = 'map'; loadMonitoring()"
+            >
+              🗺️ Live Radar Armada
             </button>
           </div>
         </div>
@@ -427,6 +435,19 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- GPS Track Quick Link if available -->
+              <div v-if="item.gpsTrack" class="mt-3">
+                <a
+                  :href="item.gpsTrack"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-google-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-200 transition shadow-sm"
+                >
+                  <span>🗺️</span>
+                  <span>{{ item.isArrived ? 'Buka Rute Lengkap di Google Maps' : 'Lihat Live Titik Driver di GMaps' }}</span>
+                </a>
+              </div>
+
               <!-- Collapsible Material Details -->
               <details class="mt-3.5 rounded-xl bg-google-surface-50 p-3 border border-google-surface-200">
                 <summary class="cursor-pointer text-xs font-bold text-google-blue-700 outline-none">
@@ -445,6 +466,14 @@ onMounted(() => {
               </button>
             </article>
           </div>
+        </div>
+
+        <!-- LIVE RADAR FLEET MAP VIEW -->
+        <div v-if="adminView === 'map'">
+          <LiveTrackingMap
+            :monitoringData="monitoring"
+            :firebaseDbUrl="master.firebaseDbUrl"
+          />
         </div>
       </section>
 

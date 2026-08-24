@@ -85,21 +85,36 @@
       </div>
     </div>
 
-    <!-- Action Button (Enlarged M3 Pill) -->
-    <button
-      @click="$emit('action', delivery)"
-      class="w-full py-3.5 px-5 rounded-full font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-m3-2 transition active:scale-[0.98] ring-1 ring-black/5"
-      :class="actionButtonClass"
-    >
-      <Camera class="w-4 h-4" />
-      <span>{{ actionButtonText }}</span>
-    </button>
+    <!-- Action Buttons -->
+    <div class="space-y-2.5 pt-1">
+      <!-- 1-Click Google Maps Navigation -->
+      <a
+        :href="navigationUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="w-full py-2.5 px-4 rounded-full font-bold text-xs sm:text-sm tracking-wide flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-google-blue-700 active:scale-[0.98] transition border border-slate-200 shadow-sm"
+      >
+        <span class="text-base">🗺️</span>
+        <span>Buka Navigasi GMaps ({{ delivery.wsTujuan || 'Tujuan' }})</span>
+      </a>
+
+      <!-- Action Button (Enlarged M3 Pill) -->
+      <button
+        @click="$emit('action', delivery)"
+        class="w-full py-3.5 px-5 rounded-full font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-m3-2 transition active:scale-[0.98] ring-1 ring-black/5"
+        :class="actionButtonClass"
+      >
+        <Camera class="w-4 h-4" />
+        <span>{{ actionButtonText }}</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { ArrowRight, User, Clock, Package, ChevronDown, Camera } from 'lucide-vue-next'
+import { getNavigationUrl } from '../services/trackingService'
 
 const props = defineProps({
   delivery: { type: Object, required: true }
@@ -110,6 +125,8 @@ defineEmits(['action'])
 const isExpanded = ref(false)
 
 const isJalan = computed(() => props.delivery.status === 'Jalan')
+
+const navigationUrl = computed(() => getNavigationUrl(props.delivery.wsTujuan))
 
 const statusBadgeClass = computed(() => {
   if (isJalan.value) {

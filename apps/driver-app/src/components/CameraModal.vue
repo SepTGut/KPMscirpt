@@ -103,15 +103,31 @@
           </button>
         </div>
 
-        <!-- PIC Selector -->
-        <div class="mt-4">
-          <label class="block text-[11px] font-bold text-google-surface-200 mb-1">Nama PIC Pengemudi / Personel</label>
-          <input
-            v-model="driverName"
-            type="text"
-            placeholder="Contoh: AANG / EKO"
-            class="w-full px-3.5 py-2.5 rounded-xl bg-google-surface-800 border border-google-surface-600 text-white text-xs placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 uppercase transition"
-          />
+        <!-- PIC Selector & GPS Badge -->
+        <div class="mt-4 space-y-2">
+          <div>
+            <label class="block text-[11px] font-bold text-google-surface-200 mb-1">Nama PIC Pengemudi / Personel</label>
+            <input
+              v-model="driverName"
+              type="text"
+              placeholder="Contoh: AANG / EKO"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-google-surface-800 border border-google-surface-600 text-white text-xs placeholder:text-google-surface-400 focus:outline-none focus:border-google-blue-400 focus:ring-2 focus:ring-google-blue-500/20 uppercase transition"
+            />
+          </div>
+
+          <!-- GPS Checkpoint Badge -->
+          <div class="flex items-center justify-between px-3 py-1.5 bg-google-surface-800/80 rounded-xl border border-google-surface-700 text-[11px]">
+            <span class="text-slate-400 flex items-center gap-1.5">
+              <span>📍</span>
+              <span>Lokasi GPS Checkpoint:</span>
+            </span>
+            <span v-if="gpsCoords" class="text-emerald-400 font-mono font-bold">
+              {{ gpsCoords.latitude.toFixed(4) }}, {{ gpsCoords.longitude.toFixed(4) }} (±{{ Math.round(gpsCoords.accuracy || 0) }}m)
+            </span>
+            <span v-else class="text-amber-400 font-medium animate-pulse">
+              Mencari sinyal GPS...
+            </span>
+          </div>
         </div>
       </div>
 
@@ -143,6 +159,7 @@
 import { ref, computed, watch } from 'vue'
 import { X, ArrowRight, AlertCircle, Camera, Image as ImageIcon, RotateCcw, Loader2, CheckCircle2 } from 'lucide-vue-next'
 import { compressImage } from '../services/imageCompressor'
+import { getCurrentCoordinates, clearFirebaseTracking } from '../services/trackingService'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
@@ -157,13 +174,20 @@ const cameraInput = ref(null)
 const galleryInput = ref(null)
 const photoDataUrl = ref('')
 const driverName = ref('')
+const gpsCoords = ref(null)
 
 const isTiba = computed(() => props.targetDelivery?.status === 'Jalan')
 
-watch(() => props.isOpen, (newVal) => {
+watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
     photoDataUrl.value = ''
     driverName.value = props.targetDelivery?.pic || localStorage.getItem('last_driver_pic') || ''
+    gpsCoords.value = null
+    try {
+      gpsCoords.value = await getCurrentCoordinates()
+    } catch (e) {
+      console.warn('GPS read warning:', e)
+    }
   }
 })
 
@@ -186,6 +210,10 @@ async function onFileSelected(event) {
   try {
     const compressed = await compressImage(file, 1000, 0.72)
     photoDataUrl.value = compressed
+    // Refresh GPS on photo selection if missing
+    if (!gpsCoords.value) {
+      getCurrentCoordinates().then(c => { gpsCoords.value = c }).catch(() => {})
+    }
   } catch (err) {
     alert(err.message || 'Gagal memproses gambar.')
   }
@@ -197,17 +225,26 @@ function clearPhoto() {
   if (galleryInput.value) galleryInput.value.value = ''
 }
 
-function submit() {
+async function submit() {
   if (!photoDataUrl.value) return
   if (driverName.value) {
     localStorage.setItem('last_driver_pic', driverName.value.trim().toUpperCase())
   }
+  const kpmId = props.targetDelivery?.nomor || props.targetDelivery?.kpmId
+  const statusKPM = isTiba.value ? 'Tiba' : 'Jalan'
+
+  if (statusKPM === 'Tiba') {
+    clearFirebaseTracking(kpmId)
+  }
+
   emit('submit', {
-    nomorKPM: props.targetDelivery?.nomor || props.targetDelivery?.kpmId,
-    statusKPM: isTiba.value ? 'Tiba' : 'Jalan',
+    nomorKPM: kpmId,
+    statusKPM: statusKPM,
     fotoData: photoDataUrl.value,
     namaPIC: driverName.value.trim().toUpperCase(),
-    lokasiWorkshop: `${props.targetDelivery?.wsAwal || ''} ➔ ${props.targetDelivery?.wsTujuan || ''}`
+    lokasiWorkshop: `${props.targetDelivery?.wsAwal || ''} ➔ ${props.targetDelivery?.wsTujuan || ''}`,
+    latitude: gpsCoords.value?.latitude || '',
+    longitude: gpsCoords.value?.longitude || ''
   })
 }
 </script>
