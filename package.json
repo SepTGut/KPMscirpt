@@ -10,6 +10,8 @@
     "gas:deploy": "npx @google/clasp deploy",
     "gas:deployments": "npx @google/clasp deployments",
     "gas:integrity": "node scripts/seal_integrity.mjs",
-    "qr:generate": "node scripts/generate_qr.mjs"
+    "qr:generate": "node scripts/generate_qr.mjs",
+    "test:gps": "node scripts/test_gps.mjs",
+    "test:gps:simulate": "node scripts/test_gps.mjs --simulate"
   }
 }

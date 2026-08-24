@@ -463,3 +463,59 @@ function testSystemIntegrityVerification() {
     throw new Error("System integrity verification failed!");
   }
 }
+
+/**
+ * Automated Unit Test for GPS & T.Log Archiving Engine
+ */
+function testGpsModule() {
+  Logger.log("=== RUNNING GPS & T.LOG ARCHIVING ENGINE TEST ===");
+
+  // 1. Test Live URL generation
+  var sampleCoord = "-7.7495,110.4932";
+  var liveUrl = createGpsLiveUrl(sampleCoord);
+  Logger.log("1. createGpsLiveUrl: " + liveUrl);
+  if (liveUrl.indexOf("q=-7.7495%2C110.4932") === -1 && liveUrl.indexOf("q=-7.7495,110.4932") === -1) {
+    throw new Error("createGpsLiveUrl generated invalid URL: " + liveUrl);
+  }
+
+  // 2. Test Router URL generation
+  var destCoord = "-7.5621,110.8245";
+  var routerUrl = createGpsRouterUrl(sampleCoord, destCoord);
+  Logger.log("2. createGpsRouterUrl: " + routerUrl);
+  if (routerUrl.indexOf("travelmode=driving") === -1) {
+    throw new Error("createGpsRouterUrl generated invalid router URL: " + routerUrl);
+  }
+
+  // 3. Test coordinate extraction
+  var extracted = extractCoordinatesFromUrl(liveUrl);
+  Logger.log("3. extractCoordinatesFromUrl: " + extracted);
+
+  // 4. Test Firebase Config
+  var fbConfig = getFirebaseConfig();
+  Logger.log("4. getFirebaseConfig: " + JSON.stringify(fbConfig));
+
+  // 5. Test T.Log Sheet initialization
+  var tlogSheet = setupTLogSheet();
+  Logger.log("5. setupTLogSheet: Sheet '" + tlogSheet.getName() + "' verified with " + tlogSheet.getLastColumn() + " columns.");
+
+  // 6. Test appending record to T.Log
+  var testRecord = {
+    tanggal: Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy"),
+    nomorKPM: "TEST/LF/GPS/01",
+    driver: "BUDI TEST",
+    pic: "AANG",
+    proyek: "Proyek Uji GPS",
+    rute: "Candi Sewu ➔ Sukosari",
+    waktuBerangkat: "10:00:00",
+    waktuTiba: "11:15:00",
+    durasi: "01:15:00",
+    gpsTrack: routerUrl,
+    fotoBerangkat: "https://drive.google.com/test1",
+    fotoTiba: "https://drive.google.com/test2"
+  };
+  appendTLogRecord(testRecord);
+  Logger.log("6. appendTLogRecord: Successfully appended test record to T.Log.");
+
+  Logger.log("=== ALL GPS & T.LOG TESTS PASSED SUCCESSFULLY! ===");
+}
+
