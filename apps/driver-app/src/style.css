@@ -5,23 +5,23 @@
 html, body {
   overscroll-behavior-y: none;
   touch-action: manipulation;
-  background-color: #131314;
+  background-color: #f8f9fa;
 }
 
-/* Material 3 Custom scrollbars */
+/* Material 3 Custom scrollbars for Light Theme */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e1f20;
+  background: #f1f3f4;
 }
 ::-webkit-scrollbar-thumb {
-  background: #444746;
+  background: #dadce0;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #5f6368;
+  background: #bdc1c6;
 }
 
 /* Material 3 Smooth Transitions */
