@@ -422,8 +422,8 @@ function openModalFor(item) {
   photoPreview.value = ''
 }
 
-function closeModal() {
-  if (isSubmitting.value) return
+function closeModal(force = false) {
+  if (isSubmitting.value && !force) return
   selectedItem.value = null
   photoPreview.value = ''
 }
@@ -469,8 +469,17 @@ async function submitUpdate() {
       lokasiWorkshop: `${selectedItem.value.wsAwal || ''} ➔ ${selectedItem.value.wsTujuan || ''}`
     })
 
-    showNotice(`KPM ${kpmNo} berhasil diubah ke '${targetStatus}'!`, 'success')
-    closeModal()
+    // Instantly close modal and clean state
+    closeModal(true)
+    isSubmitting.value = false
+
+    showNotice(`✓ KPM ${kpmNo} berhasil diubah ke '${targetStatus}'!`, 'success')
+
+    // Automatically switch tabs: if item moved to 'Jalan' -> open 'Sedang Jalan' tab
+    if (targetStatus === 'Jalan') {
+      activeTab.value = 'jalan'
+    }
+
     await loadData()
   } catch (err) {
     showNotice(err.message || 'Gagal mengirim update status.', 'error')
