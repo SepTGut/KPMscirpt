@@ -63,6 +63,9 @@ export default async function handler(request) {
       JSON.parse(body)
     } catch {
       const preview = body.replace(/\s+/g, ' ').trim().slice(0, 160)
+      return errorResponse(502, `Apps Script mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}`)
+    }
+
     const action = params.get('action') || ''
     const isForceRefresh = params.get('refresh') === 'true'
     let cacheControl = 'no-store'
