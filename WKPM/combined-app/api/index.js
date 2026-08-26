@@ -101,7 +101,18 @@ export default async function handler(req, res) {
     }
 
     res.setHeader('content-type', 'application/json; charset=utf-8')
-    res.setHeader('cache-control', 'no-store')
+
+    const action = params.get('action') || ''
+    const isForceRefresh = params.get('refresh') === 'true'
+
+    if (req.method === 'GET' && action === 'getMasterData') {
+      res.setHeader('cache-control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+    } else if (req.method === 'GET' && (action === 'getMonitoring' || action === 'getDeliveries') && !isForceRefresh) {
+      res.setHeader('cache-control', 'public, s-maxage=6, stale-while-revalidate=15')
+    } else {
+      res.setHeader('cache-control', 'no-store')
+    }
+
     return res.status(upstream.status).send(body)
   } catch (error) {
     const message = error?.name === 'AbortError'

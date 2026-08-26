@@ -57,11 +57,21 @@ export default async function handler(request) {
       JSON.parse(body)
     } catch {
       const preview = body.replace(/\s+/g, ' ').trim().slice(0, 160)
-      return errorResponse(502, `Apps Script returned a non-JSON response (HTTP ${upstream.status}). Check the deployed version, doPost(e), and Web app access. Response: ${preview}`)
+    const action = params.get('action') || ''
+    const isForceRefresh = params.get('refresh') === 'true'
+    let cacheControl = 'no-store'
+    if (request.method === 'GET' && action === 'getMasterData') {
+      cacheControl = 'public, s-maxage=3600, stale-while-revalidate=86400'
+    } else if (request.method === 'GET' && (action === 'getMonitoring' || action === 'getDeliveries') && !isForceRefresh) {
+      cacheControl = 'public, s-maxage=6, stale-while-revalidate=15'
     }
+
     return new Response(body, {
       status: upstream.status,
-      headers: JSON_HEADERS,
+      headers: {
+        ...JSON_HEADERS,
+        'cache-control': cacheControl,
+      },
     })
   } catch (error) {
     const message = error?.name === 'AbortError'

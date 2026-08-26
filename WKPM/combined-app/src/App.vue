@@ -76,8 +76,20 @@ async function api(action, options = {}) {
 async function loadMaster() {
   if (mode.value !== 'admin') return
   try {
+    const cached = sessionStorage.getItem('kpm_master_data')
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (parsed && parsed.workshops?.length) {
+          master.value = parsed
+        }
+      } catch {}
+    }
     const data = await api('getMasterData', { method: 'GET' })
-    master.value = data || master.value
+    if (data) {
+      master.value = data
+      sessionStorage.setItem('kpm_master_data', JSON.stringify(data))
+    }
   } catch (e) { error.value = e.message }
 }
 
