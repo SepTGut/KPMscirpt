@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build": "npm --prefix WKPM/combined-app run build",
     "gas:push": "node scripts/seal_integrity.mjs && npx @google/clasp push --force",
     "gas:watch": "npx @google/clasp push --watch --force",
     "gas:pull": "npx @google/clasp pull",
