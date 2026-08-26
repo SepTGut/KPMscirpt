@@ -11,7 +11,8 @@ export const WORKSHOP_COORDINATES = {
   'Candi Sewu': { lat: -7.6162207, lng: 111.5215291, label: 'Workshop Candi Sewu (Jl. Candi Sewu No.30 Madiun)' },
   'Tiron': { lat: -7.5852, lng: 111.5365, label: 'Workshop Tiron' },
   'Sukosari': { lat: -7.6114512, lng: 111.5348394, label: 'Workshop Sukosari (PT Rekaindo Global Jasa)' },
-  'Remul': { lat: -7.6412, lng: 111.5185, label: 'Workshop Remul' }
+  'Remul': { lat: -7.6101753, lng: 111.5490581, label: 'Workshop Remul (Gudang PT Rekaindo Global Jasa)' },
+  'Rejomulyo': { lat: -7.6101753, lng: 111.5490581, label: 'Workshop Rejomulyo (Gudang PT Rekaindo Global Jasa)' }
 }
 
 export const trackingState = reactive({
