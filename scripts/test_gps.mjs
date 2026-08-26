@@ -12,12 +12,11 @@ const TEST_KPM_ID = 'TEST_TRUCK_GPS_01';
 
 // Key Anchor Waypoints between Workshop Candi Sewu and Workshop Sukosari
 const ANCHOR_WAYPOINTS = [
-  { lat: -7.7495, lng: 110.4932, speed: 0, note: 'Workshop Candi Sewu (Asal)' },
-  { lat: -7.7210, lng: 110.5340, speed: 45, note: 'Jl. Raya Jogja-Solo' },
-  { lat: -7.6850, lng: 110.6010, speed: 58, note: 'Jalan Lingkar Klaten' },
-  { lat: -7.6320, lng: 110.6980, speed: 52, note: 'Arah Boyolali / Solo' },
-  { lat: -7.5890, lng: 110.7650, speed: 40, note: 'Kawasan Kartasura' },
-  { lat: -7.5621, lng: 110.8245, speed: 10, note: 'Workshop Sukosari (Tujuan)' }
+  { lat: -7.6162207, lng: 111.5215291, speed: 0, note: 'Workshop Candi Sewu (Jl. Candi Sewu No.30 Madiun)' },
+  { lat: -7.6195, lng: 111.5248, speed: 35, note: 'Melintasi Jl. Ring Road Barat / Manguharjo' },
+  { lat: -7.6240, lng: 111.5312, speed: 45, note: 'Jl. Pahlawan / Pusat Kota Madiun' },
+  { lat: -7.6285, lng: 111.5395, speed: 40, note: 'Menuju Kawasan Timur Kota Madiun' },
+  { lat: -7.6321, lng: 111.5482, speed: 10, note: 'Workshop Sukosari, Madiun (Tujuan)' }
 ];
 
 // Helper to calculate bearing angle between two points

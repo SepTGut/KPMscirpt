@@ -8,10 +8,10 @@ import { reactive } from 'vue'
 const DEFAULT_FIREBASE_DB_URL = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app'
 
 export const WORKSHOP_COORDINATES = {
-  'Candi Sewu': { lat: -7.7495, lng: 110.4932, label: 'Workshop Candi Sewu' },
-  'Tiron': { lat: -7.8012, lng: 110.3645, label: 'Workshop Tiron' },
-  'Sukosari': { lat: -7.5621, lng: 110.8245, label: 'Workshop Sukosari' },
-  'Remul': { lat: -7.5412, lng: 110.7812, label: 'Workshop Remul' }
+  'Candi Sewu': { lat: -7.6162207, lng: 111.5215291, label: 'Workshop Candi Sewu (Jl. Candi Sewu No.30 Madiun)' },
+  'Tiron': { lat: -7.5852, lng: 111.5365, label: 'Workshop Tiron' },
+  'Sukosari': { lat: -7.6321, lng: 111.5482, label: 'Workshop Sukosari' },
+  'Remul': { lat: -7.6412, lng: 111.5185, label: 'Workshop Remul' }
 }
 
 export const trackingState = reactive({

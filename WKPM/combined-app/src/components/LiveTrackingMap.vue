@@ -109,10 +109,10 @@ const isRefreshing = ref(false)
 let pollingTimer = null
 
 const WORKSHOPS = [
-  { name: 'Candi Sewu', lat: -7.7495, lng: 110.4932, color: '#2563eb' },
-  { name: 'Tiron', lat: -7.8012, lng: 110.3645, color: '#4f46e5' },
-  { name: 'Sukosari', lat: -7.5621, lng: 110.8245, color: '#059669' },
-  { name: 'Remul', lat: -7.5412, lng: 110.7812, color: '#d97706' }
+  { name: 'Candi Sewu', lat: -7.6162207, lng: 111.5215291, color: '#2563eb', address: 'Jl. Candi Sewu No.30, Madiun Lor' },
+  { name: 'Tiron', lat: -7.5852, lng: 111.5365, color: '#4f46e5', address: 'Workshop Tiron' },
+  { name: 'Sukosari', lat: -7.6321, lng: 111.5482, color: '#059669', address: 'Workshop Sukosari' },
+  { name: 'Remul', lat: -7.6412, lng: 111.5185, color: '#d97706', address: 'Workshop Remul' }
 ]
 
 function createTruckIcon(vehicle) {
@@ -164,7 +164,7 @@ function initMap() {
   map = L.map(mapContainer.value, {
     zoomControl: false,
     attributionControl: false
-  }).setView([-7.65, 110.65], 11)
+  }).setView([-7.618, 111.530], 13)
 
   L.control.zoom({ position: 'topright' }).addTo(map)
 
