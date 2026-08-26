@@ -161,6 +161,10 @@ const editingKpm = ref(null)
 const editItemsList = ref([])
 
 function startEditLatestKpm(item) {
+  if (item.status !== 'Baru Dibuat' && item.status !== 'Belum Berangkat') {
+    error.value = `Material tidak dapat diubah karena KPM ${item.nomor} sudah berstatus '${item.status}'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih 'Belum Berangkat'.`
+    return
+  }
   editingKpm.value = item
   editItemsList.value = (item.daftarBarang || []).map(b => ({
     nama: b.nama || '',
@@ -577,15 +581,22 @@ onMounted(() => {
               </details>
 
               <!-- Latest KPM Material Management Badge & Button -->
-              <div v-if="item.isLatest" class="mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
+              <div
+                v-if="item.isLatest"
+                class="mt-3 p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm transition-all"
+                :class="(item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'bg-amber-50/90 border-amber-200 text-amber-950' : 'bg-slate-100/90 border-slate-200 text-slate-500'"
+              >
                 <div class="flex items-center gap-1.5 font-bold">
-                  <span class="text-base">⭐</span>
+                  <span class="text-base">{{ (item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? '⭐' : '🔒' }}</span>
                   <div>
                     <p class="leading-tight">KPM Paling Baru (Terakhir)</p>
-                    <p class="text-[10px] text-amber-700 font-normal">Diizinkan untuk tambah / kurangi item material</p>
+                    <p class="text-[10px] font-normal" :class="(item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'text-amber-700' : 'text-slate-500'">
+                      {{ (item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'Bisa tambah / kurangi item material (Belum Berangkat)' : `Material terkunci: KPM sudah ${item.status}` }}
+                    </p>
                   </div>
                 </div>
                 <button
+                  v-if="item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat'"
                   type="button"
                   class="btn-primary !py-1.5 !px-3 !text-xs !font-bold !bg-amber-600 hover:!bg-amber-700 shadow-sm"
                   :disabled="busy"
@@ -593,6 +604,9 @@ onMounted(() => {
                 >
                   ✏️ Kelola Material
                 </button>
+                <span v-else class="text-[11px] font-bold text-slate-400 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                  🔒 Terkunci ({{ item.status }})
+                </span>
               </div>
 
               <button v-if="item.isArrived" class="btn-danger w-full mt-4 !py-2.5 !text-xs !font-bold" :disabled="busy" @click="archive(item)">

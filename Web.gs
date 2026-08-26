@@ -1267,8 +1267,14 @@ function editLatestKpmItems(params) {
   var wsAwal = templateRow[MONITOR_COL_WSAWAL - 1] || "";
   var wsTujuan = templateRow[MONITOR_COL_WSTUJUAN - 1] || "";
   var typeCar = templateRow[MONITOR_COL_TYPECAR - 1] || "";
-  var driver = templateRow[MONITOR_COL_DRIVER - 1] || "";
   var status = templateRow[MONITOR_COL_STATUS - 1] || KPM_STATUS.BARU_DIBUAT;
+  var currentNormalizedStatus = normalizeKpmStatus(status) || KPM_STATUS.BARU_DIBUAT;
+  if (currentNormalizedStatus !== KPM_STATUS.BARU_DIBUAT && currentNormalizedStatus !== KPM_STATUS.BELUM_BERANGKAT) {
+    throw {
+      code: "FORBIDDEN",
+      message: "Material tidak dapat diubah karena KPM " + nomorKPM + " sudah berstatus '" + currentNormalizedStatus + "'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih berstatus 'Belum Berangkat'."
+    };
+  }
   var wktBer = templateRow[MONITOR_COL_WKT_BERANGKAT - 1] || "";
   var wktTib = templateRow[MONITOR_COL_WKT_TIBA - 1] || "";
   var durasi = templateRow[MONITOR_COL_DURASI - 1] || "";
