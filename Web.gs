@@ -1369,9 +1369,9 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems"];
     if (allowedGetActions.indexOf(action) === -1) {
-      throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
+      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
 
     // Authenticate GET request
@@ -1387,6 +1387,18 @@ function doGet(e) {
       var includeArchived = (params.includeArchived === "true");
       var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
       responseData = getKpmMonitoringData(includeArchived, bypassCache);
+    } else if (action === "createKpm") {
+      responseData = validateAndCreateKpm(params);
+    } else if (action === "archiveKpm") {
+      responseData = archiveKpm(params.nomorKPM);
+    } else if (action === "updateStatus") {
+      responseData = validateAndUpdateStatus(params);
+    } else if (action === "adminUpdateStatus") {
+      responseData = adminUpdateStatus(params);
+    } else if (action === "editLatestKpmItems") {
+      responseData = editLatestKpmItems(params);
+    } else {
+      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
 
     return jsonOutput(createSuccessResponse(action, responseData));
@@ -1419,8 +1431,9 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    if (["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems"].indexOf(action) === -1) {
-      throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring"];
+    if (allowedPostActions.indexOf(action) === -1) {
+      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
     lockAcquired = lock.tryLock(15000);
     if (!lockAcquired) {
@@ -1442,6 +1455,14 @@ function doPost(e) {
       resultData = adminUpdateStatus(params);
     } else if (action === "editLatestKpmItems") {
       resultData = editLatestKpmItems(params);
+    } else if (action === "getMasterData") {
+      resultData = getMasterData();
+    } else if (action === "getDeliveries") {
+      resultData = getAvailableDeliveries();
+    } else if (action === "getMonitoring") {
+      var includeArchived = (params.includeArchived === "true");
+      var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
+      resultData = getKpmMonitoringData(includeArchived, bypassCache);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

@@ -26,10 +26,8 @@ export default async function handler(req, res) {
   const proto = req.headers['x-forwarded-proto'] || 'https'
   const fullUrl = new URL(req.url, `${proto}://${host}`)
 
-  let params = new URLSearchParams()
-  if (req.method === 'GET') {
-    params = fullUrl.searchParams
-  } else {
+  let params = new URLSearchParams(fullUrl.searchParams)
+  if (req.method !== 'GET') {
     if (typeof req.body === 'object' && req.body !== null) {
       for (const [key, value] of Object.entries(req.body)) {
         if (value !== undefined) {
@@ -37,7 +35,8 @@ export default async function handler(req, res) {
         }
       }
     } else if (typeof req.body === 'string' && req.body.length > 0) {
-      params = new URLSearchParams(req.body)
+      const bodyParams = new URLSearchParams(req.body)
+      bodyParams.forEach((value, key) => params.set(key, value))
     } else {
       const chunks = []
       for await (const chunk of req) {
@@ -45,7 +44,8 @@ export default async function handler(req, res) {
       }
       const rawText = Buffer.concat(chunks).toString('utf-8')
       if (rawText) {
-        params = new URLSearchParams(rawText)
+        const bodyParams = new URLSearchParams(rawText)
+        bodyParams.forEach((value, key) => params.set(key, value))
       }
     }
   }

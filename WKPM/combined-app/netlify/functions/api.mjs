@@ -18,9 +18,15 @@ export default async function handler(request) {
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
   if (!scriptUrl) return errorResponse(500, 'GOOGLE_SCRIPT_URL belum dikonfigurasi di Netlify.')
 
-  const params = request.method === 'GET'
-    ? new URL(request.url).searchParams
-    : new URLSearchParams(await request.text())
+  const url = new URL(request.url)
+  const params = new URLSearchParams(url.searchParams)
+  if (request.method !== 'GET') {
+    const rawBody = await request.text()
+    if (rawBody) {
+      const bodyParams = new URLSearchParams(rawBody)
+      bodyParams.forEach((value, key) => params.set(key, value))
+    }
+  }
   const role = params.get('role')
   params.delete('role')
 
