@@ -142,7 +142,7 @@ function authenticateRequest(params, action) {
     role = "DRIVER";
   }
 
-  var adminOnlyActions = ["createKpm", "archiveKpm", "getMonitoring"];
+  var adminOnlyActions = ["createKpm", "archiveKpm", "getMonitoring", "adminUpdateStatus", "editLatestKpmItems"];
 
   if (!role) {
     throw {
@@ -553,6 +553,9 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     listKPM.push(kpmMap[key]);
   }
   listKPM.reverse();
+  if (listKPM.length > 0) {
+    listKPM[0].isLatest = true;
+  }
 
   // Cache serialized response with 60-second TTL
   putMonitoringCache(cacheKey, JSON.stringify(listKPM), 60);
@@ -967,13 +970,15 @@ function validateAndUpdateStatus(params) {
     throw { code: "KPM_NOT_FOUND", message: "KPM " + nomorKPM + " tidak ditemukan di sistem." };
   }
 
-  // Enforce State Machine Transitions
-  var allowedNext = STATUS_TRANSITIONS[currentStatus] || [];
-  if (allowedNext.indexOf(targetStatus) === -1) {
-    throw {
-      code: "INVALID_TRANSITION",
-      message: "Transisi status tidak valid: Tidak dapat mengubah status dari '" + currentStatus + "' ke '" + targetStatus + "'."
-    };
+  // Enforce State Machine Transitions (Bypassed if admin override)
+  if (!params.isAdmin) {
+    var allowedNext = STATUS_TRANSITIONS[currentStatus] || [];
+    if (allowedNext.indexOf(targetStatus) === -1) {
+      throw {
+        code: "INVALID_TRANSITION",
+        message: "Transisi status tidak valid: Tidak dapat mengubah status dari '" + currentStatus + "' ke '" + targetStatus + "'."
+      };
+    }
   }
 
   // Photo requirement validation for Berangkat / Tiba (unless bypassing for archive)
@@ -1157,6 +1162,191 @@ function archiveKpm(nomorKPM) {
   });
 }
 
+/**
+ * Allows Admin to directly override and update status of any KPM without photo requirement.
+ */
+function adminUpdateStatus(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim().toUpperCase();
+  var targetStatus = normalizeKpmStatus(params.statusKPM || params.status);
+  if (!nomorKPM) {
+    throw { code: "INVALID_REQUEST", message: "Nomor KPM wajib diisi." };
+  }
+  if (!targetStatus) {
+    throw { code: "INVALID_STATUS", message: "Status KPM '" + (params.statusKPM || "") + "' tidak valid." };
+  }
+
+  return validateAndUpdateStatus({
+    nomorKPM: nomorKPM,
+    statusKPM: targetStatus,
+    bypassPhoto: true,
+    isAdmin: true,
+    namaDriver: params.namaDriver || params.driver || "",
+    namaPIC: params.namaPIC || params.pic || "",
+    lokasiWorkshop: params.lokasiWorkshop || ""
+  });
+}
+
+/**
+ * Edits material items for the LATEST KPM only.
+ * Allows adding, editing, or removing items from the most recent KPM.
+ */
+function editLatestKpmItems(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim().toUpperCase();
+  var rawItems = params.daftarBarang || params.items;
+  if (!nomorKPM) {
+    throw { code: "INVALID_REQUEST", message: "Nomor KPM wajib diisi." };
+  }
+
+  var newItems = parseMaterialItems(rawItems);
+  if (!newItems || newItems.length === 0) {
+    throw { code: "INVALID_MATERIAL", message: "KPM harus memiliki minimal 1 material barang." };
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  if (!sheet) {
+    throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
+  }
+
+  var lastRow = sheet.getLastRow();
+  var numDataRows = Math.max(0, lastRow - MONITOR_START_ROW + 1);
+  if (numDataRows === 0) {
+    throw { code: "KPM_NOT_FOUND", message: "Tidak ada data KPM pada sheet." };
+  }
+
+  // Scan backward to find the absolute latest No LF
+  var nolfColData = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numDataRows, 1).getValues();
+  var latestNoLf = "";
+  for (var r = nolfColData.length - 1; r >= 0; r--) {
+    var val = nolfColData[r][0];
+    if (val && String(val).trim() !== "") {
+      latestNoLf = String(val).trim().toUpperCase();
+      break;
+    }
+  }
+
+  if (!latestNoLf || latestNoLf !== nomorKPM) {
+    throw {
+      code: "FORBIDDEN",
+      message: "Hanya KPM terbaru (" + (latestNoLf || "-") + ") yang dapat ditambah atau dikurangi materialnya."
+    };
+  }
+
+  var fullRange = sheet.getRange(MONITOR_START_ROW, 1, numDataRows, MONITOR_TOTAL_COLS);
+  var allData = fullRange.getValues();
+
+  var matchingIndices = [];
+  var activeGroupKpm = "";
+
+  for (var k = 0; k < allData.length; k++) {
+    var kpmDiSheet = String(allData[k][MONITOR_COL_NOLF - 1] || "").trim().toUpperCase();
+    var kodeOrSpek = String(allData[k][MONITOR_COL_SPEK - 1] || allData[k][MONITOR_COL_KODE - 1] || "").trim();
+    if (kpmDiSheet) {
+      activeGroupKpm = kpmDiSheet;
+    }
+    if (activeGroupKpm === nomorKPM && (kpmDiSheet || kodeOrSpek)) {
+      matchingIndices.push(k);
+    }
+  }
+
+  if (matchingIndices.length === 0) {
+    throw { code: "KPM_NOT_FOUND", message: "KPM " + nomorKPM + " tidak ditemukan di sistem." };
+  }
+
+  var minIdx = matchingIndices[0];
+  var maxIdx = matchingIndices[matchingIndices.length - 1];
+  var startSheetRow = MONITOR_START_ROW + minIdx;
+  var oldRowsCount = maxIdx - minIdx + 1;
+
+  var templateRow = allData[minIdx];
+  var postDate = templateRow[MONITOR_COL_POST_DATE - 1] || Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+  var noLfVal = templateRow[MONITOR_COL_NOLF - 1] || latestNoLf;
+  var proyek = templateRow[MONITOR_COL_PROYEK - 1] || "";
+  var wbs = templateRow[MONITOR_COL_WBS - 1] || "";
+  var pic = templateRow[MONITOR_COL_PIC - 1] || "";
+  var wsAwal = templateRow[MONITOR_COL_WSAWAL - 1] || "";
+  var wsTujuan = templateRow[MONITOR_COL_WSTUJUAN - 1] || "";
+  var typeCar = templateRow[MONITOR_COL_TYPECAR - 1] || "";
+  var driver = templateRow[MONITOR_COL_DRIVER - 1] || "";
+  var status = templateRow[MONITOR_COL_STATUS - 1] || KPM_STATUS.BARU_DIBUAT;
+  var wktBer = templateRow[MONITOR_COL_WKT_BERANGKAT - 1] || "";
+  var wktTib = templateRow[MONITOR_COL_WKT_TIBA - 1] || "";
+  var durasi = templateRow[MONITOR_COL_DURASI - 1] || "";
+  var fotoBer = templateRow[MONITOR_COL_FOTO_BER - 1] || "";
+  var fotoTib = templateRow[MONITOR_COL_FOTO_TIB - 1] || "";
+  var gpsTrack = templateRow[MONITOR_COL_GPS_TRACK - 1] || "";
+
+  var newRows = [];
+  for (var j = 0; j < newItems.length; j++) {
+    var itm = newItems[j];
+    var rowArray = new Array(MONITOR_TOTAL_COLS);
+    for (var c = 0; c < MONITOR_TOTAL_COLS; c++) {
+      rowArray[c] = "";
+    }
+
+    var rowNo = (startSheetRow + j) - MONITOR_START_ROW + 1;
+    rowArray[MONITOR_COL_NO - 1] = rowNo;
+    rowArray[MONITOR_COL_POST_DATE - 1] = postDate;
+    rowArray[MONITOR_COL_NOLF - 1] = noLfVal;
+    rowArray[MONITOR_COL_ITEM - 1] = j + 1;
+
+    var spekNama = itm.nama;
+    var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
+    if (mat) {
+      rowArray[MONITOR_COL_KODE - 1] = mat.kode;
+      rowArray[MONITOR_COL_SPEK - 1] = mat.nama;
+      rowArray[MONITOR_COL_UOM - 1] = mat.satuan || itm.uom || "";
+    } else {
+      rowArray[MONITOR_COL_SPEK - 1] = spekNama;
+      rowArray[MONITOR_COL_UOM - 1] = itm.uom || "";
+    }
+
+    rowArray[MONITOR_COL_QTY - 1] = itm.qty;
+    rowArray[MONITOR_COL_PROYEK - 1] = proyek;
+    rowArray[MONITOR_COL_WBS - 1] = wbs;
+    rowArray[MONITOR_COL_PIC - 1] = pic;
+    rowArray[MONITOR_COL_WSAWAL - 1] = wsAwal;
+    rowArray[MONITOR_COL_WSTUJUAN - 1] = wsTujuan;
+    rowArray[MONITOR_COL_TYPECAR - 1] = typeCar;
+    rowArray[MONITOR_COL_DRIVER - 1] = driver;
+    rowArray[MONITOR_COL_STATUS - 1] = status;
+    rowArray[MONITOR_COL_WKT_BERANGKAT - 1] = wktBer;
+    rowArray[MONITOR_COL_WKT_TIBA - 1] = wktTib;
+    rowArray[MONITOR_COL_DURASI - 1] = durasi;
+    rowArray[MONITOR_COL_FOTO_BER - 1] = fotoBer;
+    rowArray[MONITOR_COL_FOTO_TIB - 1] = fotoTib;
+    rowArray[MONITOR_COL_GPS_TRACK - 1] = gpsTrack;
+
+    newRows.push(rowArray);
+  }
+
+  var newCount = newRows.length;
+
+  if (newCount === oldRowsCount) {
+    sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
+  } else if (newCount > oldRowsCount) {
+    var diff = newCount - oldRowsCount;
+    if (startSheetRow + oldRowsCount - 1 < lastRow) {
+      sheet.insertRowsAfter(startSheetRow + oldRowsCount - 1, diff);
+    }
+    sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
+  } else {
+    var diff = oldRowsCount - newCount;
+    sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
+    sheet.getRange(startSheetRow + newCount, 1, diff, MONITOR_TOTAL_COLS).clearContent();
+  }
+
+  invalidateMonitoringCache();
+
+  return {
+    kpmId: latestNoLf,
+    nomor: latestNoLf,
+    itemsCount: newCount,
+    items: newItems,
+    message: "Material KPM " + latestNoLf + " berhasil diperbarui (" + newCount + " item)."
+  };
+}
+
 // ============================================
 // 11. REST API ROUTING (doGet & doPost)
 // ============================================
@@ -1212,7 +1402,7 @@ function doPost(e) {
 
   // Deduce action if not explicitly supplied
   if (!action) {
-    if (params.daftarBarang) action = "createKpm";
+    if (params.daftarBarang && !params.editItems) action = "createKpm";
     else if (params.statusKPM && normalizeKpmStatus(params.statusKPM) === KPM_STATUS.SELESAI) action = "archiveKpm";
     else if (params.statusKPM) action = "updateStatus";
     else action = "unknown";
@@ -1223,7 +1413,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    if (["createKpm", "archiveKpm", "updateStatus"].indexOf(action) === -1) {
+    if (["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems"].indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action tidak dikenali." };
     }
     lockAcquired = lock.tryLock(15000);
@@ -1242,6 +1432,10 @@ function doPost(e) {
       resultData = archiveKpm(params.nomorKPM);
     } else if (action === "updateStatus") {
       resultData = validateAndUpdateStatus(params);
+    } else if (action === "adminUpdateStatus") {
+      resultData = adminUpdateStatus(params);
+    } else if (action === "editLatestKpmItems") {
+      resultData = editLatestKpmItems(params);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

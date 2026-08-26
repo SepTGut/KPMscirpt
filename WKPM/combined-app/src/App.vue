@@ -140,6 +140,71 @@ async function archive(item) {
   finally { busy.value = false }
 }
 
+async function adminChangeStatus(item, newStatus) {
+  if (!newStatus || item.status === newStatus) return
+  if (!confirm(`Ubah status KPM ${item.nomor} dari '${item.status}' menjadi '${newStatus}'?`)) return
+  clearNotice(); busy.value = true
+  try {
+    await api('adminUpdateStatus', {
+      body: { nomorKPM: item.nomor, statusKPM: newStatus }
+    })
+    message.value = `Status KPM ${item.nomor} berhasil diubah menjadi ${newStatus}.`
+    await loadMonitoring(true)
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
+const editingKpm = ref(null)
+const editItemsList = ref([])
+
+function startEditLatestKpm(item) {
+  editingKpm.value = item
+  editItemsList.value = (item.daftarBarang || []).map(b => ({
+    nama: b.nama || '',
+    qty: b.qty || 1,
+    uom: b.uom || 'PCS'
+  }))
+  if (editItemsList.value.length === 0) {
+    editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
+  }
+}
+
+function addEditItem() {
+  editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
+}
+
+function removeEditItem(index) {
+  if (editItemsList.value.length > 1) {
+    editItemsList.value.splice(index, 1)
+  }
+}
+
+async function saveLatestKpmItems() {
+  if (!editingKpm.value) return
+  if (editItemsList.value.some(i => !i.nama?.trim() || Number(i.qty) <= 0)) {
+    error.value = 'Semua material harus memiliki nama dan kuantitas positif.'; return
+  }
+  clearNotice(); busy.value = true
+  try {
+    const res = await api('editLatestKpmItems', {
+      body: {
+        nomorKPM: editingKpm.value.nomor,
+        daftarBarang: JSON.stringify(editItemsList.value)
+      }
+    })
+    message.value = res?.message || `Material KPM ${editingKpm.value.nomor} berhasil diperbarui.`
+    editingKpm.value = null
+    await loadMonitoring(true)
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
 function chooseDelivery(item) {
   selectedDelivery.value = item
   updateForm.value.statusKPM = item.nextAction || ''
@@ -445,7 +510,24 @@ onMounted(() => {
                   <h3 class="text-base font-bold text-google-surface-900 mt-0.5">{{ item.proyek || 'Line Feeding' }}</h3>
                   <p class="text-xs text-google-surface-500 font-medium">{{ item.lokasi }}</p>
                 </div>
-                <span class="chip !text-[11px] !font-bold" :class="statusClass(item.status)">{{ item.status }}</span>
+                
+                <!-- Admin Status Changer Dropdown -->
+                <div class="flex items-center gap-1.5">
+                  <select
+                    class="text-[11px] font-bold py-1 px-2.5 rounded-full border cursor-pointer outline-none transition shadow-sm"
+                    :class="statusClass(item.status)"
+                    :value="item.status"
+                    :disabled="busy"
+                    @change="adminChangeStatus(item, $event.target.value)"
+                    title="Ubah Status KPM (Admin)"
+                  >
+                    <option value="Baru Dibuat">Baru Dibuat</option>
+                    <option value="Belum Berangkat">Belum Berangkat</option>
+                    <option value="Jalan">Jalan</option>
+                    <option value="Tiba">Tiba</option>
+                    <option value="Selesai">Selesai</option>
+                  </select>
+                </div>
               </div>
 
               <div class="mt-3.5 grid gap-2 text-xs sm:grid-cols-3 text-google-surface-600 bg-google-surface-50 p-3 rounded-xl border border-google-surface-200">
@@ -494,10 +576,107 @@ onMounted(() => {
                 </div>
               </details>
 
+              <!-- Latest KPM Material Management Badge & Button -->
+              <div v-if="item.isLatest" class="mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
+                <div class="flex items-center gap-1.5 font-bold">
+                  <span class="text-base">⭐</span>
+                  <div>
+                    <p class="leading-tight">KPM Paling Baru (Terakhir)</p>
+                    <p class="text-[10px] text-amber-700 font-normal">Diizinkan untuk tambah / kurangi item material</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="btn-primary !py-1.5 !px-3 !text-xs !font-bold !bg-amber-600 hover:!bg-amber-700 shadow-sm"
+                  :disabled="busy"
+                  @click="startEditLatestKpm(item)"
+                >
+                  ✏️ Kelola Material
+                </button>
+              </div>
+
               <button v-if="item.isArrived" class="btn-danger w-full mt-4 !py-2.5 !text-xs !font-bold" :disabled="busy" @click="archive(item)">
                 Arsipkan KPM Selesai
               </button>
             </article>
+          </div>
+
+          <!-- MODAL: EDIT MATERIAL KPM TERBARU -->
+          <div v-if="editingKpm" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div class="panel max-w-xl w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl border border-slate-200">
+              <div class="flex items-center justify-between border-b border-google-surface-200 pb-3">
+                <div>
+                  <span class="text-xs font-mono font-bold text-google-blue-700 uppercase">{{ editingKpm.nomor }}</span>
+                  <h3 class="text-base font-bold text-google-surface-900">Kelola Material KPM Terbaru</h3>
+                </div>
+                <button class="text-slate-400 hover:text-slate-700 text-lg font-bold p-1" @click="editingKpm = null">✕</button>
+              </div>
+
+              <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+                ℹ️ Anda dapat mengubah kuantitas, menambah baris barang, atau menghapus material pada KPM paling baru ini.
+              </div>
+
+              <div class="space-y-3">
+                <div v-for="(mat, idx) in editItemsList" :key="idx" class="flex gap-2 items-center">
+                  <input
+                    v-model="mat.nama"
+                    class="field flex-1 !text-xs"
+                    placeholder="Nama / Spesifikasi Material"
+                    required
+                  />
+                  <input
+                    v-model.number="mat.qty"
+                    type="number"
+                    min="0.1"
+                    step="any"
+                    class="field w-20 !text-xs text-center font-mono font-bold"
+                    placeholder="Qty"
+                    required
+                  />
+                  <select v-model="mat.uom" class="field w-24 !text-xs font-bold">
+                    <option v-for="uom in (master.uoms?.length ? master.uoms : ['PCS', 'SET', 'UNIT', 'MTR', 'KG', 'LBR'])" :key="uom" :value="uom">{{ uom }}</option>
+                  </select>
+                  <button
+                    type="button"
+                    class="btn-danger !py-2 !px-3 !rounded-xl text-xs"
+                    :disabled="editItemsList.length === 1"
+                    @click="removeEditItem(idx)"
+                    title="Hapus Material Ini"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div class="pt-2 flex flex-wrap justify-between items-center gap-2">
+                <button
+                  type="button"
+                  class="btn-secondary !py-2 !px-4 !text-xs !font-bold"
+                  @click="addEditItem"
+                >
+                  + Tambah Baris Material
+                </button>
+
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="btn-secondary !py-2 !px-4 !text-xs font-bold"
+                    :disabled="busy"
+                    @click="editingKpm = null"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-success !py-2 !px-5 !text-xs font-bold shadow-md"
+                    :disabled="busy"
+                    @click="saveLatestKpmItems"
+                  >
+                    {{ busy ? 'Menyimpan...' : 'Simpan Perubahan Material ✓' }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
