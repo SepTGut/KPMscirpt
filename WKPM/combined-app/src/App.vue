@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import LoginScreen from './components/LoginScreen.vue'
 import LiveTrackingMap from './components/LiveTrackingMap.vue'
 import AdminCreatePanel from './components/AdminCreatePanel.vue'
 import AdminMonitoringPanel from './components/AdminMonitoringPanel.vue'
@@ -13,6 +14,26 @@ import {
 
 const scriptUrl = import.meta.env.VITE_API_URL || '/api'
 const requestTimeout = 30000
+
+// User Authentication Session State
+const currentUser = ref(null)
+const loginError = ref('')
+
+function loadSavedSession() {
+  const saved = localStorage.getItem('kpm_user_session') || sessionStorage.getItem('kpm_user_session')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      if (parsed && parsed.role) {
+        currentUser.value = parsed
+        mode.value = parsed.role === 'admin' ? 'admin' : 'user'
+        if (parsed.role === 'user' && parsed.name) {
+          driverName.value = parsed.name
+        }
+      }
+    } catch {}
+  }
+}
 
 const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const mode = ref(currentPath.endsWith('/kpm/personel') ? 'user' : 'admin')
@@ -49,7 +70,10 @@ async function api(action, options = {}) {
   try {
     const params = new URLSearchParams(options.body || {})
     params.set('action', action)
-    params.set('role', mode.value)
+    params.set('role', currentUser.value?.role || mode.value)
+    if (currentUser.value?.token) {
+      params.set('apiToken', currentUser.value.token)
+    }
     const isGet = options.method === 'GET'
     const response = await fetch(isGet ? `${scriptUrl}?${params}` : scriptUrl, {
       method: options.method || 'POST',
@@ -69,6 +93,84 @@ async function api(action, options = {}) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+// Authentication Handlers
+async function handleLoginCredentials(payload) {
+  loginError.value = ''
+  busy.value = true
+  try {
+    const data = await api('login', {
+      body: {
+        username: payload.username,
+        password: payload.password
+      }
+    })
+    if (!data || !data.role) {
+      throw new Error('Respons otentikasi tidak valid.')
+    }
+    currentUser.value = data
+    mode.value = data.role === 'admin' ? 'admin' : 'user'
+    if (data.role === 'user' && data.name) {
+      driverName.value = data.name
+      localStorage.setItem('kpm_driver_name', data.name)
+    }
+    const sessionStr = JSON.stringify(data)
+    if (payload.rememberMe) {
+      localStorage.setItem('kpm_user_session', sessionStr)
+    } else {
+      sessionStorage.setItem('kpm_user_session', sessionStr)
+    }
+    if (mode.value === 'admin') loadMaster()
+    else loadDeliveries()
+  } catch (e) {
+    loginError.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
+async function handleLoginGoogle(payload) {
+  loginError.value = ''
+  busy.value = true
+  try {
+    const data = await api('login', {
+      body: {
+        googleEmail: payload.googleEmail
+      }
+    })
+    if (!data || !data.role) {
+      throw new Error('Akun Google tidak terdaftar di sistem pengguna.')
+    }
+    currentUser.value = data
+    mode.value = data.role === 'admin' ? 'admin' : 'user'
+    if (data.role === 'user' && data.name) {
+      driverName.value = data.name
+      localStorage.setItem('kpm_driver_name', data.name)
+    }
+    const sessionStr = JSON.stringify(data)
+    if (payload.rememberMe) {
+      localStorage.setItem('kpm_user_session', sessionStr)
+    } else {
+      sessionStorage.setItem('kpm_user_session', sessionStr)
+    }
+    if (mode.value === 'admin') loadMaster()
+    else loadDeliveries()
+  } catch (e) {
+    loginError.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('kpm_user_session')
+  sessionStorage.removeItem('kpm_user_session')
+  currentUser.value = null
+  selectedDelivery.value = null
+  monitoring.value = []
+  deliveries.value = []
+  clearNotice()
 }
 
 async function loadMaster() {
@@ -114,7 +216,6 @@ async function loadMonitoring(forceRefresh = false, fetchArchived = false) {
   }
 }
 
-// Watch filter changes to lazy-load archived items when 'Selesai' tab is opened
 watch(filter, (newFilter) => {
   if (newFilter === 'Selesai' && !archivedLoaded.value) {
     loadMonitoring(false, true)
@@ -237,7 +338,6 @@ async function saveLatestKpmItems() {
   }
   const kpmNomor = editingKpm.value.nomor
   const itemsPayload = JSON.stringify(editItemsList.value)
-  // Close popup immediately upon confirmation
   editingKpm.value = null
   clearNotice()
   busy.value = true
@@ -361,19 +461,32 @@ async function handleDriverStatusUpdate(payload) {
 }
 
 onMounted(() => {
-  if (mode.value === 'admin') loadMaster()
-  else loadDeliveries()
+  loadSavedSession()
+  if (currentUser.value) {
+    if (mode.value === 'admin') loadMaster()
+    else loadDeliveries()
+  }
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-google-surface-50 font-sans">
+  <!-- Login Screen if not authenticated -->
+  <LoginScreen
+    v-if="!currentUser"
+    :busy="busy"
+    :errorMessage="loginError"
+    @login-credentials="handleLoginCredentials"
+    @login-google="handleLoginGoogle"
+  />
+
+  <!-- Authenticated App View -->
+  <div v-else class="min-h-screen bg-google-surface-50 font-sans">
     <!-- Google 4-Color Accent Top Bar -->
     <div class="google-bar"></div>
 
     <!-- Header (Google Workspace AppBar) -->
     <header class="border-b border-google-surface-300/70 bg-white/90 backdrop-blur-md sticky top-0 z-20 shadow-sm">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-bold text-white shadow-md shadow-google-blue-500/20 ring-1 ring-white/30">
             LF
@@ -387,11 +500,26 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <div class="flex rounded-full bg-google-surface-100 p-1 border border-google-surface-300/60 shadow-inner" role="tablist">
-            <span class="rounded-full bg-white px-3.5 py-1 text-xs font-bold text-google-blue-700 shadow-sm border border-google-surface-300/40">
-              {{ mode === 'admin' ? '🛡️ Admin Portal' : '🚚 Personel Driver' }}
+        <div class="flex items-center gap-2.5">
+          <!-- Active User Badge -->
+          <div class="flex items-center gap-2 rounded-full bg-google-surface-100 py-1 pl-3 pr-1.5 border border-google-surface-300/70 text-xs shadow-inner">
+            <span class="font-bold text-google-surface-800 flex items-center gap-1.5">
+              <span>{{ currentUser.role === 'admin' ? '🛡️' : '🚚' }}</span>
+              <span class="text-google-blue-700 font-semibold">{{ currentUser.name || currentUser.username }}</span>
+              <span class="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200 uppercase">
+                {{ currentUser.role }}
+              </span>
             </span>
+
+            <!-- Logout Button -->
+            <button
+              type="button"
+              class="rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm"
+              @click="handleLogout"
+              title="Keluar / Ganti Akun"
+            >
+              Keluar ➔
+            </button>
           </div>
         </div>
       </div>
@@ -416,7 +544,7 @@ onMounted(() => {
       </div>
 
       <!-- ADMIN SECTION -->
-      <section v-if="mode === 'admin'">
+      <section v-if="currentUser.role === 'admin'">
         <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 class="text-xl font-bold text-google-surface-800">Admin Dashboard</h2>

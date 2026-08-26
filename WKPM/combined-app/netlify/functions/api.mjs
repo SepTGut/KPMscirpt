@@ -25,6 +25,7 @@ export default async function handler(request) {
       bodyParams.forEach((value, key) => params.set(key, value))
     }
   }
+  const action = params.get('action') || ''
   const role = params.get('role')
   params.delete('role')
 
@@ -32,10 +33,12 @@ export default async function handler(request) {
     ? process.env.ADMIN_TOKEN
     : role === 'user'
       ? process.env.DRIVER_TOKEN
-      : process.env.ADMIN_TOKEN
-  if (!token) return errorResponse(500, 'Token role belum dikonfigurasi di Netlify.')
+      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || '')
+  if (!token && action !== 'login') return errorResponse(500, 'Token role belum dikonfigurasi di Netlify.')
 
-  params.set('apiToken', token)
+  if (token) {
+    params.set('apiToken', token)
+  }
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30000)

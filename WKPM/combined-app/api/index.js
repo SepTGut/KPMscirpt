@@ -48,6 +48,7 @@ export default async function handler(req, res) {
     }
   }
 
+  const action = params.get('action') || ''
   const role = params.get('role')
   params.delete('role')
 
@@ -55,16 +56,18 @@ export default async function handler(req, res) {
     ? process.env.ADMIN_TOKEN
     : role === 'user'
       ? process.env.DRIVER_TOKEN
-      : process.env.ADMIN_TOKEN
+      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || '')
 
-  if (!token) {
+  if (!token && action !== 'login') {
     return res.status(500).json({
       success: false,
       error: { code: 'PROXY_ERROR', message: `Token role '${role || 'unknown'}' belum dikonfigurasi di Environment Variables Vercel (ADMIN_TOKEN / DRIVER_TOKEN).` },
     })
   }
 
-  params.set('apiToken', token)
+  if (token) {
+    params.set('apiToken', token)
+  }
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 28000)

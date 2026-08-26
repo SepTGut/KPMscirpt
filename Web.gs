@@ -124,10 +124,129 @@ function getApiTokens() {
   return tokens;
 }
 
+var USERS_SHEET_NAME = "Users";
+
+/**
+ * Initializes and formats the Users sheet in spreadsheet if not exists.
+ */
+function setupUsersSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(USERS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(USERS_SHEET_NAME);
+  }
+  var headers = [
+    ["No", "Username", "Email", "PIN / Password", "Nama Lengkap", "Peran (Role)", "Status", "Keterangan"]
+  ];
+  if (sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, headers[0].length).setValues(headers);
+    sheet.getRange(1, 1, 1, headers[0].length).setFontWeight("bold").setBackground("#e8f0fe");
+    sheet.setFrozenRows(1);
+
+    // Initial default sample users
+    var initialUsers = [
+      [1, "admin", "aang@kpm.com", "admin123", "AANG", "Admin", "Aktif", "Supervisor / PIC KPM"],
+      [2, "eko", "eko@kpm.com", "admin123", "EKO", "Admin", "Aktif", "Admin Logistik"],
+      [3, "driver1", "budi@kpm.com", "driver123", "PAK BUDI", "Driver", "Aktif", "Driver Armada 1"],
+      [4, "driver2", "joko@kpm.com", "driver123", "PAK JOKO", "Driver", "Aktif", "Driver Armada 2"]
+    ];
+    sheet.getRange(2, 1, initialUsers.length, headers[0].length).setValues(initialUsers);
+  }
+  return sheet;
+}
+
+/**
+ * Authenticates user credentials against the Users sheet in spreadsheet.
+ * Supports:
+ * 1. Username/Email + Password/PIN
+ * 2. Google OAuth ID Token (Email match)
+ */
+function loginUser(params) {
+  if (!params) {
+    throw { code: "INVALID_REQUEST", message: "Kredensial login tidak ditemukan." };
+  }
+
+  var inputUsername = String(params.username || params.email || "").trim().toLowerCase();
+  var inputPassword = String(params.password || params.pin || "").trim();
+  var googleEmail = String(params.googleEmail || "").trim().toLowerCase();
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(USERS_SHEET_NAME) || setupUsersSheet();
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    setupUsersSheet();
+    sheet = ss.getSheetByName(USERS_SHEET_NAME);
+    lastRow = sheet.getLastRow();
+  }
+
+  var data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+  var matchedUser = null;
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var uName = String(row[1] || "").trim().toLowerCase();
+    var uEmail = String(row[2] || "").trim().toLowerCase();
+    var uPass = String(row[3] || "").trim();
+    var uFullName = String(row[4] || "").trim();
+    var uRole = String(row[5] || "").trim();
+    var uStatus = String(row[6] || "").trim();
+
+    // 1. Match via Google Email
+    if (googleEmail && uEmail && uEmail === googleEmail) {
+      if (uStatus.toLowerCase() !== "aktif") {
+        throw { code: "ACCOUNT_INACTIVE", message: "Akun Google Anda (" + uEmail + ") sedang berstatus nonaktif. Hubungi Admin." };
+      }
+      matchedUser = {
+        username: uName || uEmail,
+        email: uEmail,
+        name: uFullName || uName,
+        role: uRole.toLowerCase() === "admin" ? "admin" : "user",
+        roleLabel: uRole || "Driver"
+      };
+      break;
+    }
+
+    // 2. Match via Username / Email + Password / PIN
+    if (inputUsername && (uName === inputUsername || uEmail === inputUsername)) {
+      if (uPass !== inputPassword) {
+        throw { code: "INVALID_CREDENTIALS", message: "Username/Email atau PIN salah." };
+      }
+      if (uStatus.toLowerCase() !== "aktif") {
+        throw { code: "ACCOUNT_INACTIVE", message: "Akun Anda sedang berstatus nonaktif. Hubungi Admin." };
+      }
+      matchedUser = {
+        username: uName || inputUsername,
+        email: uEmail,
+        name: uFullName || uName,
+        role: uRole.toLowerCase() === "admin" ? "admin" : "user",
+        roleLabel: uRole || "Driver"
+      };
+      break;
+    }
+  }
+
+  if (!matchedUser) {
+    if (googleEmail) {
+      throw { code: "USER_NOT_FOUND", message: "Akun Google (" + googleEmail + ") belum terdaftar di tabel pengguna spreadsheet. Silakan hubungi Admin untuk didaftarkan." };
+    }
+    throw { code: "INVALID_CREDENTIALS", message: "Username/Email atau PIN tidak ditemukan." };
+  }
+
+  var tokens = getApiTokens();
+  matchedUser.token = matchedUser.role === "admin" ? tokens.adminToken : tokens.driverToken;
+
+  return matchedUser;
+}
+
 /**
  * Validates the API token and enforces role-based authorization for an action.
  */
 function authenticateRequest(params, action) {
+  if (action === "login") {
+    return { role: "GUEST", authenticated: true };
+  }
+
   var tokens = getApiTokens();
   var submittedToken = (params && (params.apiToken || params.token)) ? String(params.apiToken || params.token).trim() : "";
 
@@ -1354,7 +1473,7 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login"];
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -1382,6 +1501,8 @@ function doGet(e) {
       responseData = adminUpdateStatus(params);
     } else if (action === "editLatestKpmItems") {
       responseData = editLatestKpmItems(params);
+    } else if (action === "login") {
+      responseData = loginUser(params);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -1416,7 +1537,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring"];
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login"];
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -1448,6 +1569,8 @@ function doPost(e) {
       var includeArchived = (params.includeArchived === "true");
       var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
       resultData = getKpmMonitoringData(includeArchived, bypassCache);
+    } else if (action === "login") {
+      resultData = loginUser(params);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

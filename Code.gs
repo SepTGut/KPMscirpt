@@ -44,6 +44,7 @@ function onOpen() {
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
     .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
+    .addItem('👥 Setup Sheet Pengguna (Users)', 'setupUsersSheet')
     .addSeparator()
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
