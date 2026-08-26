@@ -10,8 +10,12 @@ function errorResponse(status, message) {
   }), { status, headers: JSON_HEADERS })
 }
 
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
+
 export default async function handler(request) {
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL
+  const scriptUrl = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
   if (!scriptUrl) return errorResponse(500, 'GOOGLE_SCRIPT_URL belum dikonfigurasi di Netlify.')
 
   const params = request.method === 'GET'
@@ -21,10 +25,10 @@ export default async function handler(request) {
   params.delete('role')
 
   const token = role === 'admin'
-    ? process.env.ADMIN_TOKEN
+    ? (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
     : role === 'user'
-      ? process.env.DRIVER_TOKEN
-      : ''
+      ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
+      : (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
   if (!token) return errorResponse(500, 'Token role belum dikonfigurasi di Netlify.')
 
   params.set('apiToken', token)

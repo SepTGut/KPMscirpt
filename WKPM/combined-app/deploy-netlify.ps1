@@ -6,10 +6,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building KPM Web App for Netlify..." -ForegroundColor Cyan
-npm run build
+$appDir = $PSScriptRoot
+if (-not $appDir) {
+    $appDir = (Join-Path (Get-Location) "WKPM/combined-app")
+}
 
-Write-Host "Deploying to Netlify Production..." -ForegroundColor Yellow
-npx netlify deploy --prod --dir=dist --auth=$AuthToken --site=$SiteId
+Push-Location $appDir
+try {
+    Write-Host "Building KPM Web App in $appDir..." -ForegroundColor Cyan
+    npm run build
 
-Write-Host "Deployment Live at: https://linefeedingd.netlify.app" -ForegroundColor Green
+    Write-Host "Deploying to Netlify Production (Site: $SiteId)..." -ForegroundColor Yellow
+    npx netlify deploy --prod --dir=dist --auth=$AuthToken --site=$SiteId
+
+    Write-Host "Deployment Live at: https://linefeedingd.netlify.app" -ForegroundColor Green
+} finally {
+    Pop-Location
+}
