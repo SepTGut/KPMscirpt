@@ -10,8 +10,12 @@ const passed = [];
 // 1. Check all frontend files for API actions
 const frontendFiles = [
   'WKPM/combined-app/src/App.vue',
-  'WKPM/combined-app/src/services/trackingService.js',
+  'WKPM/combined-app/src/components/AdminCreatePanel.vue',
+  'WKPM/combined-app/src/components/AdminMonitoringPanel.vue',
+  'WKPM/combined-app/src/components/DriverDeliveryPanel.vue',
+  'WKPM/combined-app/src/components/MaterialEditorModal.vue',
   'WKPM/combined-app/src/components/LiveTrackingMap.vue',
+  'WKPM/combined-app/src/services/trackingService.js',
   'WKPM/admin/admin.js',
   'WKPM/user/user.js',
   'apps/driver-app/src/services/api.js'
@@ -21,7 +25,7 @@ const frontEndActions = new Set();
 for (const file of frontendFiles) {
   if (fs.existsSync(file)) {
     const text = fs.readFileSync(file, 'utf8');
-    const matches1 = text.matchAll(/action\s*[:=]\s*['"]([a-zA-Z0-9_-]+)['"]/g);
+    const matches1 = text.matchAll(/\baction\s*:\s*['"]([a-zA-Z0-9_-]+)['"]/g);
     for (const m of matches1) frontEndActions.add(m[1]);
     const matches2 = text.matchAll(/api\(\s*['"]([a-zA-Z0-9_-]+)['"]/g);
     for (const m of matches2) frontEndActions.add(m[1]);
@@ -140,7 +144,7 @@ for (const m of webGs.matchAll(/([A-Z_]+)\s*:\s*["']([^"']+)["']/g)) {
 console.log('3. Status Constants Verified:', webStatuses);
 
 // 8. Check Status Transitions map in Web.gs
-const transitionsMatch = webGs.match(/var\s+STATUS_TRANSITIONS\s*=\s*\{([\s\S]*?)\};/);
+const transitionsMatch = webGs.match(/var\s+STATUS_TRANSITIONS\s*=\s*(?:Object\.freeze\()?\s*\{([\s\S]*?)\}/);
 if (transitionsMatch) {
   passed.push('STATUS_TRANSITIONS state machine map is properly defined in Web.gs');
 } else {
