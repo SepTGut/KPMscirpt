@@ -110,8 +110,8 @@ let pollingTimer = null
 
 const WORKSHOPS = [
   { name: 'Candi Sewu', lat: -7.6162207, lng: 111.5215291, color: '#2563eb', address: 'Jl. Candi Sewu No.30, Madiun Lor' },
-  { name: 'Tiron', lat: -7.5852, lng: 111.5365, color: '#4f46e5', address: 'Workshop Tiron' },
-  { name: 'Sukosari', lat: -7.5822966, lng: 111.5420679, color: '#059669', address: 'Workshop Sukosari (Dekat Pengadilan Agama)' },
+  { name: 'Tiron', lat: -7.5822966, lng: 111.5420679, color: '#4f46e5', address: 'Workshop Tiron (Dekat Pengadilan Agama)' },
+  { name: 'Sukosari', lat: -7.6114512, lng: 111.5348394, color: '#059669', address: 'Workshop PT Rekaindo Global Jasa (Sukosari)' },
   { name: 'Remul', lat: -7.6101753, lng: 111.5490581, color: '#d97706', address: 'Gudang PT Rekaindo Global Jasa (Rejomulyo)' }
 ]
 
