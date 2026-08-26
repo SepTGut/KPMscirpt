@@ -12,6 +12,15 @@ Write-Host "Building project with Vite..." -ForegroundColor Yellow
 
 npm run build
 
+# Auto-load VERCEL_TOKEN from .env.local if available
+if (-not $env:VERCEL_TOKEN -and (Test-Path ".env.local")) {
+    Get-Content ".env.local" | ForEach-Object {
+        if ($_ -match "^\s*VERCEL_TOKEN\s*=\s*(.+)$") {
+            $env:VERCEL_TOKEN = $matches[1].Trim()
+        }
+    }
+}
+
 Write-Host "Deploying to Vercel Production..." -ForegroundColor Green
 if ($env:VERCEL_TOKEN) {
     npx vercel --prod --yes --token $env:VERCEL_TOKEN
