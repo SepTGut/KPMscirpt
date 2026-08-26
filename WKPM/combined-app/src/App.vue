@@ -152,17 +152,27 @@ async function archive(item) {
   finally { busy.value = false }
 }
 
-async function adminChangeStatus(item, newStatus) {
+async function adminChangeStatus(item, event) {
+  const selectEl = event.target
+  const newStatus = selectEl.value
   if (!newStatus || item.status === newStatus) return
-  if (!confirm(`Ubah status KPM ${item.nomor} dari '${item.status}' menjadi '${newStatus}'?`)) return
-  clearNotice(); busy.value = true
+  if (!confirm(`Ubah status KPM ${item.nomor} dari '${item.status}' menjadi '${newStatus}'?`)) {
+    selectEl.value = item.status
+    return
+  }
+  const prevStatus = item.status
+  item.status = newStatus
+  clearNotice()
+  busy.value = true
   try {
     await api('adminUpdateStatus', {
       body: { nomorKPM: item.nomor, statusKPM: newStatus }
     })
-    message.value = `Status KPM ${item.nomor} berhasil diubah menjadi ${newStatus}.`
+    message.value = `Status KPM ${item.nomor} berhasil diubah menjadi '${newStatus}'.`
     await loadMonitoring(true)
   } catch (e) {
+    item.status = prevStatus
+    selectEl.value = prevStatus
     error.value = e.message
   } finally {
     busy.value = false
@@ -534,7 +544,7 @@ onMounted(() => {
                     :class="statusClass(item.status)"
                     :value="item.status"
                     :disabled="busy"
-                    @change="adminChangeStatus(item, $event.target.value)"
+                    @change="adminChangeStatus(item, $event)"
                     title="Ubah Status KPM (Admin)"
                   >
                     <option value="Baru Dibuat">Baru Dibuat</option>
