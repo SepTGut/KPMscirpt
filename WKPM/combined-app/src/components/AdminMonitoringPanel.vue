@@ -121,23 +121,21 @@ function statusClass(status) {
           </div>
         </details>
 
-        <!-- Latest KPM Material Management Badge & Button -->
+        <!-- Material Management Badge & Button -->
         <div
-          v-if="item.isLatest"
-          class="mt-3 p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm transition-all"
-          :class="(item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'bg-amber-50/90 border-amber-200 text-amber-950' : 'bg-slate-100/90 border-slate-200 text-slate-500'"
+          v-if="item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat'"
+          class="mt-3 p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm transition-all bg-amber-50/90 border-amber-200 text-amber-950"
         >
           <div class="flex items-center gap-1.5 font-bold">
-            <span class="text-base">{{ (item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? '⭐' : '🔒' }}</span>
+            <span class="text-base">✏️</span>
             <div>
-              <p class="leading-tight">KPM Paling Baru (Terakhir)</p>
-              <p class="text-[10px] font-normal" :class="(item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'text-amber-700' : 'text-slate-500'">
-                {{ (item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat') ? 'Bisa tambah / kurangi item material (Belum Berangkat)' : `Material terkunci: KPM sudah ${item.status}` }}
+              <p class="leading-tight">Kelola Item Material</p>
+              <p class="text-[10px] font-normal text-amber-700">
+                Bisa tambah / kurangi item material (Belum Berangkat)
               </p>
             </div>
           </div>
           <button
-            v-if="item.status === 'Baru Dibuat' || item.status === 'Belum Berangkat'"
             type="button"
             class="btn-primary !py-1.5 !px-3 !text-xs !font-bold !bg-amber-600 hover:!bg-amber-700 shadow-sm"
             :disabled="busy"
@@ -145,9 +143,6 @@ function statusClass(status) {
           >
             ✏️ Kelola Material
           </button>
-          <span v-else class="text-[11px] font-bold text-slate-400 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-            🔒 Terkunci ({{ item.status }})
-          </span>
         </div>
 
         <button v-if="item.isArrived" class="btn-danger w-full mt-4 !py-2.5 !text-xs !font-bold" :disabled="busy" @click="$emit('archive', item)">

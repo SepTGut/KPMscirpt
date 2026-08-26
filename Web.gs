@@ -1215,24 +1215,6 @@ function editLatestKpmItems(params) {
     throw { code: "KPM_NOT_FOUND", message: "Tidak ada data KPM pada sheet." };
   }
 
-  // Scan backward to find the absolute latest No LF
-  var nolfColData = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_NOLF, numDataRows, 1).getValues();
-  var latestNoLf = "";
-  for (var r = nolfColData.length - 1; r >= 0; r--) {
-    var val = nolfColData[r][0];
-    if (val && String(val).trim() !== "") {
-      latestNoLf = String(val).trim().toUpperCase();
-      break;
-    }
-  }
-
-  if (!latestNoLf || latestNoLf !== nomorKPM) {
-    throw {
-      code: "FORBIDDEN",
-      message: "Hanya KPM terbaru (" + (latestNoLf || "-") + ") yang dapat ditambah atau dikurangi materialnya."
-    };
-  }
-
   var fullRange = sheet.getRange(MONITOR_START_ROW, 1, numDataRows, MONITOR_TOTAL_COLS);
   var allData = fullRange.getValues();
 
@@ -1261,19 +1243,20 @@ function editLatestKpmItems(params) {
 
   var templateRow = allData[minIdx];
   var postDate = templateRow[MONITOR_COL_POST_DATE - 1] || Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-  var noLfVal = templateRow[MONITOR_COL_NOLF - 1] || latestNoLf;
+  var noLfVal = templateRow[MONITOR_COL_NOLF - 1] || nomorKPM;
   var proyek = templateRow[MONITOR_COL_PROYEK - 1] || "";
   var wbs = templateRow[MONITOR_COL_WBS - 1] || "";
   var pic = templateRow[MONITOR_COL_PIC - 1] || "";
   var wsAwal = templateRow[MONITOR_COL_WSAWAL - 1] || "";
   var wsTujuan = templateRow[MONITOR_COL_WSTUJUAN - 1] || "";
   var typeCar = templateRow[MONITOR_COL_TYPECAR - 1] || "";
+  var driver = templateRow[MONITOR_COL_DRIVER - 1] || "";
   var status = templateRow[MONITOR_COL_STATUS - 1] || KPM_STATUS.BARU_DIBUAT;
   var currentNormalizedStatus = normalizeKpmStatus(status) || KPM_STATUS.BARU_DIBUAT;
   if (currentNormalizedStatus !== KPM_STATUS.BARU_DIBUAT && currentNormalizedStatus !== KPM_STATUS.BELUM_BERANGKAT) {
     throw {
       code: "FORBIDDEN",
-      message: "Material tidak dapat diubah karena KPM " + nomorKPM + " sudah berstatus '" + currentNormalizedStatus + "'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih berstatus 'Belum Berangkat'."
+      message: "Material tidak dapat diubah karena KPM " + nomorKPM + " sudah berstatus '" + currentNormalizedStatus + "'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih berstatus 'Baru Dibuat' atau 'Belum Berangkat'."
     };
   }
   var wktBer = templateRow[MONITOR_COL_WKT_BERANGKAT - 1] || "";
@@ -1340,18 +1323,18 @@ function editLatestKpmItems(params) {
   } else {
     var diff = oldRowsCount - newCount;
     sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
-    sheet.getRange(startSheetRow + newCount, 1, diff, MONITOR_TOTAL_COLS).clearContent();
+    sheet.deleteRows(startSheetRow + newCount, diff);
   }
 
   SpreadsheetApp.flush();
   invalidateMonitoringCache();
 
   return {
-    kpmId: latestNoLf,
-    nomor: latestNoLf,
+    kpmId: nomorKPM,
+    nomor: nomorKPM,
     itemsCount: newCount,
     items: newItems,
-    message: "Material KPM " + latestNoLf + " berhasil diperbarui (" + newCount + " item)."
+    message: "Material KPM " + nomorKPM + " berhasil diperbarui (" + newCount + " item)."
   };
 }
 
