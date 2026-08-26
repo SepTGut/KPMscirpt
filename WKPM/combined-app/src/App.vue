@@ -235,17 +235,20 @@ async function saveLatestKpmItems() {
     error.value = 'Semua material harus memiliki nama dan kuantitas positif.'
     return
   }
+  const kpmNomor = editingKpm.value.nomor
+  const itemsPayload = JSON.stringify(editItemsList.value)
+  // Close popup immediately upon confirmation
+  editingKpm.value = null
   clearNotice()
   busy.value = true
   try {
     const res = await api('editLatestKpmItems', {
       body: {
-        nomorKPM: editingKpm.value.nomor,
-        daftarBarang: JSON.stringify(editItemsList.value)
+        nomorKPM: kpmNomor,
+        daftarBarang: itemsPayload
       }
     })
-    message.value = res?.message || `Material KPM ${editingKpm.value.nomor} berhasil diperbarui.`
-    editingKpm.value = null
+    message.value = res?.message || `Material KPM ${kpmNomor} berhasil diperbarui.`
     await loadMonitoring(true)
   } catch (e) {
     error.value = e.message
