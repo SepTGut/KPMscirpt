@@ -24,9 +24,15 @@ const createForm = ref({
 })
 const updateForm = ref({ statusKPM: '', fotoData: '' })
 
-const filteredMonitoring = computed(() => filter.value === 'Semua'
-  ? monitoring.value
-  : monitoring.value.filter(item => item.status === filter.value))
+const filteredMonitoring = computed(() => {
+  if (filter.value === 'Semua') {
+    return monitoring.value.filter(item => item.status !== 'Selesai')
+  }
+  if (filter.value === 'Selesai') {
+    return monitoring.value.filter(item => item.status === 'Selesai')
+  }
+  return monitoring.value.filter(item => item.status === filter.value)
+})
 
 function clearNotice() { message.value = ''; error.value = '' }
 
@@ -69,7 +75,7 @@ async function loadMaster() {
 async function loadMonitoring(forceRefresh = false) {
   clearNotice(); busy.value = true
   try {
-    const body = forceRefresh ? { refresh: 'true' } : {}
+    const body = { includeArchived: 'true', ...(forceRefresh ? { refresh: 'true' } : {}) }
     monitoring.value = (await api('getMonitoring', { method: 'GET', body })) || []
   }
   catch (e) { error.value = e.message }
@@ -384,7 +390,7 @@ onMounted(() => {
           <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-google-surface-300/70 shadow-sm">
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba']"
+                v-for="option in ['Semua', 'Baru Dibuat', 'Belum Berangkat', 'Jalan', 'Tiba', 'Selesai']"
                 :key="option"
                 class="chip transition-all duration-200 border"
                 :class="filter === option ? 'bg-google-blue-600 text-white border-google-blue-600 shadow-sm' : 'bg-google-surface-100 text-google-surface-700 border-google-surface-300/60 hover:bg-google-surface-200'"
