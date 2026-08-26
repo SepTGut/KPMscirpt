@@ -7,18 +7,17 @@ Set-Location -LiteralPath $scriptDir
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "   Deploying KPM Web to Vercel (CLI)      " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Make sure you have configured Environment Variables in Vercel:" -ForegroundColor Yellow
-Write-Host "  1. GOOGLE_SCRIPT_URL (Apps Script Web App Exec URL)" -ForegroundColor Gray
-Write-Host "  2. ADMIN_TOKEN (Admin secret token)" -ForegroundColor Gray
-Write-Host "  3. DRIVER_TOKEN (Driver/Personel secret token)" -ForegroundColor Gray
-Write-Host ""
+Write-Host "Account: rekappc03-6994" -ForegroundColor Gray
+Write-Host "Building project with Vite..." -ForegroundColor Yellow
 
-$choice = Read-Host "Deploy to Production directly? (y/N)"
-if ($choice -match '^[Yy]') {
-    Write-Host "Running: npx vercel --prod" -ForegroundColor Green
-    npx vercel --prod
+npm run build
+
+Write-Host "Deploying to Vercel Production..." -ForegroundColor Green
+if ($env:VERCEL_TOKEN) {
+    npx vercel --prod --yes --token $env:VERCEL_TOKEN
 } else {
-    Write-Host "Running: npx vercel (Preview Deployment)" -ForegroundColor Green
-    npx vercel
+    npx vercel --prod --yes
 }
+
+Write-Host ""
+Write-Host "Deployment Complete! Live at: https://combined-app-eight.vercel.app" -ForegroundColor Cyan

@@ -14,6 +14,7 @@
     "test:gps": "node scripts/test_gps.mjs",
     "test:gps:simulate": "node scripts/test_gps.mjs --simulate",
     "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1",
-    "deploy:netlify": "powershell -ExecutionPolicy Bypass -File WKPM/combined-app/deploy-netlify.ps1"
+    "deploy:netlify": "powershell -ExecutionPolicy Bypass -File WKPM/combined-app/deploy-netlify.ps1",
+    "deploy:vercel": "powershell -ExecutionPolicy Bypass -File WKPM/combined-app/deploy-vercel.ps1"
   }
 }
