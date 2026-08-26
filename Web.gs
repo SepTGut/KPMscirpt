@@ -808,6 +808,7 @@ function validateAndCreateKpm(params) {
 
   if (rowsToInsert.length > 0) {
     sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS).setValues(rowsToInsert);
+    SpreadsheetApp.flush();
   }
 
   // Invalidate cache so subsequent queries fetch newly created KPM
@@ -1097,6 +1098,7 @@ function validateAndUpdateStatus(params) {
     var sliceCount = maxIdx - minIdx + 1;
     var sliceData = allData.slice(minIdx, maxIdx + 1);
     sheet.getRange(MONITOR_START_ROW + minIdx, 1, sliceCount, MONITOR_TOTAL_COLS).setValues(sliceData);
+    SpreadsheetApp.flush();
 
     // Auto-archive completed trip summary into T.Log sheet for cold retention
     if (targetStatus === KPM_STATUS.TIBA) {
@@ -1342,6 +1344,7 @@ function editLatestKpmItems(params) {
     sheet.getRange(startSheetRow + newCount, 1, diff, MONITOR_TOTAL_COLS).clearContent();
   }
 
+  SpreadsheetApp.flush();
   invalidateMonitoringCache();
 
   return {
