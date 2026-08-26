@@ -424,9 +424,6 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
       var rawStatus = String(row[MONITOR_COL_STATUS - 1] || '').trim();
       var statusAkhir = normalizeKpmStatus(rawStatus);
       if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
-      if (statusAkhir === KPM_STATUS.BARU_DIBUAT && isFiveMinutesOld(lastSeenWaktuBuat)) {
-        statusAkhir = KPM_STATUS.BELUM_BERANGKAT;
-      }
       lastSeenStatus = statusAkhir;
 
       var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim();
