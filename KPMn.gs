@@ -208,7 +208,7 @@ function inheritGroupMetadataInMemory(sheet, row, rowData) {
         MONITOR_COL_WSAWAL, MONITOR_COL_WSTUJUAN, MONITOR_COL_PROYEK,
         MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR,
         MONITOR_COL_DRIVER, MONITOR_COL_STATUS, MONITOR_COL_WKT_BERANGKAT, MONITOR_COL_WKT_TIBA,
-        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB
+        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB, MONITOR_COL_GPS_TRACK
       ];
       for (var i = 0; i < groupCols.length; i++) {
         var cIdx = groupCols[i] - 1;
@@ -355,7 +355,7 @@ function onEdit(e) {
     col === MONITOR_COL_DRIVER || col === MONITOR_COL_STATUS ||
     col === MONITOR_COL_WKT_BERANGKAT || col === MONITOR_COL_WKT_TIBA ||
     col === MONITOR_COL_DURASI || col === MONITOR_COL_FOTO_BER ||
-    col === MONITOR_COL_FOTO_TIB) {
+    col === MONITOR_COL_FOTO_TIB || col === MONITOR_COL_GPS_TRACK) {
     syncDownstreamGroupMetadata(sheet, row, col, cellVal, rowData[MONITOR_COL_NOLF - 1]);
   }
 

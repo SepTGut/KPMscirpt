@@ -426,7 +426,6 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
       if (!statusAkhir) statusAkhir = KPM_STATUS.BARU_DIBUAT;
       if (statusAkhir === KPM_STATUS.BARU_DIBUAT && isFiveMinutesOld(lastSeenWaktuBuat)) {
         statusAkhir = KPM_STATUS.BELUM_BERANGKAT;
-        pendingStatusRowUpdates.push({ rowIndex: i, status: statusAkhir });
       }
       lastSeenStatus = statusAkhir;
 
@@ -465,14 +464,11 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
     var kpm = rawKpm || (barang ? lastSeenKpm : "");
     if (!kpm) continue;
 
-    var pic = String(row[MONITOR_COL_PIC - 1] || "").trim() || lastSeenPic;
-    var driver = String(row[MONITOR_COL_DRIVER - 1] || "").trim() || lastSeenDriver;
-    var proyek = String(row[MONITOR_COL_PROYEK - 1] || "").trim() || lastSeenProyek;
-    var waktuBuat = String(row[MONITOR_COL_POST_DATE - 1] || "").trim() || lastSeenWaktuBuat;
-    var waktuBer = String(row[MONITOR_COL_WKT_BERANGKAT - 1] || "").trim() || lastSeenWaktuBer;
-    var waktuTib = String(row[MONITOR_COL_WKT_TIBA - 1] || "").trim() || lastSeenWaktuTib;
-    var durasi = String(row[MONITOR_COL_DURASI - 1] || "").trim() || lastSeenDurasi;
     var statusAkhir = lastSeenStatus || KPM_STATUS.BARU_DIBUAT;
+    var currentCellStatus = normalizeKpmStatus(row[MONITOR_COL_STATUS - 1]);
+    if (barang && currentCellStatus !== statusAkhir) {
+      pendingStatusRowUpdates.push({ rowIndex: i, status: statusAkhir });
+    }
     var wsAwal = String(row[MONITOR_COL_WSAWAL - 1] || "").trim() || lastSeenWsAwal;
     var wsTujuan = String(row[MONITOR_COL_WSTUJUAN - 1] || "").trim() || lastSeenWsTujuan;
     var lokasi = wsAwal && wsTujuan ? wsAwal + " ➔ " + wsTujuan : (wsAwal || wsTujuan);
