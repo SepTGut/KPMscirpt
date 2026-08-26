@@ -1,6 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import LiveTrackingMap from './components/LiveTrackingMap.vue'
+import {
+  getCurrentCoordinates,
+  startLiveTracking,
+  stopLiveTracking,
+  removeActiveTrip,
+  openWorkshopNavigation,
+  trackingState
+} from './services/trackingService'
 
 const scriptUrl = import.meta.env.VITE_API_URL || '/api'
 const requestTimeout = 30000
@@ -17,6 +25,7 @@ const deliveries = ref([])
 const selectedDelivery = ref(null)
 const filter = ref('Semua')
 const photoFile = ref(null)
+const driverName = ref(localStorage.getItem('kpm_driver_name') || '')
 
 const createForm = ref({
   lokasiBerangkat: '', lokasiTiba: '', namaPIC: '', namaProyek: '',
@@ -87,6 +96,7 @@ async function loadDeliveries(forceRefresh = false) {
   try {
     const body = forceRefresh ? { refresh: 'true' } : {}
     deliveries.value = (await api('getDeliveries', { method: 'GET', body })) || []
+    startLiveTracking(deliveries.value, driverName.value)
   }
   catch (e) { error.value = e.message }
   finally { busy.value = false }
@@ -99,10 +109,10 @@ function removeItem(index) {
 
 async function createKpm() {
   clearNotice()
-  if (!createForm.value.lokasiBerangkat || !createForm.value.lokasiTiba || !createForm.value.namaPIC || !createForm.value.namaProyek) {
-    error.value = 'Lengkapi semua data utama terlebih dahulu.'; return
+  if (!createForm.value.lokasiBerangkat || !createForm.value.lokasiTiba || !createForm.value.namaPIC) {
+    error.value = 'Mohon lengkapi lokasi asal, lokasi tujuan, dan PIC.'; return
   }
-  if (createForm.value.items.some(item => !item.nama.trim() || Number(item.qty) <= 0)) {
+  if (!createForm.value.items.every(item => item.nama?.trim() && Number(item.qty) > 0)) {
     error.value = 'Pastikan semua material memiliki nama dan kuantitas positif.'; return
   }
   busy.value = true
@@ -200,20 +210,37 @@ async function updateStatus() {
   if (!photoFile.value) { error.value = 'Foto bukti wajib dilampirkan.'; return }
   busy.value = true
   try {
+    if (driverName.value) {
+      localStorage.setItem('kpm_driver_name', driverName.value)
+    }
+
+    // Acquire high-precision GPS coordinates for photo checkpoint
+    const coords = await getCurrentCoordinates().catch(() => null)
     updateForm.value.fotoData = await compressImage(photoFile.value)
+    
+    const kpmNomor = selectedDelivery.value.nomor || selectedDelivery.value.kpmId
     await api('updateStatus', {
       body: {
-        nomorKPM: selectedDelivery.value.nomor || selectedDelivery.value.kpmId,
+        nomorKPM: kpmNomor,
         statusKPM: updateForm.value.statusKPM,
         namaPIC: selectedDelivery.value.pic,
+        driver: driverName.value || '',
         lokasiWorkshop: updateForm.value.statusKPM === 'Tiba'
           ? (selectedDelivery.value.lokasiTiba || selectedDelivery.value.lokasi)
           : (selectedDelivery.value.lokasiBerangkat || selectedDelivery.value.lokasi),
         fotoData: updateForm.value.fotoData,
+        latitude: coords?.latitude || '',
+        longitude: coords?.longitude || '',
       },
     })
-    message.value = 'Status KPM berhasil diperbarui.'
+
+    if (updateForm.value.statusKPM === 'Tiba') {
+      await removeActiveTrip(kpmNomor)
+    }
+
+    message.value = 'Status KPM & Koordinat GPS berhasil diperbarui.'
     await loadDeliveries()
+    startLiveTracking(deliveries.value, driverName.value)
   } catch (e) { error.value = e.message }
   finally { busy.value = false }
 }
@@ -485,9 +512,31 @@ onMounted(() => {
 
       <!-- PERSONEL / DRIVER SECTION -->
       <section v-else>
-        <div class="mb-6">
+        <div class="mb-4">
           <h2 class="text-xl font-bold text-google-surface-800">Portal Pembaruan Personel</h2>
           <p class="text-xs text-google-surface-500 mt-0.5">Pilih KPM yang ditugaskan, lampirkan foto bukti, lalu kirim status perjalanan.</p>
+        </div>
+
+        <!-- GPS Live Status Banner -->
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-2 p-3.5 bg-white rounded-2xl border border-google-surface-200 shadow-sm text-xs">
+          <div class="flex items-center gap-2.5">
+            <span class="relative flex h-3 w-3">
+              <span v-if="trackingState.isTracking" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3" :class="trackingState.isTracking ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+            </span>
+            <div>
+              <span class="font-bold text-google-surface-800">
+                {{ trackingState.isTracking ? '📡 GPS Live Tracking Aktif' : '📍 GPS Siap (Standby)' }}
+              </span>
+              <span v-if="trackingState.activeKpmCount" class="text-slate-500 font-medium ml-1">
+                ({{ trackingState.activeKpmCount }} KPM berjalan)
+              </span>
+            </div>
+          </div>
+          <div v-if="trackingState.latitude" class="font-mono text-[11px] text-google-blue-700 font-semibold bg-google-blue-50 px-2.5 py-1 rounded-lg border border-google-blue-100">
+            📍 {{ trackingState.latitude.toFixed(5) }}, {{ trackingState.longitude.toFixed(5) }}
+            <span v-if="trackingState.accuracy" class="text-slate-500 font-normal"> (±{{ trackingState.accuracy }}m)</span>
+          </div>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -517,6 +566,7 @@ onMounted(() => {
                   <div>
                     <span class="text-xs font-mono font-bold text-google-blue-700 uppercase">{{ item.nomor }}</span>
                     <p class="text-xs font-bold text-google-surface-800 mt-0.5">{{ item.proyek || 'Line Feeding' }}</p>
+                    <p class="text-[11px] text-google-surface-500">{{ item.lokasi || `${item.lokasiBerangkat || '-'} ➔ ${item.lokasiTiba || '-'}` }}</p>
                   </div>
                   <span class="chip !text-[10px] !font-bold bg-google-blue-100 text-google-blue-800 border border-google-blue-200">
                     ➔ {{ item.nextAction }}
@@ -537,7 +587,19 @@ onMounted(() => {
               <div class="border-b border-google-surface-200 pb-3">
                 <span class="text-xs font-mono font-bold text-google-blue-700 uppercase">{{ selectedDelivery.nomor }}</span>
                 <h3 class="text-base font-bold text-google-surface-900 mt-0.5">{{ selectedDelivery.proyek }}</h3>
-                <p class="text-xs text-google-surface-500">{{ selectedDelivery.lokasi }}</p>
+                <p class="text-xs text-google-surface-500">{{ selectedDelivery.lokasi || `${selectedDelivery.lokasiBerangkat || '-'} ➔ ${selectedDelivery.lokasiTiba || '-'}` }}</p>
+              </div>
+
+              <!-- 1-Click GMaps Navigation Button -->
+              <div>
+                <button
+                  type="button"
+                  class="w-full py-2.5 px-3 rounded-xl bg-google-blue-50 hover:bg-google-blue-100 text-google-blue-700 text-xs font-bold flex items-center justify-center gap-2 border border-google-blue-200 transition shadow-sm"
+                  @click="openWorkshopNavigation(selectedDelivery.lokasiTiba || selectedDelivery.wsTujuan)"
+                >
+                  <span>🗺️</span>
+                  <span>Buka Navigasi Rute di Google Maps (Ke {{ selectedDelivery.lokasiTiba || selectedDelivery.wsTujuan || 'Tujuan' }})</span>
+                </button>
               </div>
 
               <div class="rounded-2xl bg-google-yellow-50/70 border border-google-yellow-200 p-4 text-xs">
@@ -547,6 +609,11 @@ onMounted(() => {
                   <strong class="font-mono font-bold">{{ material.qty }} {{ material.uom }}</strong>
                 </div>
               </div>
+
+              <label class="block">
+                <span class="label">Nama Pengemudi / Driver</span>
+                <input v-model="driverName" class="field bg-white" placeholder="Contoh: PAK BUDI" />
+              </label>
 
               <label class="block">
                 <span class="label">Status Perjalanan Berikutnya</span>
