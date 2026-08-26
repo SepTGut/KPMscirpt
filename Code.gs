@@ -269,16 +269,16 @@ function getLogoSafe() {
 
   // 3. Fallback: DriveApp fetch
   try {
-    var file = DriveApp.getFileById(PRINT.LOGO_ID);
+    var file = DriveApp.getFileById(logoId);
     var blob = file.getBlob();
     var contentType = blob.getContentType();
     var base64 = Utilities.base64Encode(blob.getBytes());
     var dataUrl = "data:" + contentType + ";base64," + base64;
-    _logoMemoryCache = dataUrl;
+    _logoMemoryCache = { logoId: logoId, dataUrl: dataUrl };
 
     try {
       if (dataUrl.length < 100000) {
-        CacheService.getScriptCache().put("APP_PRINT_LOGO_" + PRINT.LOGO_ID, dataUrl, 21600); // 6 hours
+        CacheService.getScriptCache().put("APP_PRINT_LOGO_" + logoId, dataUrl, 21600); // 6 hours
       }
     } catch (ce) {}
 

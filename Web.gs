@@ -70,10 +70,6 @@ function isOneMinuteOld(timestamp) {
   return !isNaN(createdAt.getTime()) && (new Date().getTime() - createdAt.getTime() >= 1 * 60 * 1000);
 }
 
-// Backward-compatible alias
-function isFiveMinutesOld(timestamp) {
-  return isOneMinuteOld(timestamp);
-}
 
 // ============================================
 // 2. UNIFIED API RESPONSE HELPERS
@@ -244,17 +240,23 @@ function extractHyperlinkUrl(dispVal, formulaVal, rawVal) {
   return "";
 }
 
+var _cachedSpreadsheetLocale = null;
+
 /**
  * Creates locale-aware =HYPERLINK("url"; "[Link]") formula for setValues().
  * Uses semicolon (;) for Indonesian and comma (,) for US English locales.
+ * Caches the locale to avoid repeated getSpreadsheetLocale() calls in batch loops.
  */
 function createHyperlinkFormula(url, label) {
   if (!url) return "";
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var loc = "";
-  try {
-    loc = (ss.getSpreadsheetLocale() || "").toLowerCase();
-  } catch (e) { }
+  if (_cachedSpreadsheetLocale === null) {
+    try {
+      _cachedSpreadsheetLocale = (SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale() || "").toLowerCase();
+    } catch (e) {
+      _cachedSpreadsheetLocale = "";
+    }
+  }
+  var loc = _cachedSpreadsheetLocale;
   // Indonesia, German, French, Spanish, Italian use semicolon formula separator
   var isSemicolon = (!loc || loc.indexOf("id") === 0 || loc.indexOf("in") === 0 || loc.indexOf("de") === 0 || loc.indexOf("fr") === 0 || loc.indexOf("es") === 0 || loc.indexOf("it") === 0);
   var sep = isSemicolon ? ";" : ",";
