@@ -11,6 +11,6 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec
+      - GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec
       - ADMIN_TOKEN=7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM
       - DRIVER_TOKEN=A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3

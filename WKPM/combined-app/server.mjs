@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename)
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
 const DIST_DIR = path.resolve(__dirname, 'dist')
-const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
 const DRIVER_TOKEN = process.env.DRIVER_TOKEN || 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
@@ -84,7 +84,8 @@ async function handleApiProxy(req, res) {
     let upstreamUrl = GOOGLE_SCRIPT_URL
     const requestOptions = {
       method: req.method === 'GET' ? 'GET' : 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' }
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      redirect: 'follow'
     }
 
     if (req.method === 'GET') {

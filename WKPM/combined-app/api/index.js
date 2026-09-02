@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     return res.status(204).end()
   }
 
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
 
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
   if (!scriptUrl) {
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
       method: req.method === 'GET' ? 'GET' : 'POST',
       signal: controller.signal,
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      redirect: 'follow'
     }
 
     if (req.method === 'GET') {

@@ -15,7 +15,7 @@ description: Google Apps Script performance, security, and deployment best pract
 
 ### 3. Clasp Deployment Versioning
 - `npm run gas:push` (`clasp push`) only updates the `@HEAD` development script.
-- When modifying Web App backend code, always redeploy the active deployment ID (`AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg`) so external clients receive the updated code.
+- When modifying Web App backend code, always redeploy the active deployment ID (`AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA`) so external clients receive the updated code.
 
 ### 4. Standard Response Envelope
 - Web App API endpoints (`doGet` / `doPost`) must return a consistent JSON envelope:

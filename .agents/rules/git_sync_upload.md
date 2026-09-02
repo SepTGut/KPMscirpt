@@ -12,7 +12,7 @@ When the user says **"up"**, **"upload"**, or asks to commit and push all files:
 1. Stage all modified and untracked files: `git add .`
 2. Commit with a concise, descriptive conventional-commit message based on recent changes: `git commit -m "<type>: <description>"`
 3. Push to current branch on remote origin: `git push origin <current_branch>`
-4. Push Google Apps Script backend if any GAS `.gs` / `.html` / `appsscript.json` files were modified: `npm run gas:push && npx @google/clasp deploy -i AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg -d "auto-sync update"`
+4. Push Google Apps Script backend if any GAS `.gs` / `.html` / `appsscript.json` files were modified: `npm run gas:push && npx @google/clasp deploy -i AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA -d "auto-sync update"`
 5. Keep knowledge graph current: `python -m graphify.cli update .`
 
 ---
