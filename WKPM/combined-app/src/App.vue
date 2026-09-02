@@ -1,503 +1,74 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import LoginScreen from './components/LoginScreen.vue'
 import LiveTrackingMap from './components/LiveTrackingMap.vue'
 import AdminCreatePanel from './components/AdminCreatePanel.vue'
 import AdminMonitoringPanel from './components/AdminMonitoringPanel.vue'
 import MaterialEditorModal from './components/MaterialEditorModal.vue'
 import DriverDeliveryPanel from './components/DriverDeliveryPanel.vue'
-import {
-  getCurrentCoordinates,
-  startLiveTracking,
-  removeActiveTrip
-} from './services/trackingService'
+import { useAuth } from './composables/useAuth'
+import { useKpm } from './composables/useKpm'
 
-const scriptUrl = import.meta.env.VITE_API_URL || '/api'
-const requestTimeout = 30000
+// Composables
+const {
+  currentUser,
+  loginError,
+  isAuthBusy,
+  driverName,
+  mode,
+  loadSavedSession,
+  loginWithCredentials,
+  loginWithGoogle,
+  loginWithQr,
+  logout
+} = useAuth()
 
-// User Authentication Session State
-const currentUser = ref(null)
-const loginError = ref('')
+const {
+  master,
+  monitoring,
+  deliveries,
+  selectedDelivery,
+  filter,
+  filteredMonitoring,
+  busy,
+  message,
+  error,
+  editingKpm,
+  editItemsList,
+  loadMaster,
+  loadMonitoring,
+  loadDeliveries,
+  handleCreateKpm,
+  handleArchiveKpm,
+  handleAdminChangeStatus,
+  startEditLatestKpm,
+  addEditItem,
+  removeEditItem,
+  saveLatestKpmItems,
+  handleDriverStatusUpdate
+} = useKpm()
 
-function loadSavedSession() {
-  const saved = localStorage.getItem('kpm_user_session') || sessionStorage.getItem('kpm_user_session')
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved)
-      if (parsed && parsed.role) {
-        currentUser.value = parsed
-        mode.value = parsed.role === 'admin' ? 'admin' : 'user'
-        if (parsed.role === 'user' && parsed.name) {
-          driverName.value = parsed.name
-        }
-      }
-    } catch {}
-  }
-}
-
-const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
-const mode = ref(currentPath.endsWith('/kpm/personel') ? 'user' : 'admin')
+// Admin Navigation Tab
 const adminView = ref('create')
-const busy = ref(false)
-const message = ref('')
-const error = ref('')
-const master = ref({ workshops: [], pics: [], uoms: [] })
-const monitoring = ref([])
-const deliveries = ref([])
-const selectedDelivery = ref(null)
-const filter = ref('Semua')
-const driverName = ref(localStorage.getItem('kpm_driver_name') || '')
-const archivedLoaded = ref(false)
 
-const filteredMonitoring = computed(() => {
-  if (filter.value === 'Semua') {
-    return monitoring.value.filter(item => item.status !== 'Selesai')
-  }
-  if (filter.value === 'Selesai') {
-    return monitoring.value.filter(item => item.status === 'Selesai')
-  }
-  return monitoring.value.filter(item => item.status === filter.value)
-})
-
-function clearNotice() {
-  message.value = ''
-  error.value = ''
-}
-
-async function api(action, options = {}) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), requestTimeout)
+async function onLoginCredentials(payload) {
   try {
-    const params = new URLSearchParams(options.body || {})
-    params.set('action', action)
-    params.set('role', currentUser.value?.role || mode.value)
-    if (currentUser.value?.token) {
-      params.set('apiToken', currentUser.value.token)
-    }
-    const isGet = options.method === 'GET'
-    const response = await fetch(isGet ? `${scriptUrl}?${params}` : scriptUrl, {
-      method: options.method || 'POST',
-      body: isGet ? undefined : params,
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-    const result = await response.json().catch(() => null)
-    if (!response.ok) {
-      throw new Error(result?.error?.message || `Server returned ${response.status}`)
-    }
-    if (!result?.success) {
-      const detail = result?.error?.message || result?.error?.code
-      throw new Error(detail || `API menolak permintaan: ${JSON.stringify(result)}`)
-    }
-    return result.data
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-// Authentication Handlers
-async function handleLoginCredentials(payload) {
-  loginError.value = ''
-  busy.value = true
-  try {
-    const data = await api('login', {
-      body: {
-        username: payload.username,
-        password: payload.password
-      }
-    })
-    if (!data || !data.role) {
-      throw new Error('Respons otentikasi tidak valid.')
-    }
-    currentUser.value = data
-    mode.value = data.role === 'admin' ? 'admin' : 'user'
-    if (data.role === 'user' && data.name) {
-      driverName.value = data.name
-      localStorage.setItem('kpm_driver_name', data.name)
-    }
-    const sessionStr = JSON.stringify(data)
-    if (payload.rememberMe) {
-      localStorage.setItem('kpm_user_session', sessionStr)
-    } else {
-      sessionStorage.setItem('kpm_user_session', sessionStr)
-    }
+    await loginWithCredentials(payload)
     if (mode.value === 'admin') loadMaster()
     else loadDeliveries()
-  } catch (e) {
-    loginError.value = e.message
-  } finally {
-    busy.value = false
-  }
+  } catch {}
 }
 
-async function handleLoginGoogle(payload) {
-  loginError.value = ''
-  busy.value = true
+async function onLoginGoogle(payload) {
   try {
-    const data = await api('login', {
-      body: {
-        googleEmail: payload.googleEmail
-      }
-    })
-    if (!data || !data.role) {
-      throw new Error('Akun Google tidak terdaftar di sistem pengguna.')
-    }
-    currentUser.value = data
-    mode.value = data.role === 'admin' ? 'admin' : 'user'
-    if (data.role === 'user' && data.name) {
-      driverName.value = data.name
-      localStorage.setItem('kpm_driver_name', data.name)
-    }
-    const sessionStr = JSON.stringify(data)
-    if (payload.rememberMe) {
-      localStorage.setItem('kpm_user_session', sessionStr)
-    } else {
-      sessionStorage.setItem('kpm_user_session', sessionStr)
-    }
+    await loginWithGoogle(payload)
     if (mode.value === 'admin') loadMaster()
     else loadDeliveries()
-  } catch (e) {
-    loginError.value = e.message
-  } finally {
-    busy.value = false
-  }
+  } catch {}
 }
 
-async function handleLoginQr(qrAuthToken) {
-  if (!qrAuthToken) return
-  loginError.value = ''
-  busy.value = true
-  try {
-    const data = await api('login', {
-      body: {
-        qrAuth: qrAuthToken
-      }
-    })
-    if (!data || !data.role) {
-      throw new Error('QR Code Login tidak valid atau tidak terdaftar.')
-    }
-    currentUser.value = data
-    mode.value = data.role === 'admin' ? 'admin' : 'user'
-    if (data.role === 'user' && data.name) {
-      driverName.value = data.name
-      localStorage.setItem('kpm_driver_name', data.name)
-    }
-    const sessionStr = JSON.stringify(data)
-    localStorage.setItem('kpm_user_session', sessionStr)
-
-    // Clean query parameters from address bar
-    try {
-      const url = new URL(window.location.href)
-      url.searchParams.delete('qrAuth')
-      url.searchParams.delete('auth')
-      window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''))
-    } catch {}
-
-    message.value = `Selamat datang, ${data.name || data.username}!`
-    if (mode.value === 'admin') loadMaster()
-    else loadDeliveries()
-  } catch (e) {
-    loginError.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-function handleLogout() {
-  localStorage.removeItem('kpm_user_session')
-  sessionStorage.removeItem('kpm_user_session')
-  currentUser.value = null
-  selectedDelivery.value = null
-  monitoring.value = []
-  deliveries.value = []
-  clearNotice()
-}
-
-async function loadMaster() {
-  if (mode.value !== 'admin') return
-  try {
-    const cached = sessionStorage.getItem('kpm_master_data')
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        if (parsed && parsed.workshops?.length) {
-          master.value = parsed
-        }
-      } catch {}
-    }
-    const data = await api('getMasterData', { method: 'GET' })
-    if (data) {
-      master.value = data
-      sessionStorage.setItem('kpm_master_data', JSON.stringify(data))
-    }
-  } catch (e) {
-    error.value = e.message
-  }
-}
-
-// Lazy loading: fetch active KPMs by default, fetch archived on demand
-async function loadMonitoring(forceRefresh = false, fetchArchived = false) {
-  clearNotice()
-  busy.value = true
-  const includeArchived = fetchArchived || filter.value === 'Selesai'
-  try {
-    const body = {
-      includeArchived: includeArchived ? 'true' : 'false',
-      ...(forceRefresh ? { refresh: 'true' } : {})
-    }
-    monitoring.value = (await api('getMonitoring', { method: 'GET', body })) || []
-    if (includeArchived) {
-      archivedLoaded.value = true
-    }
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-watch(filter, (newFilter) => {
-  if (newFilter === 'Selesai' && !archivedLoaded.value) {
-    loadMonitoring(false, true)
-  }
-})
-
-async function loadDeliveries(forceRefresh = false) {
-  clearNotice()
-  busy.value = true
-  selectedDelivery.value = null
-  try {
-    const body = forceRefresh ? { refresh: 'true' } : {}
-    deliveries.value = (await api('getDeliveries', { method: 'GET', body })) || []
-    startLiveTracking(deliveries.value, driverName.value)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-async function handleCreateKpm(formData) {
-  clearNotice()
-  busy.value = true
-  try {
-    const data = await api('createKpm', {
-      body: {
-        namaPIC: formData.namaPIC,
-        namaProyek: formData.namaProyek,
-        lokasiBerangkat: formData.lokasiBerangkat,
-        lokasiTiba: formData.lokasiTiba,
-        daftarBarang: JSON.stringify(formData.items),
-      },
-    })
-    message.value = `KPM ${data?.nomor || data?.kpmId || ''} berhasil dibuat.`
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-async function handleArchiveKpm(item) {
-  if (!confirm(`Sembunyikan KPM ${item.nomor} dari pantauan?`)) return
-  clearNotice()
-  busy.value = true
-  try {
-    await api('archiveKpm', { body: { nomorKPM: item.nomor, statusKPM: 'Selesai' } })
-    message.value = 'KPM berhasil diarsipkan.'
-    await loadMonitoring(true, true)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-async function handleAdminChangeStatus(item, event) {
-  const selectEl = event.target
-  const newStatus = selectEl.value
-  if (!newStatus || item.status === newStatus) return
-  if (!confirm(`Ubah status KPM ${item.nomor} dari '${item.status}' menjadi '${newStatus}'?`)) {
-    selectEl.value = item.status
-    return
-  }
-  const prevStatus = item.status
-  item.status = newStatus
-  clearNotice()
-  busy.value = true
-  try {
-    await api('adminUpdateStatus', {
-      body: { nomorKPM: item.nomor, statusKPM: newStatus }
-    })
-    message.value = `Status KPM ${item.nomor} berhasil diubah menjadi '${newStatus}'.`
-    await loadMonitoring(true)
-  } catch (e) {
-    item.status = prevStatus
-    selectEl.value = prevStatus
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-// Material Management Modal State & Handlers
-const editingKpm = ref(null)
-const editItemsList = ref([])
-
-function startEditLatestKpm(item) {
-  if (item.status !== 'Baru Dibuat' && item.status !== 'Belum Berangkat') {
-    error.value = `Material tidak dapat diubah karena KPM ${item.nomor} sudah berstatus '${item.status}'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih 'Belum Berangkat'.`
-    return
-  }
-  editingKpm.value = item
-  editItemsList.value = (item.daftarBarang || []).map(b => ({
-    nama: b.nama || '',
-    qty: b.qty || 1,
-    uom: b.uom || 'PCS'
-  }))
-  if (editItemsList.value.length === 0) {
-    editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
-  }
-}
-
-function addEditItem() {
-  editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
-}
-
-function removeEditItem(index) {
-  if (editItemsList.value.length > 1) {
-    editItemsList.value.splice(index, 1)
-  }
-}
-
-async function saveLatestKpmItems() {
-  if (!editingKpm.value) return
-  if (editItemsList.value.some(i => !i.nama?.trim() || Number(i.qty) <= 0)) {
-    error.value = 'Semua material harus memiliki nama dan kuantitas positif.'
-    return
-  }
-  const kpmNomor = editingKpm.value.nomor
-  const itemsPayload = JSON.stringify(editItemsList.value)
-  editingKpm.value = null
-  clearNotice()
-  busy.value = true
-  try {
-    const res = await api('editLatestKpmItems', {
-      body: {
-        nomorKPM: kpmNomor,
-        daftarBarang: itemsPayload
-      }
-    })
-    message.value = res?.message || `Material KPM ${kpmNomor} berhasil diperbarui.`
-    await loadMonitoring(true)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
-}
-
-// Driver actions & photo compression
-async function compressImage(file) {
-  const MAX_WIDTH = 1000
-  const JPEG_QUALITY = 0.72
-
-  if (typeof createImageBitmap === 'function') {
-    const bitmap = await createImageBitmap(file)
-    const scale = Math.min(1, MAX_WIDTH / bitmap.width)
-    const w = Math.max(1, Math.round(bitmap.width * scale))
-    const h = Math.max(1, Math.round(bitmap.height * scale))
-    if (typeof OffscreenCanvas === 'function') {
-      const oc = new OffscreenCanvas(w, h)
-      const ctx = oc.getContext('2d')
-      ctx.drawImage(bitmap, 0, 0, w, h)
-      bitmap.close()
-      const blob = await oc.convertToBlob({ type: 'image/jpeg', quality: JPEG_QUALITY })
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = () => reject(new Error('Foto tidak dapat dibaca.'))
-        reader.readAsDataURL(blob)
-      })
-    }
-    const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(bitmap, 0, 0, w, h)
-    bitmap.close()
-    return canvas.toDataURL('image/jpeg', JPEG_QUALITY)
-  }
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('Foto tidak dapat dibaca.'))
-    reader.onload = event => {
-      const image = new Image()
-      image.onerror = () => reject(new Error('File bukan gambar yang valid.'))
-      image.onload = () => {
-        const scale = Math.min(1, MAX_WIDTH / image.width)
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, Math.round(image.width * scale))
-        canvas.height = Math.max(1, Math.round(image.height * scale))
-        const context = canvas.getContext('2d')
-        if (!context) return reject(new Error('Browser tidak mendukung pemrosesan foto.'))
-        context.drawImage(image, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY))
-      }
-      image.src = event.target.result
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
-async function handleDriverStatusUpdate(payload) {
-  clearNotice()
-  if (!selectedDelivery.value || !payload.statusKPM) {
-    error.value = 'Pilih KPM dan status terlebih dahulu.'
-    return
-  }
-  if (!payload.photoFile) {
-    error.value = 'Foto bukti wajib dilampirkan.'
-    return
-  }
-  busy.value = true
-  try {
-    if (driverName.value) {
-      localStorage.setItem('kpm_driver_name', driverName.value)
-    }
-
-    const coords = await getCurrentCoordinates().catch(() => null)
-    const fotoData = await compressImage(payload.photoFile)
-    const kpmNomor = selectedDelivery.value.nomor || selectedDelivery.value.kpmId
-
-    await api('updateStatus', {
-      body: {
-        nomorKPM: kpmNomor,
-        statusKPM: payload.statusKPM,
-        namaPIC: selectedDelivery.value.pic,
-        driver: driverName.value || '',
-        lokasiWorkshop: payload.statusKPM === 'Tiba'
-          ? (selectedDelivery.value.lokasiTiba || selectedDelivery.value.lokasi)
-          : (selectedDelivery.value.lokasiBerangkat || selectedDelivery.value.lokasi),
-        fotoData: fotoData,
-        latitude: coords?.latitude || '',
-        longitude: coords?.longitude || '',
-      },
-    })
-
-    if (payload.statusKPM === 'Tiba') {
-      await removeActiveTrip(kpmNomor)
-    }
-
-    message.value = 'Status KPM & Koordinat GPS berhasil diperbarui.'
-    await loadDeliveries()
-    startLiveTracking(deliveries.value, driverName.value)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    busy.value = false
-  }
+function onLogout() {
+  logout()
 }
 
 onMounted(() => {
@@ -505,7 +76,12 @@ onMounted(() => {
   const qrAuthToken = urlParams.get('qrAuth') || urlParams.get('auth')
 
   if (qrAuthToken) {
-    handleLoginQr(qrAuthToken)
+    loginWithQr(qrAuthToken).then((data) => {
+      if (data) {
+        if (mode.value === 'admin') loadMaster()
+        else loadDeliveries()
+      }
+    })
     return
   }
 
@@ -521,10 +97,10 @@ onMounted(() => {
   <!-- Login Screen if not authenticated -->
   <LoginScreen
     v-if="!currentUser"
-    :busy="busy"
+    :busy="isAuthBusy || busy"
     :errorMessage="loginError"
-    @login-credentials="handleLoginCredentials"
-    @login-google="handleLoginGoogle"
+    @login-credentials="onLoginCredentials"
+    @login-google="onLoginGoogle"
   />
 
   <!-- Authenticated App View -->
@@ -563,7 +139,7 @@ onMounted(() => {
             <button
               type="button"
               class="rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm"
-              @click="handleLogout"
+              @click="onLogout"
               title="Keluar / Ganti Akun"
             >
               Keluar ➔
