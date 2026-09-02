@@ -163,6 +163,46 @@ async function handleLoginGoogle(payload) {
   }
 }
 
+async function handleLoginQr(qrAuthToken) {
+  if (!qrAuthToken) return
+  loginError.value = ''
+  busy.value = true
+  try {
+    const data = await api('login', {
+      body: {
+        qrAuth: qrAuthToken
+      }
+    })
+    if (!data || !data.role) {
+      throw new Error('QR Code Login tidak valid atau tidak terdaftar.')
+    }
+    currentUser.value = data
+    mode.value = data.role === 'admin' ? 'admin' : 'user'
+    if (data.role === 'user' && data.name) {
+      driverName.value = data.name
+      localStorage.setItem('kpm_driver_name', data.name)
+    }
+    const sessionStr = JSON.stringify(data)
+    localStorage.setItem('kpm_user_session', sessionStr)
+
+    // Clean query parameters from address bar
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('qrAuth')
+      url.searchParams.delete('auth')
+      window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''))
+    } catch {}
+
+    message.value = `Selamat datang, ${data.name || data.username}!`
+    if (mode.value === 'admin') loadMaster()
+    else loadDeliveries()
+  } catch (e) {
+    loginError.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
 function handleLogout() {
   localStorage.removeItem('kpm_user_session')
   sessionStorage.removeItem('kpm_user_session')
@@ -461,6 +501,14 @@ async function handleDriverStatusUpdate(payload) {
 }
 
 onMounted(() => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const qrAuthToken = urlParams.get('qrAuth') || urlParams.get('auth')
+
+  if (qrAuthToken) {
+    handleLoginQr(qrAuthToken)
+    return
+  }
+
   loadSavedSession()
   if (currentUser.value) {
     if (mode.value === 'admin') loadMaster()

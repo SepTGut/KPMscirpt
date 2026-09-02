@@ -293,9 +293,8 @@ npm run git:sync
 
 | Portal / Aplikasi | URL Publik / Link Unduhan | QR Code File |
 | :--- | :--- | :---: |
+| **Pintu Masuk Terpadu (Universal: Admin & Driver)** | `https://combined-app-eight.vercel.app/kpm` | [`qr code/qr_kpm_universal.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_kpm_universal.png) |
 | **Aplikasi Driver Mobile (APK)** | **[Unduh di GitHub Releases](https://github.com/SepTGut/KPMscirpt/releases)** | *(File APK Android)* |
-| **Web Portal Admin & Radar** | `https://combined-app-theta.vercel.app/kpm` | [`qr code/qr_admin_kpm.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_admin_kpm.png) |
-| **Web Portal Driver** | `https://combined-app-theta.vercel.app/kpm/personel` | [`qr code/qr_personel_driver.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_personel_driver.png) |
 | **Kartu Cetak Siap Print** | Buka di browser: [`qr code/print_qr_codes.html`](file:///d:/MyCode/KPMscirpt/qr%20code/print_qr_codes.html) | *(Halaman Cetak A4)* |
 
 ---

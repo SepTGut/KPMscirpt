@@ -251,7 +251,17 @@ function onEdit(e) {
   if (!e || !e.range) return;
 
   var sheet = e.range.getSheet();
-  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME_LOWER) return;
+  var sheetName = sheet.getName().trim().toLowerCase();
+
+  // Handle automatic QR code generation on Users sheet
+  if (sheetName === "users") {
+    if (typeof ensureUserQrCodes === 'function') {
+      ensureUserQrCodes(sheet);
+    }
+    return;
+  }
+
+  if (sheetName !== MONITOR_SHEET_NAME_LOWER) return;
 
   var startRow = e.range.getRow();
   var numRows = e.range.getNumRows();

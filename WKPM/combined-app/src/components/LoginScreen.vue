@@ -100,6 +100,14 @@ function initGis() {
         <p class="text-xs text-google-surface-500 mt-1 font-medium">Pintu Masuk Otentikasi Terpadu (Admin & Driver)</p>
       </div>
 
+      <!-- QR Auto Login Banner Hint -->
+      <div class="mx-6 mt-4 p-2.5 bg-google-blue-50/70 border border-google-blue-200/80 rounded-2xl flex items-center gap-2.5 text-xs text-google-blue-800">
+        <span class="text-base">⚡</span>
+        <span class="font-medium leading-relaxed">
+          Punya <strong>Kartu QR Login</strong>? Cukup scan dengan kamera HP untuk masuk otomatis.
+        </span>
+      </div>
+
       <!-- Error Message -->
       <div v-if="errorMessage" class="mx-6 mt-4 p-3 bg-google-red-50 border border-google-red-200 text-google-red-700 text-xs font-bold rounded-2xl flex items-center gap-2">
         <span>⚠️</span>

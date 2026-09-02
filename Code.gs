@@ -42,6 +42,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
+    .addItem('📇 Cetak Kartu QR Pengguna (ID Card)', 'openPrintUserQrDialog')
     .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
     .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
     .addItem('👥 Setup Sheet Pengguna (Users)', 'setupUsersSheet')
@@ -49,6 +50,21 @@ function onOpen() {
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
     .addToUi();
+}
+
+// ============================================
+// USER QR CODE CARDS DIALOG
+// ============================================
+function openPrintUserQrDialog() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan.");
+    return;
+  }
+
+  var html = HtmlService.createHtmlOutputFromFile('PrintUserQR')
+    .setWidth(860)
+    .setHeight(680);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Cetak Kartu QR Login Pengguna');
 }
 
 // ============================================

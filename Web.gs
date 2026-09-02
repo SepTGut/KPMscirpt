@@ -125,9 +125,11 @@ function getApiTokens() {
 }
 
 var USERS_SHEET_NAME = "Users";
+var KPM_WEB_BASE_URL = "https://combined-app-eight.vercel.app/kpm";
 
 /**
  * Initializes and formats the Users sheet in spreadsheet if not exists.
+ * Includes QR Token and QrCode columns.
  */
 function setupUsersSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -136,30 +138,145 @@ function setupUsersSheet() {
     sheet = ss.insertSheet(USERS_SHEET_NAME);
   }
   var headers = [
-    ["No", "Username", "Email", "PIN / Password", "Nama Lengkap", "Peran (Role)", "Status", "Keterangan"]
+    ["No", "Username", "Email", "PIN / Password", "Nama Lengkap", "Peran (Role)", "Status", "Keterangan", "QR Token", "QrCode"]
   ];
   if (sheet.getLastRow() < 1) {
     sheet.getRange(1, 1, 1, headers[0].length).setValues(headers);
     sheet.getRange(1, 1, 1, headers[0].length).setFontWeight("bold").setBackground("#e8f0fe");
     sheet.setFrozenRows(1);
 
-    // Initial default sample users
+    // Initial default sample users with automatic QR tokens
     var initialUsers = [
-      [1, "admin", "aang@kpm.com", "admin123", "AANG", "Admin", "Aktif", "Supervisor / PIC KPM"],
-      [2, "eko", "eko@kpm.com", "admin123", "EKO", "Admin", "Aktif", "Admin Logistik"],
-      [3, "driver1", "budi@kpm.com", "driver123", "PAK BUDI", "Driver", "Aktif", "Driver Armada 1"],
-      [4, "driver2", "joko@kpm.com", "driver123", "PAK JOKO", "Driver", "Aktif", "Driver Armada 2"]
+      [1, "admin", "aang@kpm.com", "admin123", "AANG", "Admin", "Aktif", "Supervisor / PIC KPM", "kpm_usr_admin_aang", ''],
+      [2, "eko", "eko@kpm.com", "admin123", "EKO", "Admin", "Aktif", "Admin Logistik", "kpm_usr_admin_eko", ''],
+      [3, "driver1", "budi@kpm.com", "driver123", "PAK BUDI", "Driver", "Aktif", "Driver Armada 1", "kpm_usr_drv_budi", ''],
+      [4, "driver2", "joko@kpm.com", "driver123", "PAK JOKO", "Driver", "Aktif", "Driver Armada 2", "kpm_usr_drv_joko", '']
     ];
     sheet.getRange(2, 1, initialUsers.length, headers[0].length).setValues(initialUsers);
   }
+
+  ensureUserQrCodes(sheet);
   return sheet;
+}
+
+/**
+ * Automatically populates QR Token and QrCode formulas for all users in the Users sheet.
+ */
+function ensureUserQrCodes(sheet) {
+  if (!sheet) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    sheet = ss.getSheetByName(USERS_SHEET_NAME);
+  }
+  if (!sheet) return;
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  // Ensure header titles for Col 9 & Col 10
+  var headerValues = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 10)).getValues()[0];
+  if (!headerValues[8] || headerValues[8].toString().trim() === "") {
+    sheet.getRange(1, 9).setValue("QR Token").setFontWeight("bold").setBackground("#e8f0fe");
+  }
+  if (!headerValues[9] || headerValues[9].toString().trim() === "") {
+    sheet.getRange(1, 10).setValue("QrCode").setFontWeight("bold").setBackground("#e8f0fe");
+  }
+
+  var numRows = lastRow - 1;
+  var rangeData = sheet.getRange(2, 1, numRows, 10);
+  var values = rangeData.getValues();
+  var formulas = rangeData.getFormulas();
+  var hasValuesChange = false;
+  var hasFormulasChange = false;
+
+  for (var i = 0; i < numRows; i++) {
+    var rowNum = i + 2;
+    var uName = String(values[i][1] || "").trim();
+    var uFullName = String(values[i][4] || "").trim();
+    var qrToken = String(values[i][8] || "").trim();
+    var currentFormula = formulas[i][9];
+
+    if (uName || uFullName) {
+      if (!qrToken) {
+        qrToken = "kpm_usr_" + Utilities.getUuid().replace(/-/g, '').substring(0, 10);
+        values[i][8] = qrToken;
+        hasValuesChange = true;
+      }
+
+      var expectedFormula = '=IF(I' + rowNum + '=""; ""; IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" & ENCODEURL("' + KPM_WEB_BASE_URL + '?qrAuth=" & I' + rowNum + '); 1))';
+      if (!currentFormula || currentFormula !== expectedFormula) {
+        formulas[i][9] = expectedFormula;
+        hasFormulasChange = true;
+      }
+    }
+  }
+
+  if (hasValuesChange) {
+    rangeData.setValues(values);
+  }
+  if (hasFormulasChange) {
+    rangeData.setFormulas(formulas);
+  }
+
+  sheet.setColumnWidth(9, 140);
+  sheet.setColumnWidth(10, 95);
+  sheet.getRange(2, 10, numRows, 1).setHorizontalAlignment("center");
+}
+
+/**
+ * Returns complete user list formatted for printing QR ID Cards.
+ */
+function getUsersForQrPrint() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(USERS_SHEET_NAME) || setupUsersSheet();
+  ensureUserQrCodes(sheet);
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var numCols = Math.max(sheet.getLastColumn(), 10);
+  var data = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+  var list = [];
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var uNo = row[0] || (i + 1);
+    var uName = String(row[1] || "").trim();
+    var uEmail = String(row[2] || "").trim();
+    var uFullName = String(row[4] || "").trim();
+    var uRole = String(row[5] || "Driver").trim();
+    var uStatus = String(row[6] || "Aktif").trim();
+    var uKet = String(row[7] || "").trim();
+    var uQrToken = String(row[8] || "").trim();
+
+    if (!uName && !uFullName) continue;
+
+    var loginUrl = KPM_WEB_BASE_URL + "?qrAuth=" + encodeURIComponent(uQrToken);
+    var qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + encodeURIComponent(loginUrl);
+
+    list.push({
+      no: uNo,
+      username: uName,
+      email: uEmail,
+      fullName: uFullName || uName,
+      role: uRole,
+      isAdmin: uRole.toLowerCase() === "admin",
+      status: uStatus,
+      keterangan: uKet,
+      qrToken: uQrToken,
+      loginUrl: loginUrl,
+      qrImageUrl: qrImageUrl
+    });
+  }
+
+  return list;
 }
 
 /**
  * Authenticates user credentials against the Users sheet in spreadsheet.
  * Supports:
- * 1. Username/Email + Password/PIN
- * 2. Google OAuth ID Token (Email match)
+ * 1. QR Code Scan (qrAuth token match)
+ * 2. Username/Email + Password/PIN
+ * 3. Google OAuth ID Token (Email match)
  */
 function loginUser(params) {
   if (!params) {
@@ -169,6 +286,7 @@ function loginUser(params) {
   var inputUsername = String(params.username || params.email || "").trim().toLowerCase();
   var inputPassword = String(params.password || params.pin || "").trim();
   var googleEmail = String(params.googleEmail || "").trim().toLowerCase();
+  var qrAuthToken = String(params.qrAuth || params.token || "").trim();
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(USERS_SHEET_NAME) || setupUsersSheet();
@@ -180,7 +298,9 @@ function loginUser(params) {
     lastRow = sheet.getLastRow();
   }
 
-  var data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+  ensureUserQrCodes(sheet);
+  var numCols = Math.max(sheet.getLastColumn(), 10);
+  var data = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
   var matchedUser = null;
 
   for (var i = 0; i < data.length; i++) {
@@ -191,8 +311,25 @@ function loginUser(params) {
     var uFullName = String(row[4] || "").trim();
     var uRole = String(row[5] || "").trim();
     var uStatus = String(row[6] || "").trim();
+    var uQrToken = String(row[8] || "").trim();
 
-    // 1. Match via Google Email
+    // 1. Match via QR Auth Token
+    if (qrAuthToken && uQrToken && (uQrToken === qrAuthToken || uQrToken.toLowerCase() === qrAuthToken.toLowerCase())) {
+      if (uStatus.toLowerCase() !== "aktif") {
+        throw { code: "ACCOUNT_INACTIVE", message: "Akun (" + (uFullName || uName) + ") sedang dinonaktifkan. Hubungi Admin." };
+      }
+      matchedUser = {
+        username: uName || uFullName,
+        email: uEmail,
+        name: uFullName || uName,
+        role: uRole.toLowerCase() === "admin" ? "admin" : "user",
+        roleLabel: uRole || "Driver",
+        authMethod: "qr"
+      };
+      break;
+    }
+
+    // 2. Match via Google Email
     if (googleEmail && uEmail && uEmail === googleEmail) {
       if (uStatus.toLowerCase() !== "aktif") {
         throw { code: "ACCOUNT_INACTIVE", message: "Akun Google Anda (" + uEmail + ") sedang berstatus nonaktif. Hubungi Admin." };
@@ -202,12 +339,13 @@ function loginUser(params) {
         email: uEmail,
         name: uFullName || uName,
         role: uRole.toLowerCase() === "admin" ? "admin" : "user",
-        roleLabel: uRole || "Driver"
+        roleLabel: uRole || "Driver",
+        authMethod: "google"
       };
       break;
     }
 
-    // 2. Match via Username / Email + Password / PIN
+    // 3. Match via Username / Email + Password / PIN
     if (inputUsername && (uName === inputUsername || uEmail === inputUsername)) {
       if (uPass !== inputPassword) {
         throw { code: "INVALID_CREDENTIALS", message: "Username/Email atau PIN salah." };
@@ -220,13 +358,17 @@ function loginUser(params) {
         email: uEmail,
         name: uFullName || uName,
         role: uRole.toLowerCase() === "admin" ? "admin" : "user",
-        roleLabel: uRole || "Driver"
+        roleLabel: uRole || "Driver",
+        authMethod: "credentials"
       };
       break;
     }
   }
 
   if (!matchedUser) {
+    if (qrAuthToken) {
+      throw { code: "INVALID_QR_TOKEN", message: "QR Code Login tidak valid atau tidak terdaftar di sistem." };
+    }
     if (googleEmail) {
       throw { code: "USER_NOT_FOUND", message: "Akun Google (" + googleEmail + ") belum terdaftar di tabel pengguna spreadsheet. Silakan hubungi Admin untuk didaftarkan." };
     }

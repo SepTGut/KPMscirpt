@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       '/api': {
-        target: 'https://combined-app-theta.vercel.app',
+        target: 'https://combined-app-eight.vercel.app',
         changeOrigin: true,
       }
     }
