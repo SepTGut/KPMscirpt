@@ -130,7 +130,7 @@ var ST_SECRET_MASTER_TOKEN = "st_master_access_99x";
 
 /**
  * Initializes and formats the Users sheet in spreadsheet if not exists.
- * Public sheet only contains standard staff accounts (ST is hidden/secret).
+ * Public sheet only contains standard staff accounts 
  */
 function setupUsersSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -146,7 +146,7 @@ function setupUsersSheet() {
     sheet.getRange(1, 1, 1, headers[0].length).setFontWeight("bold").setBackground("#e8f0fe");
     sheet.setFrozenRows(1);
 
-    // Initial default sample staff users (ST is kept secret and not shown here)
+    // Initial default sample staff users 
     var initialUsers = [
       [1, "admin", "aang@kpm.com", "admin123", "AANG", "Admin", "Aktif", "Supervisor / PIC KPM", "kpm_usr_admin_aang", ''],
       [2, "eko", "eko@kpm.com", "admin123", "EKO", "Admin", "Aktif", "Admin Logistik", "kpm_usr_admin_eko", ''],
@@ -1400,7 +1400,7 @@ function validateAndUpdateStatus(params) {
           fotoBerangkat: fotoBerLink,
           fotoTiba: fotoTibLink
         });
-      } catch(tlogErr) {
+      } catch (tlogErr) {
         Logger.log("T.Log archiving notice: " + tlogErr.message);
       }
     }
