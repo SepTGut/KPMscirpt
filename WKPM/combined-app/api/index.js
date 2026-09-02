@@ -74,7 +74,10 @@ export default async function handler(req, res) {
     const requestOptions = {
       method: req.method === 'GET' ? 'GET' : 'POST',
       signal: controller.signal,
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
       redirect: 'follow'
     }
 
