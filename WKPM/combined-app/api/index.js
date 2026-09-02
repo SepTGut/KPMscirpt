@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       const preview = body.replace(/\s+/g, ' ').trim().slice(0, 160)
       return res.status(502).json({
         success: false,
-        error: { code: 'PROXY_ERROR', message: `Apps Script mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}` },
+        error: { code: 'PROXY_ERROR', message: `Apps Script (${upstreamUrl}) mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}` },
       })
     }
 
