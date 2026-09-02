@@ -44,6 +44,7 @@ function onOpen() {
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addItem('📇 Cetak Kartu QR Pengguna (ID Card)', 'openPrintUserQrDialog')
     .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
+    .addItem('📐 Perbaiki Format Sheet (Fix Format)', 'fixFormat')
     .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
     .addItem('👥 Setup Sheet Pengguna (Users)', 'setupUsersSheet')
     .addSeparator()
