@@ -90,28 +90,45 @@ function getPreviousActiveRow(sheet, currentRow) {
 }
 
 /**
- * Increments the numeric sequence portion inside any No LF string.
- * Example: "100/PPO/LF/VIII/2026" -> "101/PPO/LF/VIII/2026"
+ * Increments the numeric sequence portion inside any No LF string
+ * and automatically formats it using the configured Master Template with the current month and year.
+ * Example: "100/PPO/LF/VIII/2026" in Sep 2026 -> "101/PPO/LF/IX/2026"
  */
 function incrementNoLf(noLfStr) {
-  if (!noLfStr) return getDefaultNoLf(0);
+  var settings = typeof getMasterSettings === 'function' ? getMasterSettings() : {};
+  var date = new Date();
+  var year = date.getFullYear();
+  var monthIndex = date.getMonth();
+  var romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+  var monthRoman = romanMonths[monthIndex];
+  var monthNum = String(monthIndex + 1).padStart(2, '0');
 
-  var match = noLfStr.match(/^(.*?)(\d+)(.*)$/);
+  if (!noLfStr) return getDefaultNoLf(1);
+
+  var match = noLfStr.match(/(\d+)/);
+  var nextNum = 1;
+  var padLength = 3;
+
   if (match) {
-    var prefix = match[1];
-    var numStr = match[2];
-    var suffix = match[3];
-    var nextNum = parseInt(numStr, 10) + 1;
-    var targetLength = Math.max(numStr.length, 3);
-    var paddedNum = String(nextNum).padStart(targetLength, '0');
-    return prefix + paddedNum + suffix;
+    nextNum = parseInt(match[1], 10) + 1;
+    padLength = Math.max(match[1].length, 3);
+  } else {
+    nextNum = parseInt(settings.startNo, 10) || 1;
   }
-  return noLfStr;
+
+  var formattedNo = String(nextNum).padStart(padLength, '0');
+  var tpl = settings.template || settings.lampiranTemplate || "{no}/PPO/LF/{month}/{year}";
+
+  return tpl
+    .replace(/\{no\}/g, formattedNo)
+    .replace(/\{year\}/g, year)
+    .replace(/\{month\}/g, monthRoman)
+    .replace(/\{monthNum\}/g, monthNum);
 }
 
 /**
  * Formats a default No LF string based on Master Settings or default template.
- * Starts from "000" by default (e.g. 000/PPO/LF/VIII/2026).
+ * Starts from "001" by default with active real-time month (Roman) and year.
  */
 function getDefaultNoLf(startSeq) {
   var settings = typeof getMasterSettings === 'function' ? getMasterSettings() : {};
@@ -122,7 +139,7 @@ function getDefaultNoLf(startSeq) {
   var monthRoman = romanMonths[monthIndex];
   var monthNum = String(monthIndex + 1).padStart(2, '0');
 
-  var seq = (startSeq !== undefined && startSeq !== null) ? startSeq : 0;
+  var seq = (startSeq !== undefined && startSeq !== null) ? startSeq : (parseInt(settings.startNo, 10) || 1);
   var formattedNo = String(seq).padStart(3, '0');
 
   var tpl = settings.template || settings.lampiranTemplate || "{no}/PPO/LF/{month}/{year}";
@@ -604,11 +621,14 @@ function printKpmM() {
   var romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
   var monthRoman = romanMonths[date.getMonth()];
 
+  var monthNum = String(date.getMonth() + 1).padStart(2, '0');
+
   var lampiranTpl = settings.lampiranTemplate || "{no}/KPM/{month}/{year}";
   headerInfo.noLampiranKpm = lampiranTpl
     .replace(/\{no\}/g, seqNum)
     .replace(/\{year\}/g, year)
-    .replace(/\{month\}/g, monthRoman);
+    .replace(/\{month\}/g, monthRoman)
+    .replace(/\{monthNum\}/g, monthNum);
 
   var today = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy");
   var displayTanggal = headerInfo.tanggal || today;

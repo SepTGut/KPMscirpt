@@ -1,0 +1,14 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "active_tracking": {
+      ".read": true,
+      ".indexOn": ["status", "driverName", "lastUpdated"],
+      "$kpmId": {
+        ".write": true,
+        ".validate": "newData.val() == null || (newData.hasChildren(['latitude', 'longitude', 'kpmId']) && newData.child('latitude').isNumber() && newData.child('latitude').val() >= -90 && newData.child('latitude').val() <= 90 && newData.child('longitude').isNumber() && newData.child('longitude').val() >= -180 && newData.child('longitude').val() <= 180 && newData.child('kpmId').isString() && newData.child('kpmId').val().length > 0 && newData.child('kpmId').val().length <= 100 && (!newData.hasChild('speedKmh') || (newData.child('speedKmh').isNumber() && newData.child('speedKmh').val() >= 0 && newData.child('speedKmh').val() <= 300)) && (!newData.hasChild('accuracy') || newData.child('accuracy').isNumber()) && (!newData.hasChild('heading') || newData.child('heading').val() == null || newData.child('heading').isNumber()))"
+      }
+    }
+  }
+}

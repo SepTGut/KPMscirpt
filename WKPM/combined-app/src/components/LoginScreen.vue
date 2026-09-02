@@ -23,10 +23,6 @@ function submitPasswordLogin() {
   })
 }
 
-function quickFill(user, pass) {
-  username.value = user
-  password.value = pass
-}
 
 // Google Identity Services (GIS) Callback
 function handleGoogleCredentialResponse(response) {
@@ -188,30 +184,6 @@ function initGis() {
           </div>
         </div>
 
-        <!-- Demo Accounts Hint (Collapsible) -->
-        <details class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-          <summary class="cursor-pointer font-bold text-google-blue-700 select-none">
-            💡 Bantuan Akun Default Spreadsheet
-          </summary>
-          <div class="mt-2 space-y-1.5 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/70 text-[11px] text-amber-950">
-            <p class="font-bold text-amber-900">Klik untuk isi otomatis (Demo/Testing):</p>
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              <button type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-mono font-bold hover:bg-amber-100" @click="quickFill('admin', 'admin123')">
-                🛡️ Admin (AANG)
-              </button>
-              <button type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-mono font-bold hover:bg-amber-100" @click="quickFill('eko', 'admin123')">
-                🛡️ Admin (EKO)
-              </button>
-              <button type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-mono font-bold hover:bg-amber-100" @click="quickFill('driver1', 'driver123')">
-                🚚 Driver (BUDI)
-              </button>
-              <button type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-mono font-bold hover:bg-amber-100" @click="quickFill('driver2', 'driver123')">
-                🚚 Driver (JOKO)
-              </button>
-            </div>
-            <p class="text-[10px] text-amber-700 italic pt-1">*Akun dan PIN dapat diubah kapan saja di tab 'Users' pada Google Spreadsheet.</p>
-          </div>
-        </details>
       </form>
     </div>
 
