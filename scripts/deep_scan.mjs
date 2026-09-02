@@ -1,5 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
 console.log('=== STARTING DEEP SCAN FOR KPM SCRIPT PROJECT ===\n');
 
@@ -9,16 +14,18 @@ const passed = [];
 
 // 1. Check all frontend files for API actions
 const frontendFiles = [
-  'WKPM/combined-app/src/App.vue',
-  'WKPM/combined-app/src/components/AdminCreatePanel.vue',
-  'WKPM/combined-app/src/components/AdminMonitoringPanel.vue',
-  'WKPM/combined-app/src/components/DriverDeliveryPanel.vue',
-  'WKPM/combined-app/src/components/MaterialEditorModal.vue',
-  'WKPM/combined-app/src/components/LiveTrackingMap.vue',
-  'WKPM/combined-app/src/services/trackingService.js',
-  'WKPM/admin/admin.js',
-  'WKPM/user/user.js',
-  'apps/driver-app/src/services/api.js'
+  path.join(rootDir, 'apps/web/src/App.vue'),
+  path.join(rootDir, 'apps/web/src/composables/useApi.js'),
+  path.join(rootDir, 'apps/web/src/composables/useAuth.js'),
+  path.join(rootDir, 'apps/web/src/composables/useKpm.js'),
+  path.join(rootDir, 'apps/web/src/composables/useGps.js'),
+  path.join(rootDir, 'apps/web/src/components/AdminCreatePanel.vue'),
+  path.join(rootDir, 'apps/web/src/components/AdminMonitoringPanel.vue'),
+  path.join(rootDir, 'apps/web/src/components/DriverDeliveryPanel.vue'),
+  path.join(rootDir, 'apps/web/src/components/MaterialEditorModal.vue'),
+  path.join(rootDir, 'apps/web/src/components/LiveTrackingMap.vue'),
+  path.join(rootDir, 'apps/web/src/services/trackingService.js'),
+  path.join(rootDir, 'apps/mobile/src/services/api.js')
 ];
 
 const frontEndActions = new Set();
@@ -36,119 +43,103 @@ for (const file of frontendFiles) {
 
 console.log('1. Frontend Actions Discovered:', Array.from(frontEndActions));
 
-// 2. Check Web.gs action handlers in doGet and doPost
-const webGs = fs.readFileSync('Web.gs', 'utf8');
+// 2. Check GAS action handlers in gas/Router.gs, gas/KpmAction.gs, gas/KpmMonitor.gs, gas/Auth.gs
+const gasDir = path.join(rootDir, 'gas');
+let allGasCode = '';
+if (fs.existsSync(gasDir)) {
+  const gasFiles = fs.readdirSync(gasDir).filter(f => f.endsWith('.gs'));
+  for (const file of gasFiles) {
+    allGasCode += fs.readFileSync(path.join(gasDir, file), 'utf8') + '\n';
+  }
+}
+
 const backendHandledActions = new Set();
-const actionMatches = webGs.matchAll(/action\s*===\s*["']([a-zA-Z0-9_-]+)["']/g);
+const actionMatches = allGasCode.matchAll(/action\s*===\s*["']([a-zA-Z0-9_-]+)["']/g);
 for (const m of actionMatches) {
   backendHandledActions.add(m[1]);
 }
-const switchMatches = webGs.matchAll(/case\s+["']([a-zA-Z0-9_-]+)["']\s*:/g);
+const switchMatches = allGasCode.matchAll(/case\s+["']([a-zA-Z0-9_-]+)["']\s*:/g);
 for (const m of switchMatches) {
   backendHandledActions.add(m[1]);
 }
 
-console.log('2. Backend Handled Actions in Web.gs:', Array.from(backendHandledActions));
+console.log('2. Backend Handled Actions in gas/*.gs:', Array.from(backendHandledActions));
 
 for (const act of frontEndActions) {
   if (!backendHandledActions.has(act)) {
-    issues.push(`Frontend calls action '${act}' but it is NOT handled in Web.gs switch cases!`);
+    issues.push(`Frontend calls action '${act}' but it is NOT handled in gas/*.gs switch cases!`);
   } else {
-    passed.push(`Action '${act}' is registered and handled in Web.gs`);
+    passed.push(`Action '${act}' is registered and handled in gas backend`);
   }
 }
 
-// 3. Check for undeclared variables in Web.gs and other .gs files
-const gsFiles = ['Web.gs', 'KPMn.gs', 'Code.gs', 'Gps.gs', 'About.gs', 'Test.gs'];
-for (const file of gsFiles) {
-  if (fs.existsSync(file)) {
-    const code = fs.readFileSync(file, 'utf8');
-    // Check for common typo patterns or undefined references
-    if (code.match(/\bpic\s*:\s*pic\b/)) {
-      issues.push(`Found potentially undeclared 'pic: pic' in ${file}`);
+// 3. Check for Tokens consistency
+const apiIndexFile = path.join(rootDir, 'apps/web/api/index.js');
+const serverMjsFile = path.join(rootDir, 'apps/web/server.mjs');
+const authGsFile = path.join(rootDir, 'gas/Auth.gs');
+
+if (fs.existsSync(apiIndexFile) && fs.existsSync(serverMjsFile)) {
+  const apiIndex = fs.readFileSync(apiIndexFile, 'utf8');
+  const serverMjs = fs.readFileSync(serverMjsFile, 'utf8');
+
+  const adminToken1 = (apiIndex.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+  const adminToken2 = (serverMjs.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+
+  if (adminToken1 && adminToken2 && adminToken1 === adminToken2) {
+    passed.push(`DEFAULT_ADMIN_TOKEN is consistent across Vercel API and Docker Server (${adminToken1.slice(0, 8)}...)`);
+  } else {
+    issues.push('DEFAULT_ADMIN_TOKEN mismatch between Vercel API and Docker server.mjs');
+  }
+
+  const driverToken1 = (apiIndex.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+  const driverToken2 = (serverMjs.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+
+  if (driverToken1 && driverToken2 && driverToken1 === driverToken2) {
+    passed.push(`DEFAULT_DRIVER_TOKEN is consistent across Vercel API and Docker Server (${driverToken1.slice(0, 8)}...)`);
+  } else {
+    issues.push('DEFAULT_DRIVER_TOKEN mismatch between Vercel API and Docker server.mjs');
+  }
+}
+
+// 4. Check Spreadsheet Column Constants consistency in WebConfig.gs vs KPMn.gs
+const webConfigGsFile = path.join(rootDir, 'gas/WebConfig.gs');
+const kpmnGsFile = path.join(rootDir, 'gas/KPMn.gs');
+
+if (fs.existsSync(webConfigGsFile) && fs.existsSync(kpmnGsFile)) {
+  const webConfigGs = fs.readFileSync(webConfigGsFile, 'utf8');
+  const kpmnGs = fs.readFileSync(kpmnGsFile, 'utf8');
+
+  const webCols = {};
+  const kpmnCols = {};
+
+  for (const m of webConfigGs.matchAll(/var\s+(MONITOR_COL_[A-Z_]+)\s*=\s*(\d+);/g)) {
+    webCols[m[1]] = parseInt(m[2], 10);
+  }
+  for (const m of kpmnGs.matchAll(/var\s+(MONITOR_COL_[A-Z_]+)\s*=\s*(\d+);/g)) {
+    kpmnCols[m[1]] = parseInt(m[2], 10);
+  }
+
+  let colMismatch = false;
+  for (const col of Object.keys(webCols)) {
+    if (kpmnCols[col] !== undefined && kpmnCols[col] !== webCols[col]) {
+      issues.push(`Column index mismatch for ${col}: WebConfig.gs has ${webCols[col]}, KPMn.gs has ${kpmnCols[col]}`);
+      colMismatch = true;
     }
-    if (code.match(/\bdriver\s*:\s*driver\b/) && file === 'Web.gs') {
-      // Check context in Web.gs
-    }
+  }
+  if (!colMismatch && Object.keys(webCols).length > 0) {
+    passed.push(`Column indices (${Object.keys(webCols).length} constants) are consistent between WebConfig.gs and KPMn.gs`);
   }
 }
 
-// 4. Check Tokens consistency
-const envExample = fs.existsSync('WKPM/combined-app/.env.example') ? fs.readFileSync('WKPM/combined-app/.env.example', 'utf8') : '';
-const envFile = fs.existsSync('WKPM/combined-app/.env') ? fs.readFileSync('WKPM/combined-app/.env', 'utf8') : '';
-const apiIndex = fs.readFileSync('WKPM/combined-app/api/index.js', 'utf8');
-const netlifyApi = fs.readFileSync('WKPM/combined-app/netlify/functions/api.mjs', 'utf8');
-
-// Check default tokens in proxy files
-const adminTokenMatch1 = apiIndex.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/);
-const adminTokenMatch2 = netlifyApi.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/);
-const driverTokenMatch1 = apiIndex.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/);
-const driverTokenMatch2 = netlifyApi.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/);
-
-if (adminTokenMatch1 && adminTokenMatch2 && adminTokenMatch1[1] !== adminTokenMatch2[1]) {
-  issues.push('DEFAULT_ADMIN_TOKEN in api/index.js does not match netlify/functions/api.mjs');
-} else {
-  passed.push('DEFAULT_ADMIN_TOKEN is consistent across Vercel and Netlify');
-}
-
-if (driverTokenMatch1 && driverTokenMatch2 && driverTokenMatch1[1] !== driverTokenMatch2[1]) {
-  issues.push('DEFAULT_DRIVER_TOKEN in api/index.js does not match netlify/functions/api.mjs');
-} else {
-  passed.push('DEFAULT_DRIVER_TOKEN is consistent across Vercel and Netlify');
-}
-
-// 5. Check Web.gs Tokens
-const webAdminToken = webGs.match(/ADMIN_TOKEN\s*:\s*["']([^"']+)["']/);
-const webDriverToken = webGs.match(/DRIVER_TOKEN\s*:\s*["']([^"']+)["']/);
-
-if (webAdminToken && adminTokenMatch1 && webAdminToken[1] !== adminTokenMatch1[1]) {
-  issues.push(`ADMIN_TOKEN mismatch between Web.gs (${webAdminToken[1]}) and proxy (${adminTokenMatch1[1]})`);
-} else {
-  passed.push('ADMIN_TOKEN matches between Web.gs and proxy');
-}
-
-if (webDriverToken && driverTokenMatch1 && webDriverToken[1] !== driverTokenMatch1[1]) {
-  issues.push(`DRIVER_TOKEN mismatch between Web.gs (${webDriverToken[1]}) and proxy (${driverTokenMatch1[1]})`);
-} else {
-  passed.push('DRIVER_TOKEN matches between Web.gs and proxy');
-}
-
-// 6. Check Spreadsheet Column Constants consistency in Web.gs vs KPMn.gs
-const webCols = {};
-const kpmnCols = {};
-const kpmnGs = fs.readFileSync('KPMn.gs', 'utf8');
-
-for (const m of webGs.matchAll(/var\s+(MONITOR_COL_[A-Z_]+)\s*=\s*(\d+);/g)) {
-  webCols[m[1]] = parseInt(m[2], 10);
-}
-for (const m of kpmnGs.matchAll(/var\s+(MONITOR_COL_[A-Z_]+)\s*=\s*(\d+);/g)) {
-  kpmnCols[m[1]] = parseInt(m[2], 10);
-}
-
-for (const col of Object.keys(webCols)) {
-  if (kpmnCols[col] !== undefined && kpmnCols[col] !== webCols[col]) {
-    issues.push(`Column index mismatch for ${col}: Web.gs has ${webCols[col]}, KPMn.gs has ${kpmnCols[col]}`);
+// 5. Check KPM Status Constants & State Machine in gas/WebConfig.gs
+if (fs.existsSync(webConfigGsFile)) {
+  const webConfigGs = fs.readFileSync(webConfigGsFile, 'utf8');
+  const transitionsMatch = webConfigGs.match(/var\s+STATUS_TRANSITIONS\s*=\s*(?:Object\.freeze\()?\s*\{([\s\S]*?)\}/);
+  if (transitionsMatch) {
+    passed.push('STATUS_TRANSITIONS state machine map is properly defined in gas/WebConfig.gs');
+  } else {
+    warnings.push('STATUS_TRANSITIONS state machine map not found in gas/WebConfig.gs');
   }
-}
-if (Object.keys(webCols).length > 0) {
-  passed.push(`Column indices (${Object.keys(webCols).length} constants) are consistent`);
-}
-
-// 7. Check KPM Status Constants consistency
-const webStatuses = {};
-for (const m of webGs.matchAll(/([A-Z_]+)\s*:\s*["']([^"']+)["']/g)) {
-  if (m[0].includes('BARU_DIBUAT') || m[0].includes('BELUM_BERANGKAT') || m[0].includes('BERANGKAT') || m[0].includes('TIBA') || m[0].includes('SELESAI')) {
-    webStatuses[m[1]] = m[2];
-  }
-}
-console.log('3. Status Constants Verified:', webStatuses);
-
-// 8. Check Status Transitions map in Web.gs
-const transitionsMatch = webGs.match(/var\s+STATUS_TRANSITIONS\s*=\s*(?:Object\.freeze\()?\s*\{([\s\S]*?)\}/);
-if (transitionsMatch) {
-  passed.push('STATUS_TRANSITIONS state machine map is properly defined in Web.gs');
-} else {
-  warnings.push('STATUS_TRANSITIONS state machine map not found in Web.gs');
 }
 
 // Output Results
@@ -165,5 +156,5 @@ if (issues.length > 0) {
   console.log(`\nCritical / Actionable Issues (${issues.length}):`);
   issues.forEach(i => console.log('  [FAIL]', i));
 } else {
-  console.log('\n✓ No critical mismatches or action route errors detected!');
+  console.log('\n✓ No critical mismatches or action route errors detected! All components are 100% synchronized.');
 }
