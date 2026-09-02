@@ -20,15 +20,15 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: 'WKPM/combined-app/package-lock.json'
+          cache-dependency-path: 'apps/web/package-lock.json'
 
       - name: 🛡️ Verify Cryptographic Integrity Seal
         run: node scripts/seal_integrity.mjs
 
       - name: 📦 Install Frontend Dependencies
-        working-directory: ./WKPM/combined-app
+        working-directory: ./apps/web
         run: npm ci
 
       - name: ⚡ Test Frontend Production Build
-        working-directory: ./WKPM/combined-app
+        working-directory: ./apps/web
         run: npm run build

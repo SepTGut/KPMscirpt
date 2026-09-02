@@ -19,7 +19,7 @@
 - [Spesifikasi API Backend & Modul Gps.gs](#spesifikasi-api-backend--modul-gpsgs)
 - [Panduan Instalasi dan Deployment](#panduan-instalasi-dan-deployment)
   - [1. Konfigurasi Google Apps Script](#1-konfigurasi-google-apps-script)
-  - [2. Konfigurasi Web Portal (Netlify / Vercel)](#2-konfigurasi-web-portal-netlify--vercel)
+  - [2. Konfigurasi Web Portal (Vercel / Docker / Netlify)](#2-konfigurasi-web-portal-vercel--docker--netlify)
   - [3. Build & Rilis APK Driver Android](#3-build--rilis-apk-driver-android)
   - [4. Menjalankan Lokal Development](#4-menjalankan-lokal-development)
 - [Perintah Pintas Git & Sinkronisasi (up & syc)](#perintah-pintas-git--sinkronisasi-up--syc)
@@ -103,6 +103,7 @@
 ## Real-Time Fleet GPS Tracking & Leaflet Radar
 
 Sistem pelacakan armada menggunakan arsitektur hybrid berperforma tinggi:
+
 - **Pengiriman Koordinat:** Driver App membaca GPS via Geolocation API per 10 detik dan mem-push snapshot posisi langsung ke Firebase REST API `/active_tracking/{kpmId}.json`.
 - **Konsumsi Data di Admin:** Peta Web Admin melakukan polling data tiap 3 detik dan memperbarui marker di layar tanpa *page refresh*.
 - **Pembersihan Otomatis:** Ketika driver menekan konfirmasi *"Tiba"*, node di Firebase otomatis dihapus untuk menjaga ukuran database Firebase tetap ramping (<5MB permanen).
@@ -128,12 +129,14 @@ Aplikasi mobile driver terletak pada direktori [`apps/mobile`](file:///d:/MyCode
 Seluruh antarmuka web, mobile, dan dialog Google Apps Script distandardisasi mengikuti panduan desain **Google Material Design 3 (M3)**:
 
 ### 1. Psikologi Warna (Google 4-Color Palette)
+
 - **Google Blue** (`#1a73e8` / `#4285f4`): Kepercayaan & Aksi Utama (Header, tombol navigasi, chip KPM, dan rute asal).
 - **Google Red** (`#ea4335` / `#d93025`): Urgensi & Peringatan (Banner error, tombol reset foto, dan validasi gagal).
 - **Google Yellow / Amber** (`#fbbc04` / `#f9ab00`): Optimisme & Status Berjalan (Badge status "Sedang Jalan", in-transit stepper).
 - **Google Green** (`#34a853` / `#188038`): Pertumbuhan & Sukses (Status tiba di tujuan, konfirmasi berhasil, rute tujuan).
 
 ### 2. Gradien & Kedalaman Visual
+
 - Garis aksen pelangi 4 warna Google (`linear-gradient(90deg, #4285f4, #ea4335, #fbbc04, #34a853)`).
 - Efek elevasi berlapis Material 3 (`shadow-m3-1` hingga `shadow-m3-4`).
 - Glassmorphism lembut pada header dialog dan top bar.
@@ -223,7 +226,8 @@ Data KPM disimpan pada sheet **`KPM Monitor 2026`** (26 Kolom):
 
 ## Spesifikasi API Backend & Modul Gps.gs
 
-### Fungsi Modul [`Gps.gs`](file:///d:/MyCode/KPMscirpt/Gps.gs):
+### Fungsi Modul [`Gps.gs`](file:///d:/MyCode/KPMscirpt/Gps.gs)
+
 - `getFirebaseConfig()`: Mengambil `FIREBASE_DB_URL` dari Script Properties.
 - `createGpsLiveUrl(coord)`: Membuat hyperlink titik lokasi driver live.
 - `createGpsRouterUrl(origin, dest)`: Membuat hyperlink router petunjuk arah mengemudi.
@@ -261,7 +265,25 @@ npm run build
 npx cap sync android
 ./build-apk.ps1
 ```
+
 File APK: `apps/mobile/releases/Driver-KPM-v1.0-Signed.apk`
+
+### 4. Menjalankan Lokal Development
+
+1. **Jalankan Web App (Vite Dev)**:
+
+   ```bash
+   cd apps/web
+   npm run dev
+   ```
+
+2. **Jalankan Docker Container**:
+
+   ```bash
+   npm run docker:up
+   ```
+
+   Aplikasi dapat diakses langsung pada `http://localhost:3000`.
 
 ---
 
@@ -269,14 +291,18 @@ File APK: `apps/mobile/releases/Driver-KPM-v1.0-Signed.apk`
 
 Proyek ini dilengkapi dengan aturan automasi trigger kata kunci:
 
-### 🟢 Ketik `"up"` (Upload, Commit & Push):
+### 🟢 Ketik `"up"` (Upload, Commit & Push)
+
 Otomatis menjalankan `git add .`, membuat commit deskriptif, push ke branch aktif, dan push backend GAS (`npm run gas:push`).
 
-### 🔵 Ketik `"syc"` (Cross-Branch Sync Prioritas `main`):
+### 🔵 Ketik `"syc"` (Cross-Branch Sync Prioritas `main`)
+
 Otomatis menyinkronkan seluruh branch dengan memprioritaskan branch **`main`**:
+
 ```bash
 npm run git:sync
 ```
+
 *(Merge branch aktif ke `main` ➔ Push `main` ➔ Propagasi `main` ke `Beta` & `Apps(personel)` ➔ Kembali ke branch asal).*
 
 ---
@@ -294,14 +320,19 @@ npm run git:sync
 ## Pengujian Otomatis & Simulasi Radar
 
 1. **Uji Otomatis GPS & Operasi Firebase**:
+
    ```bash
    npm run test:gps
    ```
+
 2. **Uji Simulasi Live Visual Armada (26 Titik Interpolasi Halus)**:
+
    ```bash
    npm run test:gps:simulate
    ```
+
 3. **Uji Integritas Seal Kriptografis Google Apps Script**:
+
    ```bash
    npm run gas:integrity
    ```
