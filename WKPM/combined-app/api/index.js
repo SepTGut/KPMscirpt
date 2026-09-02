@@ -11,7 +11,8 @@ export default async function handler(req, res) {
 
   const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
 
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
+  const envUrl = (process.env.GOOGLE_SCRIPT_URL || '').trim()
+  const scriptUrl = (envUrl && !envUrl.includes('AKfycbxXRRDoiIXVt8VwUa7Gq')) ? envUrl : DEFAULT_SCRIPT_URL
   if (!scriptUrl) {
     return res.status(500).json({
       success: false,
