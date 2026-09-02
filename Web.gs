@@ -146,7 +146,7 @@ function setupUsersSheet() {
     sheet.getRange(1, 1, 1, headers[0].length).setFontWeight("bold").setBackground("#e8f0fe");
     sheet.setFrozenRows(1);
 
-    // Initial default sample staff users 
+    // Initial default sample staff users
     var initialUsers = [
       [1, "admin", "aang@kpm.com", "admin123", "AANG", "Admin", "Aktif", "Supervisor / PIC KPM", "kpm_usr_admin_aang", ''],
       [2, "eko", "eko@kpm.com", "admin123", "EKO", "Admin", "Aktif", "Admin Logistik", "kpm_usr_admin_eko", ''],
@@ -1063,19 +1063,19 @@ function validateAndCreateKpm(params) {
     var spekNama = itemObj.nama;
     var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
     if (mat) {
-      rowData[MONITOR_COL_KODE - 1] = mat.kode;
-      rowData[MONITOR_COL_SPEK - 1] = mat.nama;
-      rowData[MONITOR_COL_UOM - 1] = mat.satuan || itemObj.uom || "";
+      rowData[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
+      rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
+      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || itemObj.uom || "");
     } else {
-      rowData[MONITOR_COL_SPEK - 1] = spekNama;
-      rowData[MONITOR_COL_UOM - 1] = itemObj.uom || "";
+      rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
+      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(itemObj.uom || "");
     }
 
-    rowData[MONITOR_COL_PROYEK - 1] = namaProyek;
+    rowData[MONITOR_COL_PROYEK - 1] = sanitizeSpreadsheetInput(namaProyek);
     rowData[MONITOR_COL_QTY - 1] = parseFloat(itemObj.qty) || 1;
-    rowData[MONITOR_COL_PIC - 1] = namaPIC;
-    rowData[MONITOR_COL_WSAWAL - 1] = lokasiBerangkat;
-    rowData[MONITOR_COL_WSTUJUAN - 1] = lokasiTiba;
+    rowData[MONITOR_COL_PIC - 1] = sanitizeSpreadsheetInput(namaPIC);
+    rowData[MONITOR_COL_WSAWAL - 1] = sanitizeSpreadsheetInput(lokasiBerangkat);
+    rowData[MONITOR_COL_WSTUJUAN - 1] = sanitizeSpreadsheetInput(lokasiTiba);
     rowData[MONITOR_COL_STATUS - 1] = statusKPM;
 
     rowsToInsert.push(rowData);
@@ -1355,14 +1355,14 @@ function validateAndUpdateStatus(params) {
       }
     }
 
-    if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = namaPIC;
-    if (namaDriver) allData[rIndex][MONITOR_COL_DRIVER - 1] = namaDriver;
+    if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = sanitizeSpreadsheetInput(namaPIC);
+    if (namaDriver) allData[rIndex][MONITOR_COL_DRIVER - 1] = sanitizeSpreadsheetInput(namaDriver);
     allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
     if (lokasiWorkshop) {
       if (targetStatus === KPM_STATUS.TIBA) {
-        allData[rIndex][MONITOR_COL_WSTUJUAN - 1] = workshopDest;
+        allData[rIndex][MONITOR_COL_WSTUJUAN - 1] = sanitizeSpreadsheetInput(workshopDest);
       } else {
-        allData[rIndex][MONITOR_COL_WSAWAL - 1] = workshopOrigin;
+        allData[rIndex][MONITOR_COL_WSAWAL - 1] = sanitizeSpreadsheetInput(workshopOrigin);
       }
     }
   }
@@ -1559,22 +1559,22 @@ function editLatestKpmItems(params) {
     var spekNama = itm.nama;
     var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
     if (mat) {
-      rowArray[MONITOR_COL_KODE - 1] = mat.kode;
-      rowArray[MONITOR_COL_SPEK - 1] = mat.nama;
-      rowArray[MONITOR_COL_UOM - 1] = mat.satuan || itm.uom || "";
+      rowArray[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
+      rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
+      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || itm.uom || "");
     } else {
-      rowArray[MONITOR_COL_SPEK - 1] = spekNama;
-      rowArray[MONITOR_COL_UOM - 1] = itm.uom || "";
+      rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
+      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(itm.uom || "");
     }
 
     rowArray[MONITOR_COL_QTY - 1] = itm.qty;
-    rowArray[MONITOR_COL_PROYEK - 1] = proyek;
-    rowArray[MONITOR_COL_WBS - 1] = wbs;
-    rowArray[MONITOR_COL_PIC - 1] = pic;
-    rowArray[MONITOR_COL_WSAWAL - 1] = wsAwal;
-    rowArray[MONITOR_COL_WSTUJUAN - 1] = wsTujuan;
-    rowArray[MONITOR_COL_TYPECAR - 1] = typeCar;
-    rowArray[MONITOR_COL_DRIVER - 1] = driver;
+    rowArray[MONITOR_COL_PROYEK - 1] = sanitizeSpreadsheetInput(proyek);
+    rowArray[MONITOR_COL_WBS - 1] = sanitizeSpreadsheetInput(wbs);
+    rowArray[MONITOR_COL_PIC - 1] = sanitizeSpreadsheetInput(pic);
+    rowArray[MONITOR_COL_WSAWAL - 1] = sanitizeSpreadsheetInput(wsAwal);
+    rowArray[MONITOR_COL_WSTUJUAN - 1] = sanitizeSpreadsheetInput(wsTujuan);
+    rowArray[MONITOR_COL_TYPECAR - 1] = sanitizeSpreadsheetInput(typeCar);
+    rowArray[MONITOR_COL_DRIVER - 1] = sanitizeSpreadsheetInput(driver);
     rowArray[MONITOR_COL_STATUS - 1] = status;
     rowArray[MONITOR_COL_WKT_BERANGKAT - 1] = wktBer;
     rowArray[MONITOR_COL_WKT_TIBA - 1] = wktTib;
