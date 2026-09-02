@@ -33,7 +33,7 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│               APLIKASI DRIVER ANDROID (apps/driver-app)                │
+│               APLIKASI DRIVER ANDROID (apps/mobile)                    │
 │   - Vue 3 + Tailwind CSS (Google Material Design 3 Theme)              │
 │   - Capacitor 7 Native Android Engine                                  │
 │   - GPS Geolocation Watcher per 10 Detik saat Status "Jalan"           │
@@ -44,16 +44,16 @@
                │ Streaming GPS Koordinat Realtime          │ Direct HTTPS POST / GET
                ▼                                           ▼
 ┌──────────────────────────────────────┐   ┌─────────────────────────────┐
-│      FIREBASE REALTIME DATABASE      │   │    BACKEND GOOGLE APPS      │
-│  /active_tracking/{kpmId}.json       │   │    SCRIPT (Web.gs & Gps.gs) │
-│ - Koordinat Latitude / Longitude     │   │ - Strict State Machine      │
-│ - Kecepatan (km/h) & Heading Sudut   │   │ - Formula Kolom Z Auto Link │
+│      FIREBASE REALTIME DATABASE      │   │   BACKEND MODULAR GOOGLE    │
+│  /active_tracking/{kpmId}.json       │   │   APPS SCRIPT (gas/*.gs)    │
+│ - Koordinat Latitude / Longitude     │   │ - 6 Granular REST Modules   │
+│ - Kecepatan (km/h) & Heading Sudut   │   │ - Strict State Machine      │
 │ - Nama Driver & Rute Asal ➔ Tujuan   │   │ - Arsip Otomatis Sheet T.Log│
 └──────────────────┬───────────────────┘   └──────────────┬──────────────┘
                    │ Aliran Data Radar                    │
                    ▼                                      ▼
 ┌──────────────────────────────────────┐   ┌─────────────────────────────┐
-│      WEB ADMIN PORTAL (Leaflet)      │   │   DATABASE GOOGLE SHEETS    │
+│      WEB ADMIN PORTAL (apps/web)     │   │   DATABASE GOOGLE SHEETS    │
 │  - Tab 🗺️ Live Radar Armada           │   │ - Sheet: "KPM Monitor 2026" │
 │  - Animasi Radar Denyut & Gliding    │   │   (26 Kolom: A s/d Z)       │
 │  - Jejak Garis Lintasan (Breadcrumb) │   │ - Sheet: "T.Log"            │
@@ -86,11 +86,17 @@
    - Tombol 1-klik navigasi turn-by-turn Google Maps langsung ke workshop tujuan.
    - Pengambilan foto langsung dari kamera dengan kompresi kilat di background thread (<1 detik).
 
-5. **Modul Mandiri Backend Google Apps Script**:
-   - [`Gps.gs`](file:///d:/MyCode/KPMscirpt/Gps.gs): Modul dedicated pemrosesan link koordinat GPS, router URL, konfigurasi Firebase, dan arsip `T.Log`.
-   - [`Web.gs`](file:///d:/MyCode/KPMscirpt/Web.gs): Single source of truth state machine KPM, multi-material generator, dan otentikasi token.
-   - [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs): Mesin spreadsheet, konstanta kolom A–Z, dan modul cetak fisik KPM.
-   - [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs): Proteksi tanda tangan digital kriptografis anti-tamper.
+5. **Backend Modular Google Apps Script (`gas/`)**:
+   - [`WebConfig.gs`](file:///d:/MyCode/KPMscirpt/gas/WebConfig.gs): Konfigurasi sistem, status, enum, respons standar, dan sanitasi formula injection.
+   - [`Auth.gs`](file:///d:/MyCode/KPMscirpt/gas/Auth.gs): Otentikasi (Credentials, Google, QR Token, ST Secret), manajemen sheet `Users`.
+   - [`Storage.gs`](file:///d:/MyCode/KPMscirpt/gas/Storage.gs): Manajemen folder Google Drive dan upload foto bukti pengiriman.
+   - [`KpmMonitor.gs`](file:///d:/MyCode/KPMscirpt/gas/KpmMonitor.gs): Query monitoring, Master Data, data pengiriman driver, dan sistem caching.
+   - [`KpmAction.gs`](file:///d:/MyCode/KPMscirpt/gas/KpmAction.gs): Pembuatan KPM baru, update status (state machine), edit material, dan pengarsipan.
+   - [`Router.gs`](file:///d:/MyCode/KPMscirpt/gas/Router.gs): Entry point HTTP (`doGet` & `doPost`) dan sinkronisasi `LockService`.
+   - [`FixFormat.gs`](file:///d:/MyCode/KPMscirpt/gas/FixFormat.gs): Utilitas manual normalisasi nomor 3-digit dan standardisasi alignment.
+   - [`Gps.gs`](file:///d:/MyCode/KPMscirpt/gas/Gps.gs): Pemrosesan link koordinat GPS, router URL, konfigurasi Firebase, dan arsip `T.Log`.
+   - [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/gas/KPMn.gs): Mesin spreadsheet, konstanta kolom A–Z, dan modul cetak fisik KPM.
+   - [`About.gs`](file:///d:/MyCode/KPMscirpt/gas/About.gs): Proteksi tanda tangan digital kriptografis anti-tamper.
 
 ---
 
@@ -105,7 +111,7 @@ Sistem pelacakan armada menggunakan arsitektur hybrid berperforma tinggi:
 
 ## Aplikasi Mobile Driver Android (APK)
 
-Aplikasi mobile driver terletak pada direktori [`apps/driver-app`](file:///d:/MyCode/KPMscirpt/apps/driver-app) dan dikompilasi menjadi file APK mandiri.
+Aplikasi mobile driver terletak pada direktori [`apps/mobile`](file:///d:/MyCode/KPMscirpt/apps/mobile) dan dikompilasi menjadi file APK mandiri di [`apps/mobile/releases`](file:///d:/MyCode/KPMscirpt/apps/mobile/releases).
 
 ### Keunggulan Driver App
 
@@ -113,7 +119,7 @@ Aplikasi mobile driver terletak pada direktori [`apps/driver-app`](file:///d:/My
 - **Izin GPS Akurasi Tinggi**: Dikonfigurasi dengan `ACCESS_FINE_LOCATION` dan `ACCESS_COARSE_LOCATION` di Android Manifest.
 - **Signed Keystore Resmi**: Dibundel dengan signature release resmi untuk mencegah peringatan keamanan *Google Play Protect*.
 - **Kompresi Gambar Cepat**: Mengompresi foto bukti muat dan tiba ke resolusi optimal 960px (~150KB) dalam hitungan milidetik.
-- **Rilis Otomatis GitHub Actions**: Setiap push atau rilis versi tag (misal: `v1.0.2`) secara otomatis mengompilasi, menandatangani, dan merilis file `.apk` siap unduh di tab **GitHub Releases**.
+- **Rilis Otomatis GitHub Actions**: Setiap push atau rilis versi tag secara otomatis mengompilasi, menandatangani, dan merilis file `.apk` siap unduh.
 
 ---
 
@@ -234,42 +240,28 @@ Data KPM disimpan pada sheet **`KPM Monitor 2026`** (26 Kolom):
 
 1. Buka spreadsheet Google Sheets Anda.
 2. Buka **Extensions** → **Apps Script**.
-3. File-file backend:
-   - [`Gps.gs`](file:///d:/MyCode/KPMscirpt/Gps.gs) (Modul GPS & Retensi T.Log)
-   - [`Web.gs`](file:///d:/MyCode/KPMscirpt/Web.gs) (Controller API & State Machine)
-   - [`KPMn.gs`](file:///d:/MyCode/KPMscirpt/KPMn.gs) (Engine Spreadsheet & Print Modul)
-   - [`Code.gs`](file:///d:/MyCode/KPMscirpt/Code.gs), [`About.gs`](file:///d:/MyCode/KPMscirpt/About.gs), [`Test.gs`](file:///d:/MyCode/KPMscirpt/Test.gs)
-4. Atur **Script Properties** di **⚙️ Project Settings**:
-   - `ADMIN_TOKEN` = `(Token rahasia Admin Anda)`
-   - `DRIVER_TOKEN` = `(Token rahasia Driver Anda)`
-   - `FIREBASE_DB_URL` = `https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app`
-5. Jalankan inisialisasi: Pilih fungsi `setupTrackingHeaders` lalu klik **▶ Run**.
-6. Deploy Web App: **Deploy** → **New deployment** (Execute as: `Me`, Who has access: `Anyone`).
+3. File-file backend terletak di folder [`gas/`](file:///d:/MyCode/KPMscirpt/gas/):
+   - Modul API: `WebConfig.gs`, `Auth.gs`, `Storage.gs`, `KpmMonitor.gs`, `KpmAction.gs`, `Router.gs`
+   - Modul Tracking & Sheet: `Gps.gs`, `FixFormat.gs`, `KPMn.gs`, `Code.gs`, `About.gs`, `Test.gs`
+4. Deploy Web App: **Deploy** → **New deployment** (Execute as: `Me`, Who has access: `Anyone`).
+5. URL Deployment Aktif: `https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec`
 
-### 2. Konfigurasi Web Portal (Netlify / Vercel)
+### 2. Konfigurasi Web Portal (Vercel / Docker / Netlify)
 
-File konfigurasi otomatis telah tersedia:
-- **Netlify**: [`WKPM/combined-app/netlify.toml`](file:///d:/MyCode/KPMscirpt/WKPM/combined-app/netlify.toml)
-- **Vercel**: [`WKPM/combined-app/vercel.json`](file:///d:/MyCode/KPMscirpt/WKPM/combined-app/vercel.json)
-
-Set Environment Variables:
-```env
-GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/.../exec
-ADMIN_TOKEN=(Token Admin)
-DRIVER_TOKEN=(Token Driver)
-```
+- **Vercel Production**: Live di `https://combined-app-eight.vercel.app` (Deploy via `npm run deploy:vercel`)
+- **Docker Local Server**: Jalankan instan via `npm run docker:up` (Akses di `http://localhost:3000`)
+- **Netlify**: Deploy via `npm run deploy:netlify`
 
 ### 3. Build & Rilis APK Driver Android
 
 ```bash
-cd apps/driver-app
+cd apps/mobile
 npm install
 npm run build
 npx cap sync android
-cd android
-./gradlew assembleRelease
+./build-apk.ps1
 ```
-File APK: `apps/driver-app/android/app/build/outputs/apk/release/app-release.apk`
+File APK: `apps/mobile/releases/Driver-KPM-v1.0-Signed.apk`
 
 ---
 
@@ -293,9 +285,9 @@ npm run git:sync
 
 | Portal / Aplikasi | URL Publik / Link Unduhan | QR Code File |
 | :--- | :--- | :---: |
-| **Pintu Masuk Terpadu (Universal: Admin & Driver)** | `https://combined-app-eight.vercel.app/kpm` | [`qr code/qr_kpm_universal.png`](file:///d:/MyCode/KPMscirpt/qr%20code/qr_kpm_universal.png) |
+| **Pintu Masuk Terpadu (Universal: Admin & Driver)** | `https://combined-app-eight.vercel.app/kpm` | [`assets/qr-codes/qr_kpm_universal.png`](file:///d:/MyCode/KPMscirpt/assets/qr-codes/qr_kpm_universal.png) |
 | **Aplikasi Driver Mobile (APK)** | **[Unduh di GitHub Releases](https://github.com/SepTGut/KPMscirpt/releases)** | *(File APK Android)* |
-| **Kartu Cetak Siap Print** | Buka di browser: [`qr code/print_qr_codes.html`](file:///d:/MyCode/KPMscirpt/qr%20code/print_qr_codes.html) | *(Halaman Cetak A4)* |
+| **Kartu Cetak Siap Print** | Buka di browser: [`assets/qr-codes/print_qr_codes.html`](file:///d:/MyCode/KPMscirpt/assets/qr-codes/print_qr_codes.html) | *(Halaman Cetak A4)* |
 
 ---
 

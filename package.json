@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm --prefix WKPM/combined-app run build",
+    "build": "npm --prefix apps/web run build",
     "gas:push": "node scripts/seal_integrity.mjs && npx @google/clasp push --force",
     "gas:watch": "npx @google/clasp push --watch --force",
     "gas:pull": "npx @google/clasp pull",
@@ -15,8 +15,8 @@
     "test:gps": "node scripts/test_gps.mjs",
     "test:gps:simulate": "node scripts/test_gps.mjs --simulate",
     "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1",
-    "deploy:netlify": "powershell -ExecutionPolicy Bypass -File WKPM/combined-app/deploy-netlify.ps1",
-    "deploy:vercel": "powershell -ExecutionPolicy Bypass -File WKPM/combined-app/deploy-vercel.ps1",
+    "deploy:netlify": "powershell -ExecutionPolicy Bypass -File apps/web/deploy-netlify.ps1",
+    "deploy:vercel": "powershell -ExecutionPolicy Bypass -File apps/web/deploy-vercel.ps1",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down"
   }

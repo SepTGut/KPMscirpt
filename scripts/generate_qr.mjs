@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
-const folder = path.join(rootDir, 'qr code');
+const folder = path.join(rootDir, 'assets', 'qr-codes');
 if (!fs.existsSync(folder)) {
   fs.mkdirSync(folder, { recursive: true });
 }

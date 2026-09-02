@@ -3,7 +3,7 @@ version: '3.8'
 services:
   kpm-web:
     build:
-      context: ./WKPM/combined-app
+      context: ./apps/web
       dockerfile: Dockerfile
     container_name: kpm-linefeeding-web
     restart: unless-stopped

@@ -28,7 +28,7 @@ console.log("=== DETERMINISTIC DIGITAL SEALS ===")
 console.log("META SEAL: ", metaHash)
 
 // Update About.gs automatically with the exact hash
-const aboutGsPath = path.join(rootDir, 'About.gs')
+const aboutGsPath = path.join(rootDir, 'gas', 'About.gs')
 let aboutGsContent = fs.readFileSync(aboutGsPath, 'utf8')
 
 aboutGsContent = aboutGsContent.replace(
