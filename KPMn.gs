@@ -111,7 +111,7 @@ function incrementNoLf(noLfStr) {
 
   if (match) {
     nextNum = parseInt(match[1], 10) + 1;
-    padLength = Math.max(match[1].length, 3);
+    padLength = 3;
   } else {
     nextNum = parseInt(settings.startNo, 10) || 1;
   }
