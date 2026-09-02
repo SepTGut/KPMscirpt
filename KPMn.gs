@@ -253,8 +253,8 @@ function onEdit(e) {
   var sheet = e.range.getSheet();
   var sheetName = sheet.getName().trim().toLowerCase();
 
-  // Handle automatic QR code generation on Users sheet
-  if (sheetName === "users") {
+  // Handle automatic QR code generation on Users / Pengguna sheet
+  if (sheetName === "users" || sheetName === "pengguna" || sheetName === "user") {
     if (typeof ensureUserQrCodes === 'function') {
       ensureUserQrCodes(sheet);
     }

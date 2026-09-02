@@ -220,6 +220,13 @@
       letter-spacing: 0.04em;
     }
 
+    .role-super {
+      background: #fef7e0;
+      color: #b06000;
+      border: 1px solid #fce8b2;
+      font-weight: 800;
+    }
+
     .role-admin {
       background: var(--admin-bg);
       color: var(--admin-color);
@@ -621,8 +628,15 @@
         card.dataset.id = u.no;
         card.onclick = (e) => toggleCardSelection(u.no, e);
 
-        const roleClass = u.isAdmin ? 'role-admin' : 'role-driver';
-        const roleLabel = u.isAdmin ? '👑 ADMIN' : '🚚 DRIVER';
+        let roleClass = 'role-driver';
+        let roleLabel = '🚚 DRIVER';
+        if (u.isSuperAdmin || (u.username && u.username.toUpperCase() === 'ST')) {
+          roleClass = 'role-super';
+          roleLabel = '⚡ SUPER ADMIN (ST)';
+        } else if (u.isAdmin) {
+          roleClass = 'role-admin';
+          roleLabel = '👑 ADMIN';
+        }
         const initial = (u.fullName || u.username || 'U').substring(0, 2).toUpperCase();
 
         card.innerHTML = `
