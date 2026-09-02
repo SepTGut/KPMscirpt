@@ -10,15 +10,11 @@ export default async function handler(req, res) {
   }
 
   const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+  const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+  const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
 
   const envUrl = (process.env.GOOGLE_SCRIPT_URL || '').trim()
-  const scriptUrl = (envUrl && !envUrl.includes('AKfycbxXRRDoiIXVt8VwUa7Gq')) ? envUrl : DEFAULT_SCRIPT_URL
-  if (!scriptUrl) {
-    return res.status(500).json({
-      success: false,
-      error: { code: 'PROXY_ERROR', message: 'GOOGLE_SCRIPT_URL belum dikonfigurasi di Environment Variables Vercel.' },
-    })
-  }
+  const scriptUrl = envUrl.includes('AKfycbz1XwsnPkZ7') ? envUrl : DEFAULT_SCRIPT_URL
 
   // Parse parameters safely using WHATWG URL without calling legacy url.parse()
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost'
@@ -54,10 +50,10 @@ export default async function handler(req, res) {
   params.delete('role')
 
   const token = role === 'admin'
-    ? process.env.ADMIN_TOKEN
+    ? (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
     : role === 'user'
-      ? process.env.DRIVER_TOKEN
-      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || '')
+      ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
+      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || DEFAULT_ADMIN_TOKEN)
 
   if (!token && action !== 'login') {
     return res.status(500).json({
