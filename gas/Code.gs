@@ -41,6 +41,8 @@ function onOpen() {
 
   SpreadsheetApp.getUi()
     .createMenu('Menu KPM')
+    .addItem('📖 Panduan & Tutorial Aplikasi', 'openTutorialDialog')
+    .addSeparator()
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addItem('📇 Cetak Kartu QR Pengguna (ID Card)', 'openPrintUserQrDialog')
     .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
@@ -52,6 +54,21 @@ function onOpen() {
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
     .addToUi();
+}
+
+// ============================================
+// TUTORIAL & USER GUIDE DIALOG
+// ============================================
+function openTutorialDialog() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan.");
+    return;
+  }
+
+  var html = HtmlService.createHtmlOutputFromFile('TutorialDialog')
+    .setWidth(840)
+    .setHeight(640);
+  SpreadsheetApp.getUi().showModalDialog(html, '📖 Panduan & Tutorial Aplikasi KPM');
 }
 
 // ============================================
