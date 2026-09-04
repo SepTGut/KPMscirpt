@@ -4,11 +4,16 @@
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
 const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
 
 export function getActiveGasUrl() {
-  return localStorage.getItem('kpm_gas_url') || DEFAULT_GAS_URL
+  const saved = localStorage.getItem('kpm_gas_url')
+  if (saved && saved.includes('AKfycbx')) {
+    localStorage.removeItem('kpm_gas_url')
+    return DEFAULT_GAS_URL
+  }
+  return saved || DEFAULT_GAS_URL
 }
 
 export function getActiveDriverToken() {

@@ -12,8 +12,23 @@ export function useAuth() {
   const mode = ref(currentPath.endsWith('/kpm/personel') ? 'user' : 'admin')
 
   const isLoggedIn = computed(() => !!currentUser.value)
-  const isAdmin = computed(() => currentUser.value?.role === 'admin')
-  const isSuperAdmin = computed(() => currentUser.value?.isSuperAdmin || currentUser.value?.username?.toUpperCase() === 'ST')
+  const isIT = computed(() => currentUser.value?.role === 'it' || !!currentUser.value?.isIT)
+  const isSuperAdmin = computed(() => currentUser.value?.role === 'super_admin' || !!currentUser.value?.isSuperAdmin || isIT.value)
+  const isAdmin = computed(() => currentUser.value?.role === 'admin' || !!currentUser.value?.isAdmin || isSuperAdmin.value)
+  const isDriver = computed(() => currentUser.value?.role === 'driver' || (!isAdmin.value && !isSuperAdmin.value && !isIT.value))
+
+  const canSwitchRole = computed(() => isSuperAdmin.value || isIT.value)
+  const canOverrideStatus = computed(() => isSuperAdmin.value || isIT.value)
+  const canManageUsers = computed(() => isSuperAdmin.value || isIT.value)
+  const canSystemDiagnostics = computed(() => isIT.value)
+
+  function switchActiveMode(targetMode) {
+    if (!canSwitchRole.value && targetMode !== mode.value) return
+    mode.value = targetMode
+    if (targetMode === 'user' && currentUser.value?.name) {
+      driverName.value = currentUser.value.name
+    }
+  }
 
   function loadSavedSession() {
     if (typeof localStorage === 'undefined') return
@@ -23,8 +38,8 @@ export function useAuth() {
         const parsed = JSON.parse(saved)
         if (parsed && parsed.role) {
           currentUser.value = parsed
-          mode.value = parsed.role === 'admin' ? 'admin' : 'user'
-          if (parsed.role === 'user' && parsed.name) {
+          mode.value = (parsed.role === 'driver') ? 'user' : 'admin'
+          if (parsed.name) {
             driverName.value = parsed.name
           }
         }
@@ -165,8 +180,15 @@ export function useAuth() {
     driverName,
     mode,
     isLoggedIn,
-    isAdmin,
+    isIT,
     isSuperAdmin,
+    isAdmin,
+    isDriver,
+    canSwitchRole,
+    canOverrideStatus,
+    canManageUsers,
+    canSystemDiagnostics,
+    switchActiveMode,
     loadSavedSession,
     loginWithCredentials,
     loginWithGoogle,

@@ -60,6 +60,7 @@ function fixFormat() {
 
   var fixedNoLfCount = 0;
   var rowNo = 1;
+  var activeGroupNoLf = "";
 
   // Batch process data values in RAM (Zero loop cell writes)
   for (var r = 0; r < values.length; r++) {
@@ -68,14 +69,35 @@ function fixFormat() {
     // 1. Standardize No Auto (Column A)
     currentRow[MONITOR_COL_NO - 1] = rowNo++;
 
-    // 2. Fix No LF formatting (Column C) -> Ensure strict 3-digit zero padding
+    // 2. Fix No LF formatting (Column C) -> Ensure strict 3-digit zero padding and group consistency
     var rawNoLf = String(currentRow[MONITOR_COL_NOLF - 1] || "").trim();
+    var itemRaw = currentRow[MONITOR_COL_ITEM - 1];
+    var numMatch = itemRaw ? String(itemRaw).match(/\d+/) : null;
+    var itemVal = numMatch ? parseInt(numMatch[0], 10) : 0;
+    var hasData = (currentRow[MONITOR_COL_KODE - 1] && String(currentRow[MONITOR_COL_KODE - 1]).trim() !== "") ||
+                  (currentRow[MONITOR_COL_SPEK - 1] && String(currentRow[MONITOR_COL_SPEK - 1]).trim() !== "") ||
+                  itemVal > 0;
+
     if (rawNoLf) {
       var fixedNoLf = normalizeNoLfTo3Digits(rawNoLf);
       if (fixedNoLf !== rawNoLf) {
         currentRow[MONITOR_COL_NOLF - 1] = fixedNoLf;
         fixedNoLfCount++;
       }
+      rawNoLf = fixedNoLf;
+    }
+
+    if (itemVal === 1 && rawNoLf) {
+      activeGroupNoLf = rawNoLf;
+    } else if (itemVal > 1 && activeGroupNoLf && hasData) {
+      // If Item does not start from 1, it will NOT continue to the next No LF iteration!
+      // Must stay on the active group's No LF.
+      if (currentRow[MONITOR_COL_NOLF - 1] !== activeGroupNoLf) {
+        currentRow[MONITOR_COL_NOLF - 1] = activeGroupNoLf;
+        fixedNoLfCount++;
+      }
+    } else if (!hasData) {
+      activeGroupNoLf = "";
     }
 
     // Preserve any existing formulas in the row
@@ -179,6 +201,7 @@ function normalizeNoLfTo3Digits(noLfStr) {
   if (match) {
     var rawNum = parseInt(match[1], 10);
     if (!isNaN(rawNum)) {
+      if (rawNum === 0) rawNum = 1;
       var padded3 = String(rawNum).padStart(3, '0');
       return padded3 + match[2];
     }

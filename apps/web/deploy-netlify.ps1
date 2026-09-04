@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $appDir = $PSScriptRoot
 if (-not $appDir) {
-    $appDir = (Join-Path (Get-Location) "WKPM/combined-app")
+    $appDir = (Join-Path (Get-Location) "apps/web")
 }
 
 Push-Location $appDir

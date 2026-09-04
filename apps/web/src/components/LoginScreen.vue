@@ -96,7 +96,7 @@ function initGis() {
         <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-extrabold text-xl text-white shadow-md shadow-google-blue-500/20 ring-4 ring-white">
           LF
         </div>
-        <h1 class="text-xl font-extrabold text-google-surface-900 leading-tight">KPM Line Feeding</h1>
+        <h1 class="text-xl font-extrabold text-google-surface-900 leading-tight">Masuk ke KPM Line Feeding</h1>
         <p class="text-xs text-google-surface-500 mt-1 font-medium">Pintu Masuk Otentikasi Terpadu (Admin & Driver)</p>
       </div>
 

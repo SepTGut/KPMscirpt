@@ -2,9 +2,15 @@ name: Markdown Lint
 
 on:
   push:
-    branches: [ main, Beta ]
+    branches:
+      - main
+      - Beta
+      - 'Apps(personel)'
   pull_request:
-    branches: [ main, Beta ]
+    branches:
+      - main
+      - Beta
+      - 'Apps(personel)'
 
 jobs:
   lint-markdown:

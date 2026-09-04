@@ -1,0 +1,37 @@
+# KPM Line Feeding Operations Platform
+
+> Real-time logistics, material dispatch, GPS fleet tracking, and digital delivery confirmation platform.
+
+## Overview
+KPM Line Feeding is a mission-critical web and mobile operational platform designed for tracking and managing material movement (Kartu Pemindahan Material / KPM) between workshops and manufacturing sites.
+
+## System Architecture
+- Frontend: Vue 3 Single Page Application with TailwindCSS and Leaflet GPS Radar.
+- Mobile: Vue 3 Android PWA with Camera capture and GPS background reporting.
+- Backend: Google Apps Script REST API with spreadsheet persistence and Firebase Realtime Database live tracking.
+- API Deployment ID: AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA
+
+## User Roles & Capabilities
+- **Administrator**:
+  - Issue new KPM delivery orders with item specifications and workshops.
+  - Live fleet radar map monitoring with smooth motion vehicle interpolation.
+  - Material editing prior to vehicle departure.
+  - Archive completed KPMs.
+- **Driver / Field Personnel**:
+  - View assigned active KPM deliveries.
+  - 1-Click GPS Navigation routing to destination workshop.
+  - Capture and upload departure / arrival photo evidence.
+  - Automatic live GPS coordinate broadcasting.
+
+## Endpoints & Pages
+- `GET /`: Unified Application Portal (Admin & Driver)
+- `GET /kpm`: Admin Dashboard & Fleet Monitoring
+- `GET /kpm/personel`: Driver / Field Personnel Portal
+- `POST /api?action=login`: Credential, Google, and QR Code authentication
+- `GET /api?action=getMasterData`: Workshops, PICs, and UOM reference data
+- `GET /api?action=getMonitoring`: Active and archived KPM statuses
+- `GET /api?action=getDeliveries`: Driver active delivery queues
+- `POST /api?action=createKpm`: Create new material transfer order
+- `POST /api?action=updateStatus`: Driver status update (Berangkat / Tiba with photo and GPS)
+- `POST /api?action=editLatestKpmItems`: Adjust material items before departure
+- `POST /api?action=archiveKpm`: Archive completed shipments

@@ -5,7 +5,8 @@ const props = defineProps({
   monitoring: { type: Array, required: true },
   master: { type: Object, required: true },
   busy: { type: Boolean, default: false },
-  filter: { type: String, default: 'Semua' }
+  filter: { type: String, default: 'Semua' },
+  canOverrideStatus: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['refresh', 'update:filter', 'change-status', 'archive', 'edit-material'])
@@ -56,15 +57,16 @@ function statusClass(status) {
             <p class="text-xs text-google-surface-500 font-medium">{{ item.lokasi }}</p>
           </div>
 
-          <!-- Admin Status Changer Dropdown -->
+          <!-- Status Display: Dropdown for Super Admin/IT, Locked Badge for Admin -->
           <div class="flex items-center gap-1.5">
             <select
+              v-if="canOverrideStatus"
               class="text-[11px] font-bold py-1 px-2.5 rounded-full border cursor-pointer outline-none transition shadow-sm"
               :class="statusClass(item.status)"
               :value="item.status"
               :disabled="busy"
               @change="$emit('change-status', item, $event)"
-              title="Ubah Status KPM (Admin)"
+              title="Ubah Status KPM (Super Admin / IT Override)"
             >
               <option value="Baru Dibuat">Baru Dibuat</option>
               <option value="Belum Berangkat">Belum Berangkat</option>
@@ -72,13 +74,23 @@ function statusClass(status) {
               <option value="Tiba">Tiba</option>
               <option value="Selesai">Selesai</option>
             </select>
+            <div
+              v-else
+              class="text-[11px] font-bold py-1 px-2.5 rounded-full border inline-flex items-center gap-1 shadow-sm cursor-not-allowed select-none opacity-90"
+              :class="statusClass(item.status)"
+              title="Status otomatis diperbarui oleh Driver di lapangan via aplikasi. Hanya Super Admin & IT yang dapat mengubah status secara manual."
+            >
+              <span class="text-[10px]">🔒</span>
+              <span>{{ item.status }}</span>
+            </div>
           </div>
         </div>
 
-        <div class="mt-3.5 grid gap-2 text-xs sm:grid-cols-3 text-google-surface-600 bg-google-surface-50 p-3 rounded-xl border border-google-surface-200">
+        <div class="mt-3.5 grid gap-2 text-xs sm:grid-cols-4 text-google-surface-600 bg-google-surface-50 p-3 rounded-xl border border-google-surface-200">
           <p><span class="font-bold text-google-surface-800">PIC:</span> {{ item.pic }}</p>
           <p><span class="font-bold text-google-surface-800">Dibuat:</span> {{ item.createdAtFormatted }}</p>
           <p><span class="font-bold text-google-surface-800">Durasi:</span> {{ item.duration || '-' }}</p>
+          <p><span class="font-bold text-google-surface-800">Penerima:</span> <strong :class="item.penerima ? 'text-emerald-700' : 'text-slate-400 font-normal'">{{ item.penerima || '-' }}</strong></p>
         </div>
 
         <!-- Progress Bar -->

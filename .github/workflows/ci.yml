@@ -2,9 +2,15 @@ name: CI & Integrity Check
 
 on:
   push:
-    branches: [ main, Beta ]
+    branches:
+      - main
+      - Beta
+      - 'Apps(personel)'
   pull_request:
-    branches: [ main, Beta ]
+    branches:
+      - main
+      - Beta
+      - 'Apps(personel)'
 
 jobs:
   validate:
@@ -20,7 +26,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: 'apps/web/package-lock.json'
+          cache-dependency-path: 'apps/**/package-lock.json'
 
       - name: 🛡️ Verify Cryptographic Integrity Seal
         run: node scripts/seal_integrity.mjs
@@ -32,3 +38,16 @@ jobs:
       - name: ⚡ Test Frontend Production Build
         working-directory: ./apps/web
         run: npm run build
+
+      - name: 📦 Install Mobile Dependencies
+        working-directory: ./apps/mobile
+        run: npm ci
+
+      - name: ⚡ Test Mobile Production Build
+        working-directory: ./apps/mobile
+        run: npm run build
+
+      - name: 🔍 Run Deep Monorepo Audit Scan
+        run: node scripts/deep_scan.mjs
+
+

@@ -28,6 +28,8 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.webp': 'image/webp',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf'
@@ -131,9 +133,22 @@ function serveStatic(req, res) {
 
   let filePath = path.join(DIST_DIR, pathname)
 
-  // SPA fallback: If requested file does not exist, serve index.html
+  // SPA fallback: If requested file does not exist
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    filePath = path.join(DIST_DIR, 'index.html')
+    const fileExt = path.extname(pathname).toLowerCase()
+    // HTML / route requests fall back to index.html for client-side SPA routing
+    if (!fileExt || fileExt === '.html') {
+      filePath = path.join(DIST_DIR, 'index.html')
+    } else {
+      // Missing static asset -> serve custom 404.html
+      const notFoundPath = path.join(DIST_DIR, '404.html')
+      if (fs.existsSync(notFoundPath)) {
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
+        return fs.createReadStream(notFoundPath).pipe(res)
+      }
+      res.writeHead(404, { 'Content-Type': 'text/plain' })
+      return res.end('404 Not Found')
+    }
   }
 
   const ext = path.extname(filePath).toLowerCase()

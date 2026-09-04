@@ -7,9 +7,9 @@ var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_SHEET_NAME_LOWER = MONITOR_SHEET_NAME.trim().toLowerCase();
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
-var MONITOR_TOTAL_COLS = 26;   // Total 26 columns (A to Z)
+var MONITOR_TOTAL_COLS = 27;   // Total 27 columns (A to AA)
 
-// Column mapping (1-indexed, A to Z):
+// Column mapping (1-indexed, A to AA):
 var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
@@ -36,6 +36,7 @@ var MONITOR_COL_STATUS = 23;        // Column W: Status Tracking
 var MONITOR_COL_FOTO_BER = 24;      // Column X: Foto Berangkat (URL Drive)
 var MONITOR_COL_FOTO_TIB = 25;      // Column Y: Foto Tiba (URL Drive)
 var MONITOR_COL_GPS_TRACK = 26;     // Column Z: GPS Track (Link Google Maps Router / Live Link)
+var MONITOR_COL_PENERIMA = 27;      // Column AA: Penerima (Nama Penerima)
 
 var TLOG_SHEET_NAME = "T.Log";
 
@@ -61,7 +62,7 @@ function getPreviousActiveRow(sheet, currentRow) {
   var key = sheet.getName() + "_" + currentRow;
   if (_cachedPrevActiveRowKey === key) return _cachedPrevActiveRow;
 
-  var lookback = Math.min(currentRow - MONITOR_START_ROW, 20);
+  var lookback = Math.min(currentRow - MONITOR_START_ROW, 50);
   if (lookback <= 0) return null;
 
   var startR = currentRow - lookback;
@@ -73,10 +74,21 @@ function getPreviousActiveRow(sheet, currentRow) {
     var spekVal = block[i][MONITOR_COL_SPEK - 1];
 
     if (itemVal || nolfVal || kodeVal || spekVal) {
+      // Find the nearest non-empty No LF in or before this row
+      var resolvedNoLf = nolfVal ? nolfVal.toString().trim() : "";
+      if (!resolvedNoLf) {
+        for (var k = i - 1; k >= 0; k--) {
+          var olderNoLf = block[k][MONITOR_COL_NOLF - 1];
+          if (olderNoLf && olderNoLf.toString().trim() !== "") {
+            resolvedNoLf = olderNoLf.toString().trim();
+            break;
+          }
+        }
+      }
       var res = {
         row: startR + i,
         item: parseInt(itemVal, 10) || 1,
-        noLf: nolfVal ? nolfVal.toString().trim() : "",
+        noLf: resolvedNoLf,
         rowData: block[i]
       };
       _cachedPrevActiveRow = res;
@@ -139,7 +151,7 @@ function getDefaultNoLf(startSeq) {
   var monthRoman = romanMonths[monthIndex];
   var monthNum = String(monthIndex + 1).padStart(2, '0');
 
-  var seq = (startSeq !== undefined && startSeq !== null) ? startSeq : (parseInt(settings.startNo, 10) || 1);
+  var seq = (startSeq !== undefined && startSeq !== null && Number(startSeq) > 0) ? startSeq : (parseInt(settings.startNo, 10) || 1);
   var formattedNo = String(seq).padStart(3, '0');
 
   var tpl = settings.template || settings.lampiranTemplate || "{no}/PPO/LF/{month}/{year}";
@@ -195,21 +207,35 @@ function syncDownstreamGroupMetadata(sheet, row, col, newValue, currentNoLf) {
 
 // In-memory helper functions for onEdit
 function ensureItemAndNoLfInMemory(sheet, row, rowData) {
-  var currentItem = parseInt(rowData[MONITOR_COL_ITEM - 1], 10);
+  var itemRaw = rowData[MONITOR_COL_ITEM - 1];
+  var numMatch = itemRaw ? String(itemRaw).match(/\d+/) : null;
+  var currentItem = numMatch ? parseInt(numMatch[0], 10) : 0;
   var currentNoLf = rowData[MONITOR_COL_NOLF - 1];
 
   if (!currentItem) {
     var prev = getPreviousActiveRow(sheet, row);
     if (prev) {
       rowData[MONITOR_COL_ITEM - 1] = prev.item + 1;
-      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
+      // Item > 1: Must reuse the group's No LF, never continue to next iteration!
+      rowData[MONITOR_COL_NOLF - 1] = prev.noLf || "";
     } else {
       rowData[MONITOR_COL_ITEM - 1] = 1;
-      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = getDefaultNoLf(0);
+      if (!currentNoLf) rowData[MONITOR_COL_NOLF - 1] = getDefaultNoLf(1);
     }
-  } else if (currentItem === 1 && !currentNoLf) {
+  } else if (currentItem === 1) {
+    // Starts from 1 in Item: advances to the next No LF iteration if not already set
+    if (!currentNoLf) {
+      var prev = getPreviousActiveRow(sheet, row);
+      rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(1);
+    }
+  } else {
+    // currentItem > 1:
+    // If Item does not start from 1, it will NOT continue to the next No LF iteration!
+    // It strictly stays with the existing KPM group's No LF.
     var prev = getPreviousActiveRow(sheet, row);
-    rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(0);
+    if (prev && prev.noLf) {
+      rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
+    }
   }
 }
 
@@ -338,15 +364,21 @@ function onEdit(e) {
 
   // Case A: Editing "Item" (Column 4 / Col D)
   if (col === MONITOR_COL_ITEM) {
-    var itemVal = parseInt(cellStr, 10);
+    var numMatch = cellStr ? cellStr.match(/\d+/) : null;
+    var itemVal = numMatch ? parseInt(numMatch[0], 10) : NaN;
     if (!isNaN(itemVal)) {
       if (itemVal === 1) {
+        // Starts from 1 in Item: advances to the next No LF iteration
         var prev = getPreviousActiveRow(sheet, row);
-        rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(0);
-      } else if (itemVal > 1) {
+        rowData[MONITOR_COL_NOLF - 1] = (prev && prev.noLf) ? incrementNoLf(prev.noLf) : getDefaultNoLf(1);
+      } else {
+        // Does NOT start from 1 in Item: will NOT continue to the next No LF iteration!
+        // Reuses the preceding row's No LF to remain in the same KPM group
         var prev = getPreviousActiveRow(sheet, row);
         if (prev && prev.noLf) {
           rowData[MONITOR_COL_NOLF - 1] = prev.noLf;
+        } else {
+          rowData[MONITOR_COL_NOLF - 1] = "";
         }
       }
       inheritGroupMetadataInMemory(sheet, row, rowData);
@@ -371,6 +403,9 @@ function onEdit(e) {
     }
     if (!rowData[MONITOR_COL_POST_DATE - 1]) {
       rowData[MONITOR_COL_POST_DATE - 1] = nowFormatted;
+    }
+    if (e && e.oldValue && String(e.oldValue).trim() !== "" && String(e.oldValue).trim() !== cellStr) {
+      syncDownstreamGroupMetadata(sheet, row, MONITOR_COL_NOLF, cellStr, String(e.oldValue).trim());
     }
     modified = true;
   }

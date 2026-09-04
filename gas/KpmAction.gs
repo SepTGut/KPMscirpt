@@ -151,7 +151,7 @@ function validateAndCreateKpm(params) {
     }
   }
 
-  var nomorBaruStr = latestNoLf ? incrementNoLf(latestNoLf) : getDefaultNoLf(0);
+  var nomorBaruStr = latestNoLf ? incrementNoLf(latestNoLf) : getDefaultNoLf(1);
   var barisKosong = lastRow >= MONITOR_START_ROW ? (lastRow + 1) : MONITOR_START_ROW;
 
   var rowsToInsert = [];
@@ -273,9 +273,9 @@ function validateAndUpdateStatus(params) {
   }
 
   var requiresPhoto = (targetStatus === KPM_STATUS.BERANGKAT || targetStatus === KPM_STATUS.TIBA);
-  var urlFoto = "";
+  var urlFoto = params.stagedUrlFoto || "";
 
-  if (requiresPhoto && !params.bypassPhoto) {
+  if (requiresPhoto && !urlFoto && !params.bypassPhoto) {
     if (!params.fotoData || params.fotoData.indexOf(",") === -1) {
       throw {
         code: "PHOTO_REQUIRED",
@@ -309,6 +309,7 @@ function validateAndUpdateStatus(params) {
   }
 
   var namaDriver = (params.namaDriver || params.driver || "").trim().toUpperCase();
+  var namaPenerima = (params.namaPenerima || params.penerima || "").trim();
 
   var lokasiWorkshop = "";
   var workshopOrigin = "";
@@ -370,6 +371,7 @@ function validateAndUpdateStatus(params) {
 
     if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = sanitizeSpreadsheetInput(namaPIC);
     if (namaDriver) allData[rIndex][MONITOR_COL_DRIVER - 1] = sanitizeSpreadsheetInput(namaDriver);
+    if (namaPenerima) allData[rIndex][MONITOR_COL_PENERIMA - 1] = sanitizeSpreadsheetInput(namaPenerima);
     allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
     if (lokasiWorkshop) {
       if (targetStatus === KPM_STATUS.TIBA) {
@@ -410,7 +412,8 @@ function validateAndUpdateStatus(params) {
           durasi: String(allData[minIdx][MONITOR_COL_DURASI - 1] || ""),
           gpsTrack: gpsTrackLink,
           fotoBerangkat: fotoBerLink,
-          fotoTiba: fotoTibLink
+          fotoTiba: fotoTibLink,
+          penerima: namaPenerima || String(firstRow[MONITOR_COL_PENERIMA - 1] || "")
         });
       } catch (tlogErr) {
         Logger.log("T.Log archiving notice: " + tlogErr.message);
@@ -619,4 +622,98 @@ function editLatestKpmItems(params) {
     items: newItems,
     message: "Material KPM " + nomorKPM + " berhasil diperbarui (" + newCount + " item)."
   };
+}
+
+/**
+ * Stages a delivery arrival confirmation when the driver submits photo and GPS.
+ * Saves the photo to Google Drive and stages the arrival details in ScriptCache
+ * so the recipient can scan the QR code and confirm receipt.
+ */
+function stageArrival(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib diisi." };
+  }
+  if (!params.fotoData || params.fotoData.indexOf(",") === -1) {
+    throw { code: "PHOTO_REQUIRED", message: "Foto bukti kedatangan wajib dilampirkan sebelum meminta konfirmasi penerima." };
+  }
+
+  var urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, KPM_STATUS.TIBA);
+  if (!urlFoto) {
+    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal mengunggah foto bukti ke Google Drive." };
+  }
+
+  var stagedData = {
+    nomorKPM: nomorKPM,
+    urlFoto: urlFoto,
+    latitude: params.latitude || params.lat || "",
+    longitude: params.longitude || params.lng || "",
+    driver: params.driver || params.namaDriver || "",
+    namaPIC: params.namaPIC || "",
+    lokasiWorkshop: params.lokasiWorkshop || "",
+    stagedAt: new Date().getTime()
+  };
+
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.put("STAGED_ARRIVAL_" + encodeURIComponent(nomorKPM), JSON.stringify(stagedData), 1800); // 30 minutes
+  } catch (cacheErr) {
+    Logger.log("stageArrival cache notice: " + cacheErr.message);
+  }
+
+  return {
+    nomorKPM: nomorKPM,
+    urlFoto: urlFoto,
+    staged: true,
+    message: "Foto bukti kedatangan berhasil disimpan. Silakan minta penerima scan QR Code."
+  };
+}
+
+/**
+ * Confirms arrival receipt by the recipient, updating KPM status to 'Tiba'
+ * and saving the recipient's name to Column AA (MONITOR_COL_PENERIMA).
+ */
+function confirmArrivalReceipt(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
+  var namaPenerima = (params.namaPenerima || params.penerima || params.recipientName || "").trim();
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
+  }
+  if (!namaPenerima) {
+    throw { code: "INVALID_INPUT", message: "Nama penerima wajib dipilih atau diisi." };
+  }
+
+  var staged = null;
+  try {
+    var cache = CacheService.getScriptCache();
+    var stagedJson = cache.get("STAGED_ARRIVAL_" + encodeURIComponent(nomorKPM));
+    if (stagedJson) {
+      staged = JSON.parse(stagedJson);
+    }
+  } catch (e) {
+    Logger.log("confirmArrivalReceipt cache get notice: " + e.message);
+  }
+
+  var updateParams = {
+    nomorKPM: nomorKPM,
+    statusKPM: KPM_STATUS.TIBA,
+    namaPenerima: namaPenerima,
+    driver: (staged && staged.driver) ? staged.driver : (params.driver || ""),
+    namaPIC: (staged && staged.namaPIC) ? staged.namaPIC : (params.namaPIC || ""),
+    lokasiWorkshop: (staged && staged.lokasiWorkshop) ? staged.lokasiWorkshop : (params.lokasiWorkshop || ""),
+    latitude: (staged && staged.latitude) ? staged.latitude : (params.latitude || ""),
+    longitude: (staged && staged.longitude) ? staged.longitude : (params.longitude || ""),
+    stagedUrlFoto: (staged && staged.urlFoto) ? staged.urlFoto : (params.urlFoto || ""),
+    bypassPhoto: !!((staged && staged.urlFoto) || params.urlFoto)
+  };
+
+  var result = validateAndUpdateStatus(updateParams);
+
+  try {
+    CacheService.getScriptCache().remove("STAGED_ARRIVAL_" + encodeURIComponent(nomorKPM));
+  } catch (remErr) {}
+
+  result.namaPenerima = namaPenerima;
+  result.message = "Penerimaan KPM " + nomorKPM + " berhasil dikonfirmasi oleh " + namaPenerima + ".";
+  return result;
 }

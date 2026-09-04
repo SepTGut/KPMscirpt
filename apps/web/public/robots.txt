@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /kpm
+Allow: /kpm/personel
+Disallow: /api/
+
+Sitemap: https://combined-app-eight.vercel.app/sitemap.xml

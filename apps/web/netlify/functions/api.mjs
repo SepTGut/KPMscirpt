@@ -10,11 +10,13 @@ function errorResponse(status, message) {
   }), { status, headers: JSON_HEADERS })
 }
 
-const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXRRDoiIXVt8VwUa7Gq-ZUdEP4YZhHiMoTdPKnSZ4eWMNBclUmQ5d86Zqoaxo76OM1jg/exec'
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
 
 export default async function handler(request) {
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
-  if (!scriptUrl) return errorResponse(500, 'GOOGLE_SCRIPT_URL belum dikonfigurasi di Netlify.')
+  const envUrl = (process.env.GOOGLE_SCRIPT_URL || '').trim()
+  const scriptUrl = envUrl.includes('AKfycbz1XwsnPkZ7') ? envUrl : DEFAULT_SCRIPT_URL
 
   const url = new URL(request.url)
   const params = new URLSearchParams(url.searchParams)
@@ -30,10 +32,10 @@ export default async function handler(request) {
   params.delete('role')
 
   const token = role === 'admin'
-    ? process.env.ADMIN_TOKEN
+    ? (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
     : role === 'user'
-      ? process.env.DRIVER_TOKEN
-      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || '')
+      ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
+      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || DEFAULT_ADMIN_TOKEN)
   if (!token && action !== 'login') return errorResponse(500, 'Token role belum dikonfigurasi di Netlify.')
 
   if (token) {
@@ -47,7 +49,10 @@ export default async function handler(request) {
     const requestOptions = {
       method: request.method === 'GET' ? 'GET' : 'POST',
       signal: controller.signal,
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
     }
 
     if (request.method === 'GET') {
@@ -67,7 +72,6 @@ export default async function handler(request) {
       return errorResponse(502, `Apps Script mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}`)
     }
 
-    const action = params.get('action') || ''
     const isForceRefresh = params.get('refresh') === 'true'
     let cacheControl = 'no-store'
     if (request.method === 'GET' && action === 'getMasterData') {

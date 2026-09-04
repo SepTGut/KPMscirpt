@@ -1,9 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import {
   openWorkshopNavigation,
-  trackingState
+  trackingState,
+  getCurrentCoordinates
 } from '../services/trackingService'
+import { compressImage } from '../composables/useGps'
+import { requestApi } from '../composables/useApi'
+
+const api = (action, opts) => requestApi(action, opts, { mode: 'user' })
 
 const props = defineProps({
   deliveries: { type: Array, required: true },
@@ -22,6 +27,20 @@ const emit = defineEmits([
 const photoFile = ref(null)
 const updateForm = ref({ statusKPM: '' })
 
+// QR Modal & Staging State for "Tiba" Confirmation
+const stagingBusy = ref(false)
+const showQrModal = ref(false)
+const qrTargetUrl = ref('')
+const isConfirmed = ref(false)
+const confirmedRecipientName = ref('')
+const copySuccess = ref(false)
+let pollTimer = null
+
+const qrImageUrl = computed(() => {
+  if (!qrTargetUrl.value) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrTargetUrl.value)}`
+})
+
 function onPhoto(event) {
   photoFile.value = event.target.files?.[0] || null
 }
@@ -36,19 +55,113 @@ function handleDriverNameInput(e) {
   emit('update-driver-name', e.target.value)
 }
 
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function startPollingConfirmation(nomorKPM) {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    try {
+      const data = await api('getMonitoring', { method: 'GET', body: { bypassCache: 'true' } })
+      if (Array.isArray(data)) {
+        const found = data.find(k => k.nomor === nomorKPM || k.kpmId === nomorKPM)
+        if (found && (found.status === 'Tiba' || found.status === 'Selesai' || found.penerima)) {
+          stopPolling()
+          isConfirmed.value = true
+          confirmedRecipientName.value = found.penerima || 'Penerima Terdaftar'
+          setTimeout(() => {
+            closeQrModal()
+            emit('refresh-deliveries')
+          }, 2500)
+        }
+      }
+    } catch {}
+  }, 3000)
+}
+
+async function handleStageArrivalQr() {
+  if (!props.selectedDelivery) return
+  if (!photoFile.value) {
+    alert('Foto bukti kedatangan wajib dilampirkan sebelum membuka QR Code penerima.')
+    return
+  }
+
+  stagingBusy.value = true
+  try {
+    const kpmNomor = props.selectedDelivery.nomor || props.selectedDelivery.kpmId
+    const coords = await getCurrentCoordinates().catch(() => null)
+    const fotoData = await compressImage(photoFile.value)
+
+    await api('stageArrival', {
+      body: {
+        nomorKPM: kpmNomor,
+        fotoData: fotoData,
+        driver: props.driverName || '',
+        namaPIC: props.selectedDelivery.pic || '',
+        lokasiWorkshop: props.selectedDelivery.lokasiTiba || props.selectedDelivery.wsTujuan || '',
+        latitude: coords?.latitude || '',
+        longitude: coords?.longitude || '',
+      }
+    })
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://combined-app-eight.vercel.app'
+    qrTargetUrl.value = `${origin}/kpm/confirm?kpm=${encodeURIComponent(kpmNomor)}`
+    isConfirmed.value = false
+    confirmedRecipientName.value = ''
+    showQrModal.value = true
+
+    // Start auto-poll to detect recipient confirmation
+    startPollingConfirmation(kpmNomor)
+  } catch (err) {
+    alert('Gagal menyimpan foto bukti: ' + (err.message || String(err)))
+  } finally {
+    stagingBusy.value = false
+  }
+}
+
+function closeQrModal() {
+  stopPolling()
+  showQrModal.value = false
+}
+
+function copyConfirmationLink() {
+  if (!qrTargetUrl.value || typeof navigator === 'undefined') return
+  navigator.clipboard.writeText(qrTargetUrl.value).then(() => {
+    copySuccess.value = true
+    setTimeout(() => { copySuccess.value = false }, 2500)
+  })
+}
+
 function handleSubmit() {
   if (!props.selectedDelivery) return
+  const actionTarget = updateForm.value.statusKPM || props.selectedDelivery.nextAction
+
+  // If next status is Tiba, initiate the photo staging & QR Code handover workflow
+  if (actionTarget === 'Tiba') {
+    handleStageArrivalQr()
+    return
+  }
+
+  // Otherwise (Berangkat / Jalan), standard direct update
   emit('submit-status-update', {
-    statusKPM: updateForm.value.statusKPM || props.selectedDelivery.nextAction,
+    statusKPM: actionTarget,
     photoFile: photoFile.value
   })
 }
+
+onUnmounted(() => {
+  stopPolling()
+})
 </script>
 
 <template>
   <section>
     <div class="mb-4">
-      <h2 class="text-xl font-bold text-google-surface-800">Portal Pembaruan Personel</h2>
+      <h1 class="text-xl font-bold text-google-surface-800">Portal Pembaruan Personel</h1>
       <p class="text-xs text-google-surface-500 mt-0.5">Pilih KPM yang ditugaskan, lampirkan foto bukti, lalu kirim status perjalanan.</p>
     </div>
 
@@ -163,12 +276,109 @@ function handleSubmit() {
           </label>
 
           <div class="pt-2">
-            <button class="btn-success w-full !py-3.5 !text-sm !font-bold" :disabled="busy">
-              {{ busy ? 'Mengunggah Data & Foto...' : 'Simpan Pembaruan Status ✓' }}
+            <button
+              class="btn-success w-full !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+              :disabled="busy || stagingBusy"
+            >
+              <span v-if="stagingBusy || busy" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span v-if="updateForm.statusKPM === 'Tiba'">
+                {{ stagingBusy ? 'Menyimpan Foto & Menyiapkan QR...' : '📷 Ambil Foto & Tampilkan QR Penerima ➔' }}
+              </span>
+              <span v-else>
+                {{ busy ? 'Mengunggah Data & Foto...' : 'Simpan Pembaruan Status ✓' }}
+              </span>
             </button>
           </div>
         </template>
       </form>
+    </div>
+
+    <!-- Recipient QR Code Handover Modal -->
+    <div
+      v-if="showQrModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fadeIn"
+    >
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center relative overflow-hidden">
+        <!-- Accent bar -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-google-blue-500 via-google-yellow-500 to-google-green-500"></div>
+
+        <!-- Success Animation if Recipient Confirmed -->
+        <div v-if="isConfirmed" class="py-6 animate-fadeIn">
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center text-3xl font-black mb-3">
+            ✓
+          </div>
+          <h3 class="text-lg font-black text-slate-900">Barang Resmi Diterima!</h3>
+          <p class="text-xs text-slate-500 mt-1">Dikonfirmasi oleh <strong class="text-slate-900">{{ confirmedRecipientName }}</strong>.</p>
+          <p class="text-[11px] text-emerald-600 font-bold mt-3">Menutup jendela dan memperbarui daftar...</p>
+        </div>
+
+        <!-- Normal Scanning State -->
+        <div v-else>
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div class="text-left">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-google-blue-600 block">Serah Terima Material</span>
+              <h3 class="text-sm font-black text-slate-900 font-mono">{{ selectedDelivery?.nomor }}</h3>
+            </div>
+            <button
+              type="button"
+              class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold"
+              @click="closeQrModal"
+            >
+              ✕
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-600 mb-4">
+            Minta <strong>Penerima Barang</strong> men-scan QR Code di bawah dengan kamera ponsel mereka untuk mengonfirmasi penerimaan:
+          </p>
+
+          <!-- QR Code Image -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 inline-block shadow-inner mb-3">
+            <img
+              :src="qrImageUrl"
+              alt="QR Code Konfirmasi Penerima"
+              class="w-56 h-56 mx-auto rounded-xl shadow-xs"
+            />
+          </div>
+
+          <!-- Live Waiting Indicator -->
+          <div class="flex items-center justify-center gap-2 text-xs font-semibold text-google-blue-700 bg-google-blue-50 py-2 px-3 rounded-xl mb-4">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-google-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-google-blue-600"></span>
+            </span>
+            <span>Menunggu scan & konfirmasi penerima...</span>
+          </div>
+
+          <!-- Actions: Copy Link & Close -->
+          <div class="space-y-2">
+            <button
+              type="button"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition"
+              @click="copyConfirmationLink"
+            >
+              <span>📋</span>
+              <span>{{ copySuccess ? '✓ Link Berhasil Disalin!' : 'Salin Tautan Konfirmasi' }}</span>
+            </button>
+
+            <a
+              :href="qrTargetUrl"
+              target="_blank"
+              class="block w-full py-2 text-center text-[11px] font-bold text-google-blue-600 hover:underline"
+            >
+              Buka Halaman Konfirmasi di Tab Baru ↗
+            </a>
+
+            <button
+              type="button"
+              class="w-full py-2 text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition"
+              @click="closeQrModal"
+            >
+              Tutup Jendela
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </template>

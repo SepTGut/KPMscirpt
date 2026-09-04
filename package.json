@@ -2,8 +2,13 @@
   "name": "kpm-script",
   "version": "1.0.0",
   "private": true,
+  "allowScripts": {
+    "esbuild": true
+  },
   "scripts": {
-    "build": "npm --prefix apps/web run build",
+    "build": "npm --prefix apps/web run build && npm --prefix apps/mobile run build",
+    "build:web": "npm --prefix apps/web run build",
+    "build:mobile": "npm --prefix apps/mobile run build",
     "gas:push": "node scripts/seal_integrity.mjs && npx @google/clasp push --force",
     "gas:watch": "npx @google/clasp push --watch --force",
     "gas:pull": "npx @google/clasp pull",
@@ -12,6 +17,7 @@
     "gas:deployments": "npx @google/clasp deployments",
     "gas:integrity": "node scripts/seal_integrity.mjs",
     "qr:generate": "node scripts/generate_qr.mjs",
+    "scan": "node scripts/deep_scan.mjs",
     "test:gps": "node scripts/test_gps.mjs",
     "test:gps:simulate": "node scripts/test_gps.mjs --simulate",
     "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1",

@@ -24,6 +24,7 @@ const frontendFiles = [
   path.join(rootDir, 'apps/web/src/components/DriverDeliveryPanel.vue'),
   path.join(rootDir, 'apps/web/src/components/MaterialEditorModal.vue'),
   path.join(rootDir, 'apps/web/src/components/LiveTrackingMap.vue'),
+  path.join(rootDir, 'apps/web/src/components/RecipientConfirmPanel.vue'),
   path.join(rootDir, 'apps/web/src/services/trackingService.js'),
   path.join(rootDir, 'apps/mobile/src/services/api.js')
 ];
@@ -73,35 +74,77 @@ for (const act of frontEndActions) {
   }
 }
 
-// 3. Check for Tokens consistency
+// 3. Check for Deployment URLs & Tokens consistency
 const apiIndexFile = path.join(rootDir, 'apps/web/api/index.js');
 const serverMjsFile = path.join(rootDir, 'apps/web/server.mjs');
-const authGsFile = path.join(rootDir, 'gas/Auth.gs');
+const netlifyFile = path.join(rootDir, 'apps/web/netlify/functions/api.mjs');
+const mobileApiFile = path.join(rootDir, 'apps/mobile/src/services/api.js');
 
-if (fs.existsSync(apiIndexFile) && fs.existsSync(serverMjsFile)) {
-  const apiIndex = fs.readFileSync(apiIndexFile, 'utf8');
-  const serverMjs = fs.readFileSync(serverMjsFile, 'utf8');
+const ACTIVE_DEPLOYMENT_ID = 'AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA';
 
-  const adminToken1 = (apiIndex.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
-  const adminToken2 = (serverMjs.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+const endpointFiles = [
+  { name: 'Vercel API', file: apiIndexFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
+  { name: 'Docker Server', file: serverMjsFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
+  { name: 'Netlify API', file: netlifyFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
+  { name: 'Mobile Direct API', file: mobileApiFile, regex: /DEFAULT_GAS_URL\s*=\s*['"]([^'"]+)['"]/ }
+];
 
-  if (adminToken1 && adminToken2 && adminToken1 === adminToken2) {
-    passed.push(`DEFAULT_ADMIN_TOKEN is consistent across Vercel API and Docker Server (${adminToken1.slice(0, 8)}...)`);
-  } else {
-    issues.push('DEFAULT_ADMIN_TOKEN mismatch between Vercel API and Docker server.mjs');
-  }
-
-  const driverToken1 = (apiIndex.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
-  const driverToken2 = (serverMjs.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1];
-
-  if (driverToken1 && driverToken2 && driverToken1 === driverToken2) {
-    passed.push(`DEFAULT_DRIVER_TOKEN is consistent across Vercel API and Docker Server (${driverToken1.slice(0, 8)}...)`);
-  } else {
-    issues.push('DEFAULT_DRIVER_TOKEN mismatch between Vercel API and Docker server.mjs');
+for (const ep of endpointFiles) {
+  if (fs.existsSync(ep.file)) {
+    const content = fs.readFileSync(ep.file, 'utf8');
+    const match = (content.match(ep.regex) || [])[1];
+    if (match && match.includes(ACTIVE_DEPLOYMENT_ID)) {
+      passed.push(`${ep.name} points to active deployment ID (${ACTIVE_DEPLOYMENT_ID.slice(0, 16)}...)`);
+    } else {
+      issues.push(`${ep.name} does NOT point to active deployment ID! Current: ${match}`);
+    }
   }
 }
 
-// 4. Check Spreadsheet Column Constants consistency in WebConfig.gs vs KPMn.gs
+if (fs.existsSync(apiIndexFile) && fs.existsSync(serverMjsFile) && fs.existsSync(netlifyFile) && fs.existsSync(mobileApiFile)) {
+  const apiIndex = fs.readFileSync(apiIndexFile, 'utf8');
+  const serverMjs = fs.readFileSync(serverMjsFile, 'utf8');
+  const netlify = fs.readFileSync(netlifyFile, 'utf8');
+  const mobileApi = fs.readFileSync(mobileApiFile, 'utf8');
+
+  const adminTokens = [
+    (apiIndex.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
+    (serverMjs.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
+    (netlify.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1]
+  ];
+
+  if (adminTokens.every(t => t && t === adminTokens[0])) {
+    passed.push(`DEFAULT_ADMIN_TOKEN is consistent across Vercel API, Netlify, and Docker Server (${adminTokens[0].slice(0, 8)}...)`);
+  } else {
+    issues.push('DEFAULT_ADMIN_TOKEN mismatch between Vercel API, Netlify, or Docker server.mjs');
+  }
+
+  const driverTokens = [
+    (apiIndex.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
+    (serverMjs.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
+    (netlify.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
+    (mobileApi.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1]
+  ];
+
+  if (driverTokens.every(t => t && t === driverTokens[0])) {
+    passed.push(`DEFAULT_DRIVER_TOKEN is consistent across Vercel, Netlify, Docker, and Mobile App (${driverTokens[0].slice(0, 8)}...)`);
+  } else {
+    issues.push('DEFAULT_DRIVER_TOKEN mismatch across clients/proxies');
+  }
+}
+
+// 4. Check for obsolete path references
+const buildApkFile = path.join(rootDir, 'apps/mobile/build-apk.ps1');
+if (fs.existsSync(buildApkFile)) {
+  const content = fs.readFileSync(buildApkFile, 'utf8');
+  if (content.includes('driver-app')) {
+    issues.push("apps/mobile/build-apk.ps1 still references obsolete 'driver-app' directory path!");
+  } else {
+    passed.push("apps/mobile/build-apk.ps1 paths correctly resolved to mobileDir");
+  }
+}
+
+// 5. Check Spreadsheet Column Constants consistency in WebConfig.gs vs KPMn.gs
 const webConfigGsFile = path.join(rootDir, 'gas/WebConfig.gs');
 const kpmnGsFile = path.join(rootDir, 'gas/KPMn.gs');
 
@@ -131,7 +174,7 @@ if (fs.existsSync(webConfigGsFile) && fs.existsSync(kpmnGsFile)) {
   }
 }
 
-// 5. Check KPM Status Constants & State Machine in gas/WebConfig.gs
+// 6. Check KPM Status Constants & State Machine in gas/WebConfig.gs
 if (fs.existsSync(webConfigGsFile)) {
   const webConfigGs = fs.readFileSync(webConfigGsFile, 'utf8');
   const transitionsMatch = webConfigGs.match(/var\s+STATUS_TRANSITIONS\s*=\s*(?:Object\.freeze\()?\s*\{([\s\S]*?)\}/);
@@ -155,6 +198,7 @@ if (warnings.length > 0) {
 if (issues.length > 0) {
   console.log(`\nCritical / Actionable Issues (${issues.length}):`);
   issues.forEach(i => console.log('  [FAIL]', i));
+  process.exit(1);
 } else {
   console.log('\n✓ No critical mismatches or action route errors detected! All components are 100% synchronized.');
 }

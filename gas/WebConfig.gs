@@ -11,6 +11,8 @@ var WEB_CONFIG = {
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+  RECIPIENTS_SHEET_NAME: "Penerima",
+  DEFAULT_RECIPIENTS: ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"],
   // Tokens must be configured in Apps Script Script Properties.
   DEFAULT_ADMIN_TOKEN: "",
   DEFAULT_DRIVER_TOKEN: ""

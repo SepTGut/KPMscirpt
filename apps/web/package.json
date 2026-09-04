@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "start": "node server.mjs"
   },
+  "allowScripts": {
+    "esbuild": true
+  },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
     "leaflet": "^1.9.4",

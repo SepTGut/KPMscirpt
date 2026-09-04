@@ -3,6 +3,49 @@
 // ============================================
 
 /**
+ * Returns list of recipient names from sheet 'Penerima' with auto-creation & fallback.
+ */
+function getRecipientsList() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    var sheetName = WEB_CONFIG.RECIPIENTS_SHEET_NAME || "Penerima";
+    var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName("Recipients");
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.getRange(1, 1).setValue("Nama Penerima").setFontWeight("bold");
+      var defaultRecipients = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).map(function(name) { return [name]; });
+      if (defaultRecipients.length > 0) {
+        sheet.getRange(2, 1, defaultRecipients.length, 1).setValues(defaultRecipients);
+      }
+      SpreadsheetApp.flush();
+      return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    }
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      var defaultRecipients = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).map(function(name) { return [name]; });
+      if (defaultRecipients.length > 0) {
+        sheet.getRange(2, 1, defaultRecipients.length, 1).setValues(defaultRecipients);
+      }
+      SpreadsheetApp.flush();
+      return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    }
+    var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    var recipients = [];
+    for (var i = 0; i < values.length; i++) {
+      var name = String(values[i][0] || "").trim();
+      if (name && recipients.indexOf(name) === -1) {
+        recipients.push(name);
+      }
+    }
+    return recipients.length > 0 ? recipients : (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+  } catch (e) {
+    Logger.log("getRecipientsList error: " + e.message);
+    return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+  }
+}
+
+/**
  * Returns centralized master data for dropdowns, forms, and client config.
  */
 function getMasterData() {
@@ -13,6 +56,7 @@ function getMasterData() {
     uoms: WEB_CONFIG.UOMS,
     statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BELUM_BERANGKAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA, KPM_STATUS.SELESAI],
     statusCodes: STATUS_CODES,
+    recipients: getRecipientsList(),
     firebaseDbUrl: fbConfig.firebaseDbUrl
   };
 }
@@ -120,6 +164,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
   var lastSeenBuktiBer = "";
   var lastSeenBuktiTib = "";
   var lastSeenGpsTrack = "";
+  var lastSeenPenerima = "";
 
   var pendingStatusRowUpdates = [];
 
@@ -177,10 +222,13 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         photoAndGpsFormulas[i][2],
         displayData[i][MONITOR_COL_GPS_TRACK - 1]
       );
+      lastSeenPenerima = String(row[MONITOR_COL_PENERIMA - 1] || "").trim();
     }
 
     var kpm = rawKpm || (barang ? lastSeenKpm : "");
     if (!kpm) continue;
+
+    var penerima = String(row[MONITOR_COL_PENERIMA - 1] || "").trim() || lastSeenPenerima;
 
     var statusAkhir = lastSeenStatus || KPM_STATUS.BARU_DIBUAT;
     var currentCellStatus = normalizeKpmStatus(row[MONITOR_COL_STATUS - 1]);
@@ -239,6 +287,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         buktiBerangkat: buktiBerangkat,
         buktiTiba: buktiTiba,
         gpsTrack: gpsTrack,
+        penerima: penerima,
         daftarBarang: []
       };
     }

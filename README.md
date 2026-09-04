@@ -135,6 +135,22 @@ KPMscirpt/
 
 ## Fitur Utama
 
+- 👥 **Arsitektur Hak Akses 4-Tier Berbasis Peran (RBAC)**:
+  - **IT ("The Makers")**: Hak akses penuh tanpa batasan (*full access*), audit log, konfigurasi sistem, dan manajemen pengguna.
+  - **Super Admin**: Akses manajerial menyeluruh dengan *Dual Mode Switcher* (dapat bertindak sebagai Admin Logistik maupun Driver Lapangan).
+  - **Admin Logistik**: Pembuatan KPM multi-item, pemantauan status, pengeditan item muatan, dan pengarsipan; integritas status terkunci (`🔒`) demi akurasi data lapangan.
+  - **Driver Lapangan**: Portal khusus pengemudi, navigasi rute Google Maps 1-klik, konfirmasi keberangkatan & kedatangan disertai bukti foto kamera dan titik koordinat GPS.
+- 📖 **Buku Panduan & Tutorial Interaktif Terpadu (In-App Tutorial)**:
+  - Menu khusus `📖 Tutorial` terintegrasi langsung di dalam aplikasi (dapat diakses oleh Admin maupun Driver melalui navigasi tab dan tombol pintas header).
+  - Dilengkapi panduan interaktif 6 kategori: Ringkasan Peran, Alur Kerja Admin 5-Langkah, Alur Kerja Driver 4-Langkah, Live Fleet Radar, Fitur Khusus IT/Super Admin, serta FAQ & Pemecahan Kendala Lapangan.
+- 📇 **Manajemen Pengguna & Cetak Kartu ID QR (User Management)**:
+  - Pengelolaan data akun staf dan pengemudi (tambah akun, reset PIN, aktif/nonaktifkan akun, ubah nomor kontak dan penempatan workshop).
+  - Fitur cetak kartu identitas (ID Card) pengemudi lengkap dengan QR Code login instan berstandar ukuran cetak kartu A4.
+- 📲 **Konfirmasi Kedatangan Penerima via Scan QR Code & Kolom AA (`Penerima`)**:
+  - Alur serah terima tervalidasi dua arah: Driver mengambil foto bukti tiba -> sistem menyimpan foto dan menampilkan QR Code di layar HP Driver.
+  - Penerima men-scan QR Code dengan kamera ponselnya -> membuka halaman web konfirmasi (`/kpm/confirm?kpm=...`) -> memilih nama penerima dari database sheet `Penerima` -> klik "Konfirmasi Penerimaan Barang ✓".
+  - Status resmi beralih ke *Tiba*, nama penerima dicatat otomatis di **Kolom AA** (*Penerima*) sheet `KPM Monitor 2026` dan arsip `T.Log`.
+  - Layar HP Driver otomatis mendeteksi konfirmasi penerima (*auto-poll*) dan menampilkan pesan sukses tanpa perlu refresh manual.
 - 🗺️ **Live Fleet GPS Radar (Leaflet.js & Firebase Realtime Database)**:
   - Pelacakan posisi armada truk bergerak secara visual di atas peta interaktif.
   - Animasi denyut radar dan orientasi rotasi truk sesuai sudut hadap (*heading*).
@@ -164,7 +180,7 @@ stateDiagram-v2
     [*] --> BARU_DIBUAT : Admin Membuat KPM
     BARU_DIBUAT --> BELUM_BERANGKAT : Cetak / Konfirmasi Persiapan
     BELUM_BERANGKAT --> BERANGKAT : Driver Konfirmasi Muat + Upload Foto Berangkat
-    BERANGKAT --> TIBA : Driver Konfirmasi Tiba + Upload Foto Tiba
+    BERANGKAT --> TIBA : Driver Upload Foto Tiba + Penerima Scan QR & Konfirmasi
     TIBA --> SELESAI : Admin Arsipkan Dokumen
     SELESAI --> [*]
 
@@ -177,6 +193,7 @@ stateDiagram-v2
         - GPS dibersihkan dari Firebase
         - Durasi dihitung otomatis (hh:mm:ss)
         - Kolom Z terisi: Link Rute Google Maps Selesai
+        - Kolom AA terisi: Nama Penerima Barang
         - Data diarsipkan ke Sheet T.Log
     end note
 ```
@@ -235,17 +252,27 @@ Setiap pengiriman dicatat pada sheet **`KPM Monitor 2026`** dengan format kolom 
 
 ---
 
-## Hak Akses & Keamanan Sistem
+## Hak Akses & Keamanan Sistem (4-Tier RBAC)
 
-| Fitur / Operasi | 👑 Super Admin (ST) | 🛡️ Admin Biasa | 🚚 Driver / User |
-| :--- | :---: | :---: | :---: |
-| **Pembuatan KPM Baru** | ✅ | ✅ | ❌ |
-| **Edit Material & Qty** | ✅ | ✅ | ❌ |
-| **Update Status Pengiriman** | ✅ | ✅ | ✅ |
-| **Live Radar Armada (Peta)** | ✅ | ✅ | ❌ |
-| **Arsip & Hapus KPM** | ✅ | ✅ | ❌ |
-| **Status di Sheet `Users`** | 👻 *Invisible* | 📝 Terdaftar | 📝 Terdaftar |
-| **Jalur Login Utama** | 🔑 Secret Link / Token | 📋 Form PIN / Google / QR | 📇 Scan Kartu QR |
+Sistem menerapkan arsitektur *Role-Based Access Control* (RBAC) 4 tingkat yang memisahkan wewenang pengembang, pimpinan operasional, staf logistik, dan operator lapangan:
+
+| Fitur & Wewenang | ⚡ IT ("The Makers") | 👑 Super Admin | 🛡️ Admin Logistik | 🚚 Driver |
+| :--- | :---: | :---: | :---: | :---: |
+| **Cakupan Akses** | Kontrol Penuh Tanpa Batas | Dual Operasional (Admin & Driver) | Operasional Kantor Logistik | Khusus Lapangan / Armada |
+| **Penerbitan KPM Baru** | ✅ Ya | ✅ Ya | ✅ Ya | ❌ Tidak |
+| **Pantau KPM & Live Radar** | ✅ Ya | ✅ Ya | ✅ Ya | ❌ Tidak |
+| **Edit Material Pra-Jalan** | ✅ Ya | ✅ Ya | ✅ Ya | ❌ Tidak |
+| **Arsip Dokumen Selesai** | ✅ Ya | ✅ Ya | ✅ Ya | ❌ Tidak |
+| **Ubah Status Manual** | ✅ Ya (Override) | ✅ Ya (Override) | 🚫 **DIKUNCI (🔒)** | ❌ Tidak |
+| **Penugasan Driver & GPS** | ✅ Ya (Bisa Switch) | ✅ Ya (Bisa Switch) | ❌ Tidak | ✅ Ya |
+| **Konfirmasi Foto & GPS** | ✅ Ya | ✅ Ya | ❌ Tidak | ✅ Ya |
+| **Tombol Switcher Mode** | ✅ Ya (Admin/Driver) | ✅ Ya (Admin/Driver) | ❌ Tidak | ❌ Tidak |
+| **Menu Kelola Pengguna** | ✅ Ya (Penuh) | ✅ Ya (Staf) | ❌ Tidak | ❌ Tidak |
+| **Buku Panduan & Tutorial** | ✅ Ya | ✅ Ya | ✅ Ya | ✅ Ya |
+| **Jalur Login Utama** | 🔑 Secret Link / Token | 📋 PIN / Google / QR | 📋 PIN / Google / QR | 📇 Scan Kartu QR / PIN |
+
+> [!NOTE]
+> **Aturan Integritas Status:** Admin biasa tidak diizinkan mengubah status pengiriman secara manual dari tabel monitoring. Status otomatis diperbarui secara otentik saat Driver menekan tombol Berangkat/Tiba disertai bukti foto dan koordinat GPS. Super Admin dan IT memiliki tombol override status darurat.
 
 ---
 

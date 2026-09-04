@@ -17,8 +17,9 @@ Aplikasi mobile mandiri yang dioptimalkan khusus untuk **Personel Pengemudi (Dri
 ## 🚀 Cara Menjalankan
 
 ### Development Lokal:
+
 ```bash
-cd apps/driver-app
+cd apps/mobile
 npm install
 npm run dev
 ```

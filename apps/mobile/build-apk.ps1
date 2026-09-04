@@ -5,15 +5,19 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  Membangun & Menandatangani (Signing) Android APK Driver " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-$rootDir = Split-Path -Parent $PSScriptRoot
-$driverDir = Join-Path $PSScriptRoot "driver-app"
-$androidDir = Join-Path $driverDir "android"
-$outputApk = Join-Path $PSScriptRoot "Driver-KPM-v1.0.apk"
-$outputSignedApk = Join-Path $PSScriptRoot "Driver-KPM-v1.0-Signed.apk"
+$mobileDir = $PSScriptRoot
+$rootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$androidDir = Join-Path $mobileDir "android"
+$releasesDir = Join-Path $mobileDir "releases"
+if (-not (Test-Path $releasesDir)) {
+    New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
+}
+$outputApk = Join-Path $releasesDir "Driver-KPM-v1.0.apk"
+$outputSignedApk = Join-Path $releasesDir "Driver-KPM-v1.0-Signed.apk"
 
 # 1. Build Web Assets
 Write-Host "`n[1/4] Membangun Web Assets (Vite)..." -ForegroundColor Yellow
-Set-Location $driverDir
+Set-Location $mobileDir
 npm run build
 
 # 2. Sync Capacitor Assets
@@ -23,7 +27,9 @@ npx cap sync android
 # 3. Assemble Release APK dengan Gradle & Digital Signature Keystore
 Write-Host "`n[3/4] Kompilasi Signed Release APK (Gradle)..." -ForegroundColor Yellow
 Set-Location $androidDir
-$env:ANDROID_HOME = "C:\Users\user\AppData\Local\Android\Sdk"
+if (-not $env:ANDROID_HOME -and (Test-Path "C:\Users\user\AppData\Local\Android\Sdk")) {
+    $env:ANDROID_HOME = "C:\Users\user\AppData\Local\Android\Sdk"
+}
 .\gradlew.bat assembleRelease
 
 # 4. Verifikasi Digital Signature & Copy Output APK

@@ -273,6 +273,68 @@ export function useKpm() {
     }
   }
 
+  async function handleStageArrival(payload) {
+    clearNotice()
+    if (!payload.kpmNomor) {
+      error.value = 'Pilih KPM terlebih dahulu.'
+      return null
+    }
+    if (!payload.photoFile) {
+      error.value = 'Foto bukti kedatangan wajib dilampirkan.'
+      return null
+    }
+    busy.value = true
+    try {
+      if (driverName.value) {
+        localStorage.setItem('kpm_driver_name', driverName.value)
+      }
+      const coords = await getCurrentCoordinates().catch(() => null)
+      const fotoData = await compressImage(payload.photoFile)
+      const res = await api('stageArrival', {
+        body: {
+          nomorKPM: payload.kpmNomor,
+          fotoData: fotoData,
+          driver: driverName.value || payload.driver || '',
+          namaPIC: payload.pic || '',
+          lokasiWorkshop: payload.workshop || '',
+          latitude: coords?.latitude || '',
+          longitude: coords?.longitude || '',
+        }
+      })
+      return res
+    } catch (e) {
+      error.value = e.message
+      return null
+    } finally {
+      busy.value = false
+    }
+  }
+
+  async function handleConfirmArrival(nomorKPM, namaPenerima) {
+    clearNotice()
+    if (!nomorKPM || !namaPenerima) {
+      error.value = 'Nomor KPM dan nama penerima wajib diisi.'
+      return null
+    }
+    busy.value = true
+    try {
+      const res = await api('confirmArrivalReceipt', {
+        body: {
+          nomorKPM: nomorKPM,
+          namaPenerima: namaPenerima
+        }
+      })
+      await removeActiveTrip(nomorKPM).catch(() => {})
+      message.value = res?.message || `KPM ${nomorKPM} berhasil dikonfirmasi diterima oleh ${namaPenerima}.`
+      return res
+    } catch (e) {
+      error.value = e.message
+      return null
+    } finally {
+      busy.value = false
+    }
+  }
+
   return {
     master,
     monitoring,
@@ -296,6 +358,8 @@ export function useKpm() {
     addEditItem,
     removeEditItem,
     saveLatestKpmItems,
-    handleDriverStatusUpdate
+    handleDriverStatusUpdate,
+    handleStageArrival,
+    handleConfirmArrival
   }
 }

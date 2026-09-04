@@ -104,7 +104,6 @@ export default async function handler(req, res) {
 
     res.setHeader('content-type', 'application/json; charset=utf-8')
 
-    const action = params.get('action') || ''
     const isForceRefresh = params.get('refresh') === 'true'
 
     if (req.method === 'GET' && action === 'getMasterData') {
