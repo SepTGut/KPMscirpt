@@ -47,6 +47,7 @@ function onOpen() {
     .addItem('📐 Perbaiki Format Sheet (Fix Format)', 'fixFormat')
     .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
     .addItem('👥 Setup Sheet Pengguna (Users)', 'setupUsersSheet')
+    .addItem('📦 Setup Sheet Penerima (Recipients)', 'setupRecipientsSheet')
     .addSeparator()
     .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
     .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')

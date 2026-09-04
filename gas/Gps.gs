@@ -129,10 +129,13 @@ function setupTrackingHeaders() {
   sheet.getRange(MONITOR_START_ROW, MONITOR_COL_STATUS, statusRowCount, 1)
     .setDataValidation(statusValidation);
 
-  // Ensure T.Log sheet is also set up
+  // Ensure T.Log and Penerima sheets are also set up
   setupTLogSheet();
+  if (typeof setupRecipientsSheet === "function") {
+    setupRecipientsSheet();
+  }
 
   if (typeof SpreadsheetApp.getUi === "function") {
-    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga Z (Driver, Waktu Berangkat, Waktu Tiba, Durasi, Status, Foto Berangkat, Foto Tiba, GPS Track) dan Sheet T.Log telah dikonfigurasi.");
+    SpreadsheetApp.getUi().alert("Setup Selesai: Kolom Tracking S hingga AA (Driver s.d. Penerima), Sheet T.Log, dan Sheet Penerima telah dikonfigurasi.");
   }
 }

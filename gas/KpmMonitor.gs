@@ -46,6 +46,48 @@ function getRecipientsList() {
 }
 
 /**
+ * Explicit setup & initialization utility for sheet 'Penerima'.
+ * Can be run manually from Apps Script Editor or the Sheets Custom Menu.
+ */
+function setupRecipientsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error("Tidak ada spreadsheet aktif.");
+  var sheetName = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.RECIPIENTS_SHEET_NAME) ? WEB_CONFIG.RECIPIENTS_SHEET_NAME : "Penerima";
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  // Format Header
+  sheet.getRange(1, 1).setValue("Nama Penerima").setFontWeight("bold").setBackground("#e8f0fe");
+  sheet.setFrozenRows(1);
+  sheet.setColumnWidth(1, 240);
+
+  // Fill default recipients if sheet is empty or newly created
+  var defaultList = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.DEFAULT_RECIPIENTS) 
+    ? WEB_CONFIG.DEFAULT_RECIPIENTS 
+    : ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"];
+
+  if (sheet.getLastRow() < 2) {
+    var rows = defaultList.map(function(n) { return [n]; });
+    sheet.getRange(2, 1, rows.length, 1).setValues(rows);
+  }
+
+  SpreadsheetApp.flush();
+
+  try {
+    var ui = SpreadsheetApp.getUi();
+    if (ui) {
+      ss.toast("Sheet '" + sheetName + "' berhasil disiapkan dengan " + Math.max(sheet.getLastRow() - 1, defaultList.length) + " nama penerima.", "Setup Penerima", 5);
+    }
+  } catch (e) {
+    // Non-UI context
+  }
+
+  return sheet;
+}
+
+/**
  * Returns centralized master data for dropdowns, forms, and client config.
  */
 function getMasterData() {
