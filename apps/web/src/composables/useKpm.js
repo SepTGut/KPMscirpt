@@ -22,14 +22,35 @@ export function useKpm() {
   const { currentUser, mode, driverName } = useAuth()
   const { getCurrentCoordinates, startLiveTracking, removeActiveTrip, compressImage } = useGps()
 
+  const isITUser = computed(() => {
+    const r = (currentUser.value?.role || '').toLowerCase()
+    return r === 'it' || currentUser.value?.isIT === true || currentUser.value?.username?.toUpperCase() === 'ST'
+  })
+
+  function isTestItem(item) {
+    if (!item) return false
+    if (item.isTest === true) return true
+    const no = String(item.nomor || item.kpmId || '').toUpperCase()
+    const o = String(item.lokasiBerangkat || item.lokasiAwal || '').trim()
+    const d = String(item.lokasiTujuan || '').trim()
+    const p = String(item.pic || '').trim().toUpperCase()
+    const drv = String(item.driver || '').trim().toUpperCase()
+    const r = String(item.penerima || '').trim().toUpperCase()
+    return no.includes('TEST') || o === 'Test0' || o === 'Test1' || d === 'Test0' || d === 'Test1' || p === 'IT' || p === 'ST' || drv === 'IT' || drv === 'ST' || r === 'IT' || r === 'ST'
+  }
+
   const filteredMonitoring = computed(() => {
+    let list = monitoring.value
+    if (!isITUser.value) {
+      list = list.filter(item => !isTestItem(item))
+    }
     if (filter.value === 'Semua') {
-      return monitoring.value.filter(item => item.status !== 'Selesai')
+      return list.filter(item => item.status !== 'Selesai')
     }
     if (filter.value === 'Selesai') {
-      return monitoring.value.filter(item => item.status === 'Selesai')
+      return list.filter(item => item.status === 'Selesai')
     }
-    return monitoring.value.filter(item => item.status === filter.value)
+    return list.filter(item => item.status === filter.value)
   })
 
   function clearNotice() {
@@ -41,11 +62,28 @@ export function useKpm() {
     return requestApi(action, options, { currentUser: currentUser.value, mode: mode.value })
   }
 
-  async function loadMaster() {
+  async function cleanOrphanedAndTestRows() {
+    clearNotice()
+    busy.value = true
+    try {
+      const res = await api('cleanOrphanedAndTestRows', { method: 'POST' })
+      message.value = res?.message || 'Pembersihan data testing dan baris kosong berhasil diselesaikan.'
+      await loadMonitoring(true)
+      return res
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
+  async function loadMaster(forceRefresh = false) {
     if (mode.value !== 'admin') return
     try {
-      if (typeof sessionStorage !== 'undefined') {
-        const cached = sessionStorage.getItem('kpm_master_data')
+      const cacheKey = isITUser.value ? 'kpm_master_data_it' : 'kpm_master_data_prod'
+      if (!forceRefresh && typeof sessionStorage !== 'undefined') {
+        const cached = sessionStorage.getItem(cacheKey)
         if (cached) {
           try {
             const parsed = JSON.parse(cached)
@@ -59,7 +97,7 @@ export function useKpm() {
       if (data) {
         master.value = data
         if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem('kpm_master_data', JSON.stringify(data))
+          sessionStorage.setItem(cacheKey, JSON.stringify(data))
         }
       }
     } catch (e) {
@@ -360,6 +398,7 @@ export function useKpm() {
     saveLatestKpmItems,
     handleDriverStatusUpdate,
     handleStageArrival,
-    handleConfirmArrival
+    handleConfirmArrival,
+    cleanOrphanedAndTestRows
   }
 }

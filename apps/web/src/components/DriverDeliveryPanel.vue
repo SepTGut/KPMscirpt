@@ -15,7 +15,8 @@ const props = defineProps({
   deliveries: { type: Array, required: true },
   selectedDelivery: { type: Object, default: null },
   driverName: { type: String, default: '' },
-  busy: { type: Boolean, default: false }
+  busy: { type: Boolean, default: false },
+  isIT: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -308,6 +309,11 @@ onUnmounted(() => {
           <label class="block">
             <span class="label">Nama Pengemudi / Driver</span>
             <input :value="driverName" @input="handleDriverNameInput" class="field bg-white" placeholder="Contoh: PAK BUDI" />
+            <div v-if="isIT" class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[10.5px] text-purple-700 font-semibold">Testing Quick-Fill:</span>
+              <button type="button" class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300" @click="$emit('update-driver-name', 'IT')">🧪 IT</button>
+              <button type="button" class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300" @click="$emit('update-driver-name', 'ST')">🧪 ST</button>
+            </div>
           </label>
 
           <label class="block">

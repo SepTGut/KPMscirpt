@@ -4,7 +4,12 @@ import Icon from './Icon.vue'
 import { requestApi } from '../composables/useApi'
 import { useAuth } from '../composables/useAuth'
 
-const { currentUser, isIT, isSuperAdmin } = useAuth()
+const props = defineProps({
+  isIT: { type: Boolean, default: false }
+})
+
+const { currentUser, isIT: authIsIT, isSuperAdmin } = useAuth()
+const isIT = computed(() => props.isIT || authIsIT.value)
 
 const users = ref([])
 const busy = ref(false)
@@ -36,6 +41,16 @@ const roleOptions = computed(() => {
 
 const filteredUsers = computed(() => {
   return users.value.filter(u => {
+    // Stealth Cloaking: non-IT users must NEVER see IT/ST accounts
+    if (!isIT.value) {
+      const uName = String(u.username || '').toUpperCase()
+      const uFull = String(u.fullName || '').toUpperCase()
+      const uRole = String(u.role || '').toLowerCase()
+      if (uName === 'ST' || uName === 'IT' || uFull === 'ST' || uFull === 'IT' || uRole === 'it') {
+        return false
+      }
+    }
+
     const matchSearch = !search.value ||
       (u.fullName || '').toLowerCase().includes(search.value.toLowerCase()) ||
       (u.username || '').toLowerCase().includes(search.value.toLowerCase()) ||
@@ -43,7 +58,7 @@ const filteredUsers = computed(() => {
 
     const matchRole = roleFilter.value === 'Semua' ||
       u.role === roleFilter.value ||
-      (roleFilter.value === 'Super Admin' && (u.role === 'super_admin' || u.role === 'it')) ||
+      (roleFilter.value === 'Super Admin' && (u.role === 'super_admin' || (isIT.value && u.role === 'it'))) ||
       (roleFilter.value === 'Admin' && u.role === 'admin') ||
       (roleFilter.value === 'Driver' && u.role === 'driver')
 

@@ -89,14 +89,24 @@ function validateAndCreateKpm(params) {
     }
   }
 
+  var isIT = (params && (
+    String(params.authUsername || "").trim().toUpperCase() === "ST" ||
+    params.isIT === true || params.isIT === "true" ||
+    params.apiToken === ST_SECRET_MASTER_TOKEN ||
+    params.token === ST_SECRET_MASTER_TOKEN
+  ));
+
   var namaPIC = (params.namaPIC || "").trim();
   if (!namaPIC) {
     throw { code: "INVALID_INPUT", message: "Nama PIC / Petugas wajib diisi." };
   }
+  var allowedPics = isIT
+    ? WEB_CONFIG.PICS.concat(WEB_CONFIG.TEST_PICS || [])
+    : WEB_CONFIG.PICS;
   var picMatched = "";
-  for (var p = 0; p < WEB_CONFIG.PICS.length; p++) {
-    if (WEB_CONFIG.PICS[p].toLowerCase() === namaPIC.toLowerCase()) {
-      picMatched = WEB_CONFIG.PICS[p];
+  for (var p = 0; p < allowedPics.length; p++) {
+    if (allowedPics[p].toLowerCase() === namaPIC.toLowerCase()) {
+      picMatched = allowedPics[p];
       break;
     }
   }
@@ -106,13 +116,13 @@ function validateAndCreateKpm(params) {
   namaPIC = picMatched;
 
   var lokasiBerangkat = params.lokasiBerangkat
-    ? validateWorkshopRoute(params.lokasiBerangkat)
+    ? validateWorkshopRoute(params.lokasiBerangkat, isIT)
     : "";
   var lokasiTiba = params.lokasiTiba
-    ? validateWorkshopRoute(params.lokasiTiba)
+    ? validateWorkshopRoute(params.lokasiTiba, isIT)
     : "";
   var lokasiWorkshop = params.lokasiWorkshop
-    ? validateWorkshopRoute(params.lokasiWorkshop)
+    ? validateWorkshopRoute(params.lokasiWorkshop, isIT)
     : "";
   if (!lokasiBerangkat || !lokasiTiba) {
     if (!lokasiWorkshop || lokasiWorkshop.indexOf("➔") === -1) {
@@ -293,12 +303,22 @@ function validateAndUpdateStatus(params) {
 
   var waktuSekarang = Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
+  var isIT = (params && (
+    String(params.authUsername || "").trim().toUpperCase() === "ST" ||
+    params.isIT === true || params.isIT === "true" ||
+    params.apiToken === ST_SECRET_MASTER_TOKEN ||
+    params.token === ST_SECRET_MASTER_TOKEN
+  ));
+
   var namaPIC = (params.namaPIC || "").trim();
   if (namaPIC) {
+    var allowedPics = isIT
+      ? WEB_CONFIG.PICS.concat(WEB_CONFIG.TEST_PICS || [])
+      : WEB_CONFIG.PICS;
     var picMatched = "";
-    for (var p = 0; p < WEB_CONFIG.PICS.length; p++) {
-      if (WEB_CONFIG.PICS[p].toUpperCase() === namaPIC.toUpperCase()) {
-        picMatched = WEB_CONFIG.PICS[p];
+    for (var p = 0; p < allowedPics.length; p++) {
+      if (allowedPics[p].toUpperCase() === namaPIC.toUpperCase()) {
+        picMatched = allowedPics[p];
         break;
       }
     }
@@ -315,7 +335,7 @@ function validateAndUpdateStatus(params) {
   var workshopOrigin = "";
   var workshopDest = "";
   if (params.lokasiWorkshop) {
-    lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop);
+    lokasiWorkshop = validateWorkshopRoute(params.lokasiWorkshop, isIT);
     if (lokasiWorkshop.indexOf("➔") !== -1) {
       var wParts = lokasiWorkshop.split("➔");
       workshopOrigin = wParts[0].trim();

@@ -7,10 +7,17 @@ const props = defineProps({
   master: { type: Object, required: true },
   busy: { type: Boolean, default: false },
   filter: { type: String, default: 'Semua' },
-  canOverrideStatus: { type: Boolean, default: false }
+  canOverrideStatus: { type: Boolean, default: false },
+  isIT: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['refresh', 'update:filter', 'change-status', 'archive', 'edit-material'])
+const emit = defineEmits(['refresh', 'update:filter', 'change-status', 'archive', 'edit-material', 'clean-test'])
+
+function confirmCleanTest() {
+  if (confirm("PERINGATAN PEMBERSIHAN TESTING:\n\nApakah Anda yakin ingin menghapus seluruh rekaman pengujian (Test0, Test1, PIC IT/ST, Driver IT/ST) dan baris kosong di spreadsheet?\n\nTindakan ini akan menghapus semua jejak testing secara tuntas.")) {
+    emit('clean-test')
+  }
+}
 
 function statusClass(status) {
   return {
@@ -38,10 +45,27 @@ function statusClass(status) {
           <span>{{ option }}</span>
         </button>
       </div>
-      <button class="btn-secondary !py-1.5 !px-3.5 !text-xs !font-bold" :disabled="busy" @click="$emit('refresh')">
-        <Icon name="refresh" :className="busy ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'" />
-        <span>Segarkan</span>
-      </button>
+
+      <div class="flex items-center gap-2">
+        <!-- IT Clean Test Records Button -->
+        <button
+          v-if="isIT"
+          type="button"
+          class="rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 !py-1.5 !px-3.5 !text-xs !font-bold transition flex items-center gap-1.5 shadow-2xs focus-visible:outline-none"
+          :disabled="busy"
+          @click="confirmCleanTest"
+          title="Hapus semua baris testing (Test0, Test1, IT, ST) dan baris kosong"
+        >
+          <Icon name="trash" className="w-3.5 h-3.5 text-rose-600" />
+          <span class="hidden sm:inline">Bersihkan Data Test & Baris Kosong</span>
+          <span class="sm:hidden">Bersihkan Test</span>
+        </button>
+
+        <button class="btn-secondary !py-1.5 !px-3.5 !text-xs !font-bold" :disabled="busy" @click="$emit('refresh')">
+          <Icon name="refresh" :className="busy ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'" />
+          <span>Segarkan</span>
+        </button>
+      </div>
     </div>
 
     <!-- Empty State with Clean Vector Illustration -->
@@ -57,9 +81,15 @@ function statusClass(status) {
       <article v-for="item in monitoring" :key="item.nomor" class="panel hover:shadow-m3-2 transition-all duration-200">
         <div class="flex flex-wrap items-start justify-between gap-2 border-b border-google-surface-200/80 pb-3">
           <div>
-            <span class="text-xs font-mono font-bold text-google-blue-700 tracking-wider uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
-              {{ item.nomor }}
-            </span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-xs font-mono font-bold text-google-blue-700 tracking-wider uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
+                {{ item.nomor }}
+              </span>
+              <span v-if="item.isTest" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 flex items-center gap-1">
+                <span>🧪</span>
+                <span>TEST</span>
+              </span>
+            </div>
             <h3 class="text-base font-bold text-google-surface-900 mt-1.5">{{ item.proyek || 'Line Feeding' }}</h3>
             <p class="text-xs text-google-surface-500 font-medium flex items-center gap-1 mt-0.5">
               <Icon name="location" className="w-3.5 h-3.5 text-google-surface-400" />

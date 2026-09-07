@@ -34,6 +34,10 @@ export async function requestApi(action, options = {}, authState = {}) {
         params.set('apiToken', authState.currentUser.token)
       }
 
+      if (authState.currentUser?.isIT || authState.currentUser?.role === 'it' || authState.currentUser?.username?.toUpperCase() === 'ST') {
+        params.set('isIT', 'true')
+      }
+
       const isGet = options.method === 'GET'
       const fetchUrl = isGet ? `${scriptUrl}?${params}` : scriptUrl
 

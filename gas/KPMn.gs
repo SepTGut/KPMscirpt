@@ -475,7 +475,8 @@ function onEdit(e) {
 
 /**
  * Sweeps the entire "KPM Monitor 2026" sheet and purges any orphaned rows
- * that have lingering metadata without active material codes or descriptions.
+ * and ALL test data records (Test0, Test1, IT, ST, and TEST-prefix documents).
+ * Also cleanses the Penerima and Users sheets of any test residues.
  */
 function cleanOrphanedRows() {
   if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) return;
@@ -491,13 +492,33 @@ function cleanOrphanedRows() {
   var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
   var allRows = range.getValues();
   var cleanedCount = 0;
+  var testCount = 0;
+
+  var retainedRows = [];
 
   for (var i = 0; i < allRows.length; i++) {
     var rowData = allRows[i];
+    var noLf = rowData[MONITOR_COL_NOLF - 1] ? rowData[MONITOR_COL_NOLF - 1].toString().trim() : "";
     var kode = rowData[MONITOR_COL_KODE - 1] ? rowData[MONITOR_COL_KODE - 1].toString().trim() : "";
     var spek = rowData[MONITOR_COL_SPEK - 1] ? rowData[MONITOR_COL_SPEK - 1].toString().trim() : "";
     var item = rowData[MONITOR_COL_ITEM - 1] ? rowData[MONITOR_COL_ITEM - 1].toString().trim() : "";
+    var pic = rowData[MONITOR_COL_PIC - 1] ? rowData[MONITOR_COL_PIC - 1].toString().trim() : "";
+    var wsAwal = rowData[MONITOR_COL_WSAWAL - 1] ? rowData[MONITOR_COL_WSAWAL - 1].toString().trim() : "";
+    var wsTujuan = rowData[MONITOR_COL_WSTUJUAN - 1] ? rowData[MONITOR_COL_WSTUJUAN - 1].toString().trim() : "";
+    var driver = rowData[MONITOR_COL_DRIVER - 1] ? rowData[MONITOR_COL_DRIVER - 1].toString().trim() : "";
+    var penerima = rowData[MONITOR_COL_PENERIMA - 1] ? rowData[MONITOR_COL_PENERIMA - 1].toString().trim() : "";
 
+    // 1. Check if row is testing data
+    var isTest = (typeof isTestRecord === 'function')
+      ? isTestRecord(noLf, wsAwal, wsTujuan, pic, driver, penerima)
+      : (noLf.toUpperCase().indexOf("TEST") !== -1 || wsAwal === "Test0" || wsAwal === "Test1" || wsTujuan === "Test0" || wsTujuan === "Test1" || pic.toUpperCase() === "IT" || pic.toUpperCase() === "ST" || driver.toUpperCase() === "IT" || driver.toUpperCase() === "ST" || penerima.toUpperCase() === "IT" || penerima.toUpperCase() === "ST");
+
+    if (isTest) {
+      testCount++;
+      continue; // Discard test row
+    }
+
+    // 2. Check if row is orphaned / empty
     if (kode === "" && spek === "") {
       var hasLingering = false;
       for (var c = 0; c < rowData.length; c++) {
@@ -507,17 +528,101 @@ function cleanOrphanedRows() {
         }
       }
       if (hasLingering) {
-        clearRowDataInMemory(rowData);
         cleanedCount++;
+        continue; // Discard orphaned row
       }
+      // Completely blank row is also discarded to compact sheet
+      continue;
     }
+
+    retainedRows.push(rowData);
   }
 
-  if (cleanedCount > 0) {
-    range.setValues(allRows);
+  // Compact sheet if any row was removed
+  if (retainedRows.length < allRows.length) {
+    var writeBack = [];
+    for (var r = 0; r < retainedRows.length; r++) {
+      writeBack.push(retainedRows[r]);
+    }
+    var blankCount = allRows.length - retainedRows.length;
+    for (var b = 0; b < blankCount; b++) {
+      var emptyRow = new Array(MONITOR_TOTAL_COLS);
+      for (var col = 0; col < MONITOR_TOTAL_COLS; col++) emptyRow[col] = "";
+      writeBack.push(emptyRow);
+    }
+    range.setValues(writeBack);
   }
 
-  SpreadsheetApp.getUi().alert("Pembersihan Selesai: " + cleanedCount + " baris tanpa material telah dibersihkan.");
+  // 3. Purge test residues from Penerima sheet
+  try {
+    var recSheetName = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.RECIPIENTS_SHEET_NAME) ? WEB_CONFIG.RECIPIENTS_SHEET_NAME : "Penerima";
+    var recSheet = ss.getSheetByName(recSheetName);
+    if (recSheet && recSheet.getLastRow() >= 2) {
+      var recRange = recSheet.getRange(2, 1, recSheet.getLastRow() - 1, 1);
+      var recVals = recRange.getValues();
+      var cleanRecs = [];
+      for (var rx = 0; rx < recVals.length; rx++) {
+        var rName = String(recVals[rx][0] || "").trim();
+        var rUp = rName.toUpperCase();
+        if (rName && rUp !== "IT" && rUp !== "ST" && rUp !== "TEST0" && rUp !== "TEST1") {
+          cleanRecs.push([rName]);
+        }
+      }
+      var recWrite = [];
+      for (var cr = 0; cr < cleanRecs.length; cr++) recWrite.push(cleanRecs[cr]);
+      while (recWrite.length < recVals.length) recWrite.push([""]);
+      recRange.setValues(recWrite);
+    }
+  } catch (eRec) {
+    Logger.log("Recipients test purge notice: " + eRec.message);
+  }
+
+  // 4. Purge test residues from Users sheet
+  try {
+    var usrSheetName = (typeof USERS_SHEET_NAME !== 'undefined') ? USERS_SHEET_NAME : "Users";
+    var usrSheet = ss.getSheetByName(usrSheetName);
+    if (usrSheet && usrSheet.getLastRow() >= 2) {
+      var uCols = usrSheet.getLastColumn();
+      var uRange = usrSheet.getRange(2, 1, usrSheet.getLastRow() - 1, uCols);
+      var uVals = uRange.getValues();
+      var cleanUsers = [];
+      for (var ux = 0; ux < uVals.length; ux++) {
+        var uUsername = String(uVals[ux][1] || "").trim().toLowerCase();
+        var uFullName = String(uVals[ux][4] || "").trim().toUpperCase();
+        var uRole = String(uVals[ux][5] || "").trim().toUpperCase();
+        if (uUsername !== "st" && uUsername !== "it" && uFullName !== "ST" && uFullName !== "IT" && uRole !== "IT") {
+          cleanUsers.push(uVals[ux]);
+        }
+      }
+      var uWrite = [];
+      for (var cu = 0; cu < cleanUsers.length; cu++) uWrite.push(cleanUsers[cu]);
+      while (uWrite.length < uVals.length) {
+        var blankU = new Array(uCols);
+        for (var bc = 0; bc < uCols; bc++) blankU[bc] = "";
+        uWrite.push(blankU);
+      }
+      uRange.setValues(uWrite);
+    }
+  } catch (eUsr) {
+    Logger.log("Users test purge notice: " + eUsr.message);
+  }
+
+  // 5. Invalidate monitoring cache immediately
+  if (typeof invalidateMonitoringCache === 'function') {
+    invalidateMonitoringCache();
+  }
+
+  var msg = "Pembersihan Selesai: " + cleanedCount + " baris kosong dan " + testCount + " rekaman testing (Test0/Test1/IT/ST) telah dibersihkan secara tuntas.";
+  try {
+    var ui = SpreadsheetApp.getUi();
+    if (ui) {
+      ui.alert(msg);
+    }
+  } catch (eUi) {
+    Logger.log(msg);
+  }
+
+  return { success: true, cleanedCount: cleanedCount, testCount: testCount, message: msg };
 }
 
 // ============================================

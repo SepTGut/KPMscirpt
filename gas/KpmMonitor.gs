@@ -5,10 +5,13 @@
 /**
  * Returns list of recipient names from sheet 'Penerima' with auto-creation & fallback.
  */
-function getRecipientsList() {
+function getRecipientsList(isIT) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    if (!ss) {
+      var baseRecipients = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+      return isIT ? baseRecipients.concat(WEB_CONFIG.TEST_RECIPIENTS || []) : baseRecipients;
+    }
     var sheetName = WEB_CONFIG.RECIPIENTS_SHEET_NAME || "Penerima";
     var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName("Recipients");
     if (!sheet) {
@@ -19,7 +22,8 @@ function getRecipientsList() {
         sheet.getRange(2, 1, defaultRecipients.length, 1).setValues(defaultRecipients);
       }
       SpreadsheetApp.flush();
-      return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+      var base = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+      return isIT ? base.concat(WEB_CONFIG.TEST_RECIPIENTS || []) : base;
     }
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
@@ -28,20 +32,36 @@ function getRecipientsList() {
         sheet.getRange(2, 1, defaultRecipients.length, 1).setValues(defaultRecipients);
       }
       SpreadsheetApp.flush();
-      return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+      var base = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+      return isIT ? base.concat(WEB_CONFIG.TEST_RECIPIENTS || []) : base;
     }
     var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
     var recipients = [];
     for (var i = 0; i < values.length; i++) {
       var name = String(values[i][0] || "").trim();
+      var upper = name.toUpperCase();
+      // If not IT, strictly hide any test recipient like IT, ST, Test0, Test1
+      if (!isIT && (upper === "IT" || upper === "ST" || upper === "TEST0" || upper === "TEST1")) {
+        continue;
+      }
       if (name && recipients.indexOf(name) === -1) {
         recipients.push(name);
       }
     }
-    return recipients.length > 0 ? recipients : (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    var finalRecipients = recipients.length > 0 ? recipients : (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    if (isIT) {
+      var testRecipients = WEB_CONFIG.TEST_RECIPIENTS || ["IT", "ST"];
+      for (var t = 0; t < testRecipients.length; t++) {
+        if (finalRecipients.indexOf(testRecipients[t]) === -1) {
+          finalRecipients.push(testRecipients[t]);
+        }
+      }
+    }
+    return finalRecipients;
   } catch (e) {
     Logger.log("getRecipientsList error: " + e.message);
-    return (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    var base = (WEB_CONFIG.DEFAULT_RECIPIENTS || []).slice();
+    return isIT ? base.concat(WEB_CONFIG.TEST_RECIPIENTS || []) : base;
   }
 }
 
@@ -58,30 +78,28 @@ function setupRecipientsSheet() {
     sheet = ss.insertSheet(sheetName);
   }
 
-  // Format Header
+  var headers = [["Nama Penerima"]];
   sheet.getRange(1, 1).setValue("Nama Penerima").setFontWeight("bold").setBackground("#e8f0fe");
   sheet.setFrozenRows(1);
-  sheet.setColumnWidth(1, 240);
 
-  // Fill default recipients if sheet is empty or newly created
-  var defaultList = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.DEFAULT_RECIPIENTS) 
+  var defaultRecipients = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.DEFAULT_RECIPIENTS) 
     ? WEB_CONFIG.DEFAULT_RECIPIENTS 
     : ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"];
 
-  if (sheet.getLastRow() < 2) {
-    var rows = defaultList.map(function(n) { return [n]; });
-    sheet.getRange(2, 1, rows.length, 1).setValues(rows);
+  var currentValues = sheet.getLastRow() >= 2 
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(function(r) { return String(r[0] || "").trim(); })
+    : [];
+
+  var rowsToAdd = [];
+  for (var i = 0; i < defaultRecipients.length; i++) {
+    if (currentValues.indexOf(defaultRecipients[i]) === -1) {
+      rowsToAdd.push([defaultRecipients[i]]);
+    }
   }
 
-  SpreadsheetApp.flush();
-
-  try {
-    var ui = SpreadsheetApp.getUi();
-    if (ui) {
-      ss.toast("Sheet '" + sheetName + "' berhasil disiapkan dengan " + Math.max(sheet.getLastRow() - 1, defaultList.length) + " nama penerima.", "Setup Penerima", 5);
-    }
-  } catch (e) {
-    // Non-UI context
+  if (rowsToAdd.length > 0) {
+    var startRow = Math.max(sheet.getLastRow() + 1, 2);
+    sheet.getRange(startRow, 1, rowsToAdd.length, 1).setValues(rowsToAdd);
   }
 
   return sheet;
@@ -89,17 +107,29 @@ function setupRecipientsSheet() {
 
 /**
  * Returns centralized master data for dropdowns, forms, and client config.
+ * Filtered so non-IT accounts NEVER see Test0, Test1, or IT/ST.
  */
-function getMasterData() {
+function getMasterData(isIT) {
   var fbConfig = (typeof getFirebaseConfig === "function") ? getFirebaseConfig() : { firebaseDbUrl: WEB_CONFIG.DEFAULT_FIREBASE_DB_URL };
+  var workshops = (isIT && WEB_CONFIG.TEST_WORKSHOPS)
+    ? WEB_CONFIG.WORKSHOPS.concat(WEB_CONFIG.TEST_WORKSHOPS)
+    : WEB_CONFIG.WORKSHOPS.slice();
+  var pics = (isIT && WEB_CONFIG.TEST_PICS)
+    ? WEB_CONFIG.PICS.concat(WEB_CONFIG.TEST_PICS)
+    : WEB_CONFIG.PICS.slice();
+  var recipients = getRecipientsList(Boolean(isIT));
+  var drivers = isIT ? (WEB_CONFIG.TEST_DRIVERS || ["IT", "ST"]) : [];
+
   return {
     version: (typeof ABOUT_CONFIG !== 'undefined' ? ABOUT_CONFIG.VERSION : '1P'),
-    workshops: WEB_CONFIG.WORKSHOPS,
-    pics: WEB_CONFIG.PICS,
+    isIT: Boolean(isIT),
+    workshops: workshops,
+    pics: pics,
+    drivers: drivers,
     uoms: WEB_CONFIG.UOMS,
     statuses: [KPM_STATUS.BARU_DIBUAT, KPM_STATUS.BELUM_BERANGKAT, KPM_STATUS.BERANGKAT, KPM_STATUS.TIBA, KPM_STATUS.SELESAI],
     statusCodes: STATUS_CODES,
-    recipients: getRecipientsList(),
+    recipients: recipients,
     firebaseDbUrl: fbConfig.firebaseDbUrl
   };
 }
@@ -154,11 +184,15 @@ function invalidateMonitoringCache() {
     var cache = CacheService.getScriptCache();
     var keysToRemove = [
       "MONITORING_ACTIVE_count",
-      "MONITORING_ALL_count"
+      "MONITORING_ALL_count",
+      "MONITORING_IT_ACTIVE_count",
+      "MONITORING_IT_ALL_count"
     ];
     for (var i = 0; i < 15; i++) {
       keysToRemove.push("MONITORING_ACTIVE_" + i);
       keysToRemove.push("MONITORING_ALL_" + i);
+      keysToRemove.push("MONITORING_IT_ACTIVE_" + i);
+      keysToRemove.push("MONITORING_IT_ALL_" + i);
     }
     cache.removeAll(keysToRemove);
   } catch (e) { }
@@ -167,9 +201,12 @@ function invalidateMonitoringCache() {
 /**
  * Reads sheet and produces fully server-computed KPM monitoring objects.
  * Decouples business data (status, progress percent, dates) from UI presentation.
+ * Excludes Test0/Test1/IT/ST records completely if isIT is false.
  */
-function getKpmMonitoringData(includeArchived, bypassCache) {
-  var cacheKey = includeArchived ? "MONITORING_ALL" : "MONITORING_ACTIVE";
+function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
+  var cacheKey = isIT
+    ? (includeArchived ? "MONITORING_IT_ALL" : "MONITORING_IT_ACTIVE")
+    : (includeArchived ? "MONITORING_ALL" : "MONITORING_ACTIVE");
   if (!bypassCache) {
     var cached = getMonitoringCache(cacheKey);
     if (cached) {
@@ -297,6 +334,13 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
       displayData[i][MONITOR_COL_GPS_TRACK - 1]
     ) || lastSeenGpsTrack;
 
+    var isTest = (typeof isTestRecord === 'function')
+      ? isTestRecord(kpm, wsAwal, wsTujuan, lastSeenPic, lastSeenDriver, penerima)
+      : false;
+
+    // Strict cloaking: non-IT users NEVER see test records
+    if (!isIT && isTest) continue;
+
     var isArchived = (statusAkhir === KPM_STATUS.SELESAI || statusAkhir.toLowerCase() === "selesai");
     if (!includeArchived && isArchived) continue;
 
@@ -331,6 +375,7 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
         buktiTiba: buktiTiba,
         gpsTrack: gpsTrack,
         penerima: penerima,
+        isTest: isTest,
         daftarBarang: []
       };
     }
@@ -371,13 +416,15 @@ function getKpmMonitoringData(includeArchived, bypassCache) {
 
 /**
  * Returns active KPMs decorated with server-directed nextAction and requirements.
+ * Excludes test records for non-IT users.
  */
-function getAvailableDeliveries() {
-  var allKpm = getKpmMonitoringData(false);
+function getAvailableDeliveries(isIT) {
+  var allKpm = getKpmMonitoringData(false, false, Boolean(isIT));
   var available = [];
 
   for (var i = 0; i < allKpm.length; i++) {
     var item = allKpm[i];
+    if (!isIT && item.isTest) continue;
     if (item.status !== KPM_STATUS.BARU_DIBUAT && item.status !== KPM_STATUS.TIBA && item.status !== KPM_STATUS.SELESAI) {
       var allowedNext = STATUS_TRANSITIONS[item.status] || [];
       var nextAction = allowedNext.length > 0 ? allowedNext[0] : "";
@@ -400,7 +447,8 @@ function getAvailableDeliveries() {
         photoLabel: (nextAction === KPM_STATUS.BERANGKAT)
           ? "📷 Unggah Bukti Foto Keberangkatan (Wajib):"
           : "📷 Unggah Bukti Foto Ketibaan (Wajib):",
-        daftarBarang: item.daftarBarang
+        daftarBarang: item.daftarBarang,
+        isTest: item.isTest
       });
     }
   }

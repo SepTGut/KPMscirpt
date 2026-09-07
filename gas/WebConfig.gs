@@ -7,7 +7,11 @@ var WEB_CONFIG = {
   DEFAULT_FIREBASE_DB_URL: "https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app",
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],
+  TEST_WORKSHOPS: ["Test0", "Test1"],
   PICS: ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"],
+  TEST_PICS: ["IT", "ST"],
+  TEST_DRIVERS: ["IT", "ST"],
+  TEST_RECIPIENTS: ["IT", "ST"],
   UOMS: ["PCS", "M", "UNIT", "SET", "PSG", "SHT", "L", "ROLL", "STK"],
   MAX_PHOTO_BASE64_BYTES: 7000000, // ~5MB raw image
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
@@ -201,13 +205,16 @@ function createHyperlinkFormula(url, label) {
 }
 
 /**
- * Validates route/workshop string against WEB_CONFIG.WORKSHOPS.
+ * Validates route/workshop string against WEB_CONFIG.WORKSHOPS (or with test workshops if allowTest is true).
  */
-function validateWorkshopRoute(routeStr) {
+function validateWorkshopRoute(routeStr, allowTest) {
   if (!routeStr || typeof routeStr !== "string") {
     throw { code: "INVALID_LOCATION", message: "Lokasi workshop / rute wajib diisi." };
   }
   var cleanStr = routeStr.trim();
+  var allowedWorkshops = allowTest
+    ? WEB_CONFIG.WORKSHOPS.concat(WEB_CONFIG.TEST_WORKSHOPS || [])
+    : WEB_CONFIG.WORKSHOPS;
   var separator = cleanStr.indexOf("➔") !== -1 ? "➔" : (cleanStr.indexOf("->") !== -1 ? "->" : "");
   if (separator) {
     var parts = cleanStr.split(separator);
@@ -216,17 +223,37 @@ function validateWorkshopRoute(routeStr) {
     }
     var origin = (parts[0] || "").trim();
     var dest = (parts[1] || "").trim();
-    if (!origin || WEB_CONFIG.WORKSHOPS.indexOf(origin) === -1) {
+    if (!origin || allowedWorkshops.indexOf(origin) === -1) {
       throw { code: "INVALID_LOCATION", message: "Lokasi workshop awal '" + origin + "' tidak terdaftar dalam konfigurasi sistem." };
     }
-    if (!dest || WEB_CONFIG.WORKSHOPS.indexOf(dest) === -1) {
+    if (!dest || allowedWorkshops.indexOf(dest) === -1) {
       throw { code: "INVALID_LOCATION", message: "Lokasi workshop tujuan '" + dest + "' tidak terdaftar dalam konfigurasi sistem." };
     }
     return origin + " ➔ " + dest;
   } else {
-    if (WEB_CONFIG.WORKSHOPS.indexOf(cleanStr) === -1) {
+    if (allowedWorkshops.indexOf(cleanStr) === -1) {
       throw { code: "INVALID_LOCATION", message: "Lokasi workshop '" + cleanStr + "' tidak terdaftar dalam konfigurasi sistem." };
     }
     return cleanStr;
   }
 }
+
+/**
+ * Checks if a given row/record belongs to testing data (Test0/Test1 or IT/ST).
+ */
+function isTestRecord(nomorKpm, origin, dest, pic, driver, penerima) {
+  var n = String(nomorKpm || "").trim().toUpperCase();
+  var o = String(origin || "").trim();
+  var d = String(dest || "").trim();
+  var p = String(pic || "").trim().toUpperCase();
+  var drv = String(driver || "").trim().toUpperCase();
+  var r = String(penerima || "").trim().toUpperCase();
+
+  if (n.indexOf("TEST") !== -1) return true;
+  if (o === "Test0" || o === "Test1" || d === "Test0" || d === "Test1") return true;
+  if (p === "IT" || p === "ST") return true;
+  if (drv === "IT" || drv === "ST") return true;
+  if (r === "IT" || r === "ST") return true;
+  return false;
+}
+

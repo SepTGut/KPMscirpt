@@ -63,7 +63,8 @@ const {
   addEditItem,
   removeEditItem,
   saveLatestKpmItems,
-  handleDriverStatusUpdate
+  handleDriverStatusUpdate,
+  cleanOrphanedAndTestRows
 } = useKpm()
 
 // Admin Navigation Tab
@@ -111,9 +112,9 @@ function toggleMode() {
   const newMode = mode.value === 'admin' ? 'user' : 'admin'
   switchActiveMode(newMode)
   if (newMode === 'admin') {
-    loadMaster()
+    loadMaster(true)
   } else {
-    loadDeliveries()
+    loadDeliveries(true)
   }
 }
 
@@ -220,16 +221,16 @@ const breadcrumbs = computed(() => {
 async function onLoginCredentials(payload) {
   try {
     await loginWithCredentials(payload)
-    if (mode.value === 'admin') loadMaster()
-    else loadDeliveries()
+    if (mode.value === 'admin') loadMaster(true)
+    else loadDeliveries(true)
   } catch {}
 }
 
 async function onLoginGoogle(payload) {
   try {
     await loginWithGoogle(payload)
-    if (mode.value === 'admin') loadMaster()
-    else loadDeliveries()
+    if (mode.value === 'admin') loadMaster(true)
+    else loadDeliveries(true)
   } catch {}
 }
 
@@ -244,8 +245,8 @@ onMounted(() => {
   if (qrAuthToken) {
     loginWithQr(qrAuthToken).then((data) => {
       if (data) {
-        if (mode.value === 'admin') loadMaster()
-        else loadDeliveries()
+        if (mode.value === 'admin') loadMaster(true)
+        else loadDeliveries(true)
       }
     })
     return
@@ -253,8 +254,8 @@ onMounted(() => {
 
   loadSavedSession()
   if (currentUser.value) {
-    if (mode.value === 'admin') loadMaster()
-    else loadDeliveries()
+    if (mode.value === 'admin') loadMaster(true)
+    else loadDeliveries(true)
   }
 })
 </script>
@@ -459,6 +460,7 @@ onMounted(() => {
             v-if="adminView === 'create'"
             :master="master"
             :busy="busy"
+            :is-i-t="isIT"
             @create="handleCreateKpm"
           />
 
@@ -470,11 +472,13 @@ onMounted(() => {
             :busy="busy"
             :filter="filter"
             :can-override-status="canOverrideStatus"
+            :is-i-t="isIT"
             @update:filter="filter = $event"
             @refresh="loadMonitoring(true)"
             @change-status="handleAdminChangeStatus"
             @archive="handleArchiveKpm"
             @edit-material="startEditLatestKpm"
+            @clean-test="cleanOrphanedAndTestRows"
           />
 
           <!-- LIVE RADAR FLEET MAP VIEW -->
@@ -488,6 +492,7 @@ onMounted(() => {
           <!-- USER MANAGEMENT PANEL (IT & Super Admin) -->
           <UserManagementPanel
             v-else-if="adminView === 'users' && canManageUsers"
+            :is-i-t="isIT"
           />
 
           <!-- TUTORIAL PANEL -->
@@ -532,6 +537,7 @@ onMounted(() => {
             :selectedDelivery="selectedDelivery"
             :driverName="driverName"
             :busy="busy"
+            :is-i-t="isIT"
             @select-delivery="selectedDelivery = $event"
             @refresh-deliveries="loadDeliveries(true)"
             @update-driver-name="driverName = $event"

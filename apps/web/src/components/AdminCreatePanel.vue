@@ -1,13 +1,36 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Icon from './Icon.vue'
 
 const props = defineProps({
   master: { type: Object, required: true },
-  busy: { type: Boolean, default: false }
+  busy: { type: Boolean, default: false },
+  isIT: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['create'])
+
+const availableWorkshops = computed(() => {
+  const base = props.master?.workshops || []
+  if (props.isIT) {
+    const list = [...base]
+    if (!list.includes('Test0')) list.push('Test0')
+    if (!list.includes('Test1')) list.push('Test1')
+    return list
+  }
+  return base.filter(w => w !== 'Test0' && w !== 'Test1')
+})
+
+const availablePics = computed(() => {
+  const base = props.master?.pics || []
+  if (props.isIT) {
+    const list = [...base]
+    if (!list.includes('IT')) list.push('IT')
+    if (!list.includes('ST')) list.push('ST')
+    return list
+  }
+  return base.filter(p => p !== 'IT' && p !== 'ST')
+})
 
 const form = ref({
   lokasiBerangkat: '', lokasiTiba: '', namaPIC: '', namaProyek: '',
@@ -35,6 +58,15 @@ function submit() {
 
 <template>
   <form class="panel space-y-6" @submit.prevent="submit">
+    <!-- IT Testing Mode Banner (Only visible to IT) -->
+    <div v-if="isIT" class="p-3.5 rounded-2xl bg-purple-50 border border-purple-200/90 text-xs text-purple-900 flex items-center justify-between shadow-xs">
+      <div class="flex items-center gap-2 font-medium">
+        <Icon name="crown" className="w-4 h-4 text-purple-600 flex-shrink-0" />
+        <span><strong>Mode Pengujian IT:</strong> Pilihan rute <code>Test0</code>, <code>Test1</code> dan PIC <code>IT</code>, <code>ST</code> aktif khusus untuk akun Anda.</span>
+      </div>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-800">IT Stealthed</span>
+    </div>
+
     <div class="border-b border-google-surface-200/90 pb-3 flex items-center justify-between">
       <div>
         <h3 class="text-base font-bold text-google-surface-800 flex items-center gap-2">
@@ -57,21 +89,27 @@ function submit() {
         <span class="label">Lokasi Berangkat (Asal)</span>
         <select v-model="form.lokasiBerangkat" class="field" required>
           <option value="">-- Pilih Lokasi Asal --</option>
-          <option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option>
+          <option v-for="item in availableWorkshops" :key="item" :value="item">
+            {{ item.startsWith('Test') ? '🧪 ' + item + ' (Testing)' : item }}
+          </option>
         </select>
       </label>
       <label>
         <span class="label">Lokasi Tiba (Tujuan)</span>
         <select v-model="form.lokasiTiba" class="field" required>
           <option value="">-- Pilih Lokasi Tujuan --</option>
-          <option v-for="item in master.workshops" :key="item" :value="item">{{ item }}</option>
+          <option v-for="item in availableWorkshops" :key="item" :value="item">
+            {{ item.startsWith('Test') ? '🧪 ' + item + ' (Testing)' : item }}
+          </option>
         </select>
       </label>
       <label>
         <span class="label">PIC Penanggung Jawab</span>
         <select v-model="form.namaPIC" class="field" required>
           <option value="">-- Pilih Nama PIC --</option>
-          <option v-for="item in master.pics" :key="item" :value="item">{{ item }}</option>
+          <option v-for="item in availablePics" :key="item" :value="item">
+            {{ (item === 'IT' || item === 'ST') ? '🧪 ' + item + ' (Testing)' : item }}
+          </option>
         </select>
       </label>
       <label>

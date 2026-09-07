@@ -14,25 +14,26 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "cleanOrphanedAndTestRows"];
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
 
-    authenticateRequest(params, action);
+    var authInfo = authenticateRequest(params, action);
+    var isIT = Boolean(authInfo && authInfo.isIT);
 
     var responseData;
 
     if (action === "getMasterData") {
-      responseData = getMasterData();
+      responseData = getMasterData(isIT);
     } else if (action === "getRecipients") {
-      responseData = getRecipientsList();
+      responseData = getRecipientsList(isIT);
     } else if (action === "getDeliveries") {
-      responseData = getAvailableDeliveries();
+      responseData = getAvailableDeliveries(isIT);
     } else if (action === "getMonitoring") {
       var includeArchived = (params.includeArchived === "true");
       var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
-      responseData = getKpmMonitoringData(includeArchived, bypassCache);
+      responseData = getKpmMonitoringData(includeArchived, bypassCache, isIT);
     } else if (action === "createKpm") {
       responseData = validateAndCreateKpm(params);
     } else if (action === "archiveKpm") {
@@ -46,7 +47,9 @@ function doGet(e) {
     } else if (action === "login") {
       responseData = loginUser(params);
     } else if (action === "getUsersList") {
-      responseData = getUsersList();
+      responseData = getUsersList(isIT);
+    } else if (action === "cleanOrphanedAndTestRows") {
+      responseData = cleanOrphanedRows();
     } else if (action === "runSystemDiagnostics") {
       responseData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
@@ -85,7 +88,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus"];
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "cleanOrphanedAndTestRows"];
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -94,7 +97,8 @@ function doPost(e) {
       throw { code: "CONCURRENCY_ERROR", message: "Server sedang sibuk memproses permintaan lain. Harap coba beberapa saat lagi." };
     }
 
-    authenticateRequest(params, action);
+    var authInfo = authenticateRequest(params, action);
+    var isIT = Boolean(authInfo && authInfo.isIT);
 
     var resultData;
 
@@ -113,19 +117,21 @@ function doPost(e) {
     } else if (action === "editLatestKpmItems") {
       resultData = editLatestKpmItems(params);
     } else if (action === "getMasterData") {
-      resultData = getMasterData();
+      resultData = getMasterData(isIT);
     } else if (action === "getRecipients") {
-      resultData = getRecipientsList();
+      resultData = getRecipientsList(isIT);
     } else if (action === "getDeliveries") {
-      resultData = getAvailableDeliveries();
+      resultData = getAvailableDeliveries(isIT);
     } else if (action === "getMonitoring") {
       var includeArchived = (params.includeArchived === "true");
       var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
-      resultData = getKpmMonitoringData(includeArchived, bypassCache);
+      resultData = getKpmMonitoringData(includeArchived, bypassCache, isIT);
     } else if (action === "login") {
       resultData = loginUser(params);
     } else if (action === "getUsersList") {
-      resultData = getUsersList();
+      resultData = getUsersList(isIT);
+    } else if (action === "cleanOrphanedAndTestRows") {
+      resultData = cleanOrphanedRows();
     } else if (action === "saveUser") {
       resultData = saveUser(params);
     } else if (action === "toggleUserStatus") {

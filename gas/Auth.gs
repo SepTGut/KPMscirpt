@@ -226,7 +226,7 @@ function getUsersForQrPrint() {
  * Returns active user accounts for in-app User Management panel.
  * PINs are omitted for security.
  */
-function getUsersList() {
+function getUsersList(isIT) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(USERS_SHEET_NAME) || setupUsersSheet();
   ensureUserQrCodes(sheet);
@@ -254,6 +254,12 @@ function getUsersList() {
 
     var normalized = normalizeRole(uRole);
     var perms = buildRolePermissions(normalized);
+
+    // Strict cloaking: non-IT users NEVER see IT or ST in the user list
+    if (!isIT && (uName.toLowerCase() === "st" || uName.toLowerCase() === "it" || uFullName.toUpperCase() === "ST" || uFullName.toUpperCase() === "IT" || perms.isIT)) {
+      continue;
+    }
+
     var loginUrl = KPM_WEB_BASE_URL + "?qrAuth=" + encodeURIComponent(uQrToken);
     var qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(loginUrl);
 
@@ -713,5 +719,15 @@ function authenticateRequest(params, action) {
     }
   }
 
-  return { role: userRole.toUpperCase(), authenticated: true };
+  // 5. Cleanup test data and orphaned rows
+  if (action === "cleanOrphanedAndTestRows") {
+    if (!isBearerAdmin || (userRole !== ROLE.IT && userRole !== ROLE.SUPER_ADMIN)) {
+      throw {
+        code: "FORBIDDEN",
+        message: "Akses ditolak: Pembersihan data testing hanya dapat diakses oleh Super Admin / IT."
+      };
+    }
+  }
+
+  return { role: userRole.toUpperCase(), isIT: (userRole === ROLE.IT), authenticated: true };
 }
