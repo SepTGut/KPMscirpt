@@ -111,6 +111,9 @@
       padding: 5px 12px;
       border-radius: 9999px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       transition: all 0.15s ease;
     }
 
@@ -127,7 +130,7 @@
     .search-box input {
       border: 1px solid var(--border);
       border-radius: 9999px;
-      padding: 6px 14px 6px 30px;
+      padding: 6px 14px 6px 32px;
       font-size: 12px;
       font-family: inherit;
       width: 180px;
@@ -142,10 +145,12 @@
 
     .search-icon {
       position: absolute;
-      left: 10px;
+      left: 11px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--muted);
       pointer-events: none;
     }
@@ -218,6 +223,9 @@
       padding: 3px 8px;
       border-radius: 9999px;
       letter-spacing: 0.04em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .role-super {
@@ -438,25 +446,38 @@
   <!-- Header -->
   <div class="app-header">
     <div class="header-left">
-      <div class="header-icon">📇</div>
+      <div class="header-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><line x1="15" y1="8" x2="17" y2="8"/><line x1="15" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+      </div>
       <div class="header-title">
         <h1>Cetak Kartu QR Login Pengguna</h1>
         <p>Pilih akun pengguna / driver yang ingin dicetak kartu ID & QR auto-login.</p>
       </div>
     </div>
-    <button class="btn btn-secondary" onclick="loadUsers()">🔄 Segarkan Data</button>
+    <button class="btn btn-secondary" onclick="loadUsers()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+      <span>Segarkan Data</span>
+    </button>
   </div>
 
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="filter-group">
       <button class="btn-filter active" onclick="setFilter('all', this)">Semua (<span id="countAll">0</span>)</button>
-      <button class="btn-filter" onclick="setFilter('admin', this)">👑 Admin (<span id="countAdmin">0</span>)</button>
-      <button class="btn-filter" onclick="setFilter('driver', this)">🚚 Driver (<span id="countDriver">0</span>)</button>
+      <button class="btn-filter" onclick="setFilter('admin', this)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Admin</span> (<span id="countAdmin">0</span>)
+      </button>
+      <button class="btn-filter" onclick="setFilter('driver', this)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Driver</span> (<span id="countDriver">0</span>)
+      </button>
     </div>
 
     <div class="search-box">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
       <input type="text" id="searchInput" placeholder="Cari nama / username..." oninput="handleSearch()">
     </div>
 
@@ -491,7 +512,8 @@
     <div class="footer-actions">
       <button class="btn btn-secondary" onclick="google.script.host.close()">Tutup</button>
       <button class="btn btn-primary" onclick="printSelectedCards()">
-        🖨️ Cetak Kartu Terpilih (<span id="printCount">0</span>)
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span>Cetak Kartu Terpilih (<span id="printCount">0</span>)</span>
       </button>
     </div>
   </div>
@@ -629,13 +651,13 @@
         card.onclick = (e) => toggleCardSelection(u.no, e);
 
         let roleClass = 'role-driver';
-        let roleLabel = '🚚 DRIVER';
+        let roleLabel = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span>DRIVER</span>';
         if (u.isSuperAdmin || (u.username && u.username.toUpperCase() === 'ST')) {
           roleClass = 'role-super';
-          roleLabel = '⚡ SUPER ADMIN (ST)';
+          roleLabel = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>SUPER ADMIN (ST)</span>';
         } else if (u.isAdmin) {
           roleClass = 'role-admin';
-          roleLabel = '👑 ADMIN';
+          roleLabel = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>ADMIN</span>';
         }
         const initial = (u.fullName || u.username || 'U').substring(0, 2).toUpperCase();
 
@@ -650,7 +672,8 @@
           </div>
           <div class="qr-instruction">Scan untuk Login Otomatis</div>
           <button class="btn-copy-url" onclick="event.stopPropagation(); copyToClipboard('${escapeJs(u.loginUrl)}')">
-            📋 Salin Link
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Salin Link</span>
           </button>
         `;
         grid.appendChild(card);

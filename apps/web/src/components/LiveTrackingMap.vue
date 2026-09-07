@@ -4,7 +4,7 @@
     <div class="px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 z-10">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-google-blue-600 to-teal-500 flex items-center justify-center text-white text-lg shadow-sm">
-          🗺️
+          <Icon name="map" class-name="w-5 h-5 stroke-[2.2]" />
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -25,7 +25,7 @@
           class="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 shadow-sm"
           title="Fokuskan Semua Titik"
         >
-          <span>🎯</span>
+          <Icon name="target" class-name="w-3.5 h-3.5 text-slate-600" />
           <span>Semua Titik</span>
         </button>
         <button
@@ -33,7 +33,7 @@
           :disabled="isRefreshing"
           class="px-3.5 py-1.5 rounded-full bg-google-blue-50 hover:bg-google-blue-100 text-google-blue-700 text-xs font-bold transition flex items-center gap-1.5 border border-google-blue-200 shadow-sm disabled:opacity-50"
         >
-          <span :class="{ 'animate-spin inline-block': isRefreshing }">↻</span>
+          <Icon name="refresh" class-name="w-3.5 h-3.5" :class="{ 'animate-spin': isRefreshing }" />
           <span>{{ isRefreshing ? 'Menyinkronkan...' : 'Sinkronkan' }}</span>
         </button>
       </div>
@@ -77,7 +77,7 @@
         v-else-if="!isRefreshing"
         class="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl px-4 py-2.5 shadow-lg z-[400] text-xs text-slate-600 flex items-center gap-2"
       >
-        <span>ℹ️</span>
+        <Icon name="info" class-name="w-4 h-4 text-google-blue-600 shrink-0" />
         <span>Saat ini belum ada armada yang berstatus <b>"Jalan"</b>. Peta menampilkan titik workshop tetap.</span>
       </div>
     </div>
@@ -88,6 +88,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import Icon from './Icon.vue'
 
 const props = defineProps({
   monitoringData: { type: Array, default: () => [] },
@@ -126,7 +127,12 @@ function createTruckIcon(vehicle) {
       <div class="fleet-marker-container">
         ${isMoving ? '<div class="fleet-radar-ring"></div>' : ''}
         <div class="fleet-truck-body" style="transform: rotate(${heading}deg);">
-          🚚
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="3" width="15" height="13" />
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+            <circle cx="5.5" cy="18.5" r="2.5" />
+            <circle cx="18.5" cy="18.5" r="2.5" />
+          </svg>
         </div>
         <div class="fleet-speed-badge">
           ${speed} km/h
@@ -144,8 +150,12 @@ function createWorkshopIcon(ws) {
     className: 'custom-workshop-marker',
     html: `
       <div class="relative flex flex-col items-center">
-        <div class="w-8 h-8 rounded-xl bg-white border-2 border-slate-700 flex items-center justify-center text-sm shadow-md">
-          🏢
+        <div class="w-8 h-8 rounded-xl bg-white border-2 border-slate-700 flex items-center justify-center text-slate-700 shadow-md">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+            <path d="M9 22v-4h6v4" />
+            <path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" />
+          </svg>
         </div>
         <div class="bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 whitespace-nowrap shadow">
           ${ws.name}
@@ -182,7 +192,10 @@ function initMap() {
     const marker = L.marker([ws.lat, ws.lng], { icon: createWorkshopIcon(ws) })
     marker.bindPopup(`
       <div class="p-2 space-y-1 text-xs">
-        <div class="font-bold text-slate-900 text-sm">🏢 Workshop ${ws.name}</div>
+        <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-google-blue-500"></span>
+          Workshop ${ws.name}
+        </div>
         <div class="text-slate-500 font-mono">Koordinat: ${ws.lat}, ${ws.lng}</div>
       </div>
     `)
@@ -256,7 +269,7 @@ async function refreshTrackingData() {
 function buildPopupContent(v) {
   const gmapsRouterUrl = `https://www.google.com/maps/dir/?api=1&origin=${v.latitude},${v.longitude}&destination=${encodeURIComponent((v.destination || '') + ' Workshop')}&travelmode=driving`
   return `
-    <div class="p-3 text-xs space-y-2 min-w-[210px]">
+    <div class="p-3 text-xs space-y-2 min-w-[220px]">
       <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
         <span class="font-extrabold font-mono text-google-blue-700 text-sm">${v.kpmId || '-'}</span>
         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Sedang Jalan</span>
@@ -270,9 +283,10 @@ function buildPopupContent(v) {
         href="${gmapsRouterUrl}"
         target="_blank"
         rel="noopener noreferrer"
-        class="block w-full text-center py-2 bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-sm hover:from-google-blue-500 hover:to-indigo-500 mt-2 transition"
+        class="inline-flex items-center justify-center gap-1.5 w-full text-center py-2 bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-sm hover:from-google-blue-500 hover:to-indigo-500 mt-2 transition text-xs"
       >
-        🗺️ Buka Rute Google Maps
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        <span>Buka Rute Google Maps</span>
       </a>
     </div>
   `

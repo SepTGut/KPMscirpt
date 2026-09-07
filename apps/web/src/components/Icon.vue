@@ -147,5 +147,33 @@ const props = defineProps({
     <path v-if="name === 'box'" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
     <polyline v-if="name === 'box'" points="3.27 6.96 12 12.01 20.73 6.96" />
     <line v-if="name === 'box'" x1="12" y1="22.08" x2="12" y2="12" />
+
+    <!-- Search -->
+    <circle v-if="name === 'search'" cx="11" cy="11" r="8" />
+    <line v-if="name === 'search'" x1="21" y1="21" x2="16.65" y2="16.65" />
+
+    <!-- Target / Crosshair -->
+    <circle v-if="name === 'target'" cx="12" cy="12" r="10" />
+    <circle v-if="name === 'target'" cx="12" cy="12" r="6" />
+    <circle v-if="name === 'target'" cx="12" cy="12" r="2" />
+
+    <!-- Building / Factory / Workshop -->
+    <rect v-if="name === 'building'" x="4" y="2" width="16" height="20" rx="2" ry="2" />
+    <path v-if="name === 'building'" d="M9 22v-4h6v4" />
+    <path v-if="name === 'building'" d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" />
+
+    <!-- Printer -->
+    <polyline v-if="name === 'printer'" points="6 9 6 2 18 2 18 9" />
+    <path v-if="name === 'printer'" d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect v-if="name === 'printer'" x="6" y="14" width="12" height="8" />
+
+    <!-- Info -->
+    <circle v-if="name === 'info'" cx="12" cy="12" r="10" />
+    <line v-if="name === 'info'" x1="12" y1="16" x2="12" y2="12" />
+    <line v-if="name === 'info'" x1="12" y1="8" x2="12.01" y2="8" />
+
+    <!-- Arrow Right -->
+    <line v-if="name === 'arrow-right'" x1="5" y1="12" x2="19" y2="12" />
+    <polyline v-if="name === 'arrow-right'" points="12 5 19 12 12 19" />
   </svg>
 </template>
