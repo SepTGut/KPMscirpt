@@ -167,6 +167,9 @@ function fixFormat() {
   // Apply clean standard grid borders across data block
   fullRange.setBorder(true, true, true, true, true, true, "#D1D5DB", SpreadsheetApp.BorderStyle.SOLID);
 
+  // Standardize data validation rules so testing inputs (IT, ST, Test0, Test1) are not rejected
+  relaxSheetDataValidation(sheet);
+
   SpreadsheetApp.flush();
 
   // Invalidate memory cache so web app reads corrected format
@@ -176,11 +179,60 @@ function fixFormat() {
 
   var summaryMsg = "✓ Selesai! Berhasil merapikan format " + numRows + " baris data.\n" +
     "- No LF diperbaiki ke format 3-digit: " + fixedNoLfCount + " nomor.\n" +
-    "- Alignment Center/Left & Vertical Middle telah distandardisasi.";
+    "- Alignment Center/Left & Vertical Middle telah distandardisasi.\n" +
+    "- Validasi data (PIC, Workshop, Driver) disesuaikan agar mendukung mode testing.";
 
   Logger.log(summaryMsg);
   if (ui) {
     ui.alert("Format Berhasil Diperbaiki", summaryMsg, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Ensures data validation rules on KPM Monitor sheet (PIC, Workshops, Drivers, Recipients)
+ * allow testing values by setting setAllowInvalid(true).
+ * This keeps the dropdown menu intact with the standard options for regular users,
+ * but prevents Google Sheets from throwing "melanggar aturan validasi data" errors on test values (IT, ST, Test0, Test1).
+ */
+function relaxSheetDataValidation(sheet) {
+  if (!sheet) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return;
+    sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  }
+  if (!sheet) return;
+
+  try {
+    var checkCols = [
+      MONITOR_COL_PIC,      // Col 15 (O)
+      MONITOR_COL_WSAWAL,   // Col 17 (Q)
+      MONITOR_COL_WSTUJUAN, // Col 18 (R)
+      MONITOR_COL_DRIVER,   // Col 19 (S)
+      MONITOR_COL_STATUS,   // Col 23 (W)
+      MONITOR_COL_PENERIMA  // Col 27 (AA)
+    ];
+    var lastRow = sheet.getLastRow();
+    if (lastRow < MONITOR_START_ROW) return;
+    var numRows = lastRow - MONITOR_START_ROW + 1;
+
+    for (var i = 0; i < checkCols.length; i++) {
+      var col = checkCols[i];
+      var colRange = sheet.getRange(MONITOR_START_ROW, col, numRows, 1);
+      var rules = colRange.getDataValidations();
+      var modified = false;
+      for (var r = 0; r < rules.length; r++) {
+        var rule = rules[r][0];
+        if (rule && !rule.getAllowInvalid()) {
+          rules[r][0] = rule.copy().setAllowInvalid(true).build();
+          modified = true;
+        }
+      }
+      if (modified) {
+        colRange.setDataValidations(rules);
+      }
+    }
+  } catch (e) {
+    Logger.log("relaxSheetDataValidation notice: " + e.message);
   }
 }
 

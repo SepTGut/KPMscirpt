@@ -202,7 +202,26 @@ function validateAndCreateKpm(params) {
   }
 
   if (rowsToInsert.length > 0) {
-    sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS).setValues(rowsToInsert);
+    var insertRange = sheet.getRange(barisKosong, 1, rowsToInsert.length, MONITOR_TOTAL_COLS);
+    if (isIT) {
+      try {
+        insertRange.clearDataValidations();
+      } catch (eVal) {}
+    }
+    try {
+      insertRange.setValues(rowsToInsert);
+    } catch (eSet) {
+      // Fallback: clear validation on target row and retry if Google Sheets rejected test input (IT/ST/Test0/Test1)
+      try {
+        insertRange.clearDataValidations();
+        insertRange.setValues(rowsToInsert);
+        if (typeof relaxSheetDataValidation === "function") {
+          relaxSheetDataValidation(sheet);
+        }
+      } catch (eRetry) {
+        throw { code: "VALIDATION_ERROR", message: "Gagal menyimpan baris KPM ke spreadsheet: " + eRetry.message };
+      }
+    }
     SpreadsheetApp.flush();
   }
 
@@ -407,7 +426,25 @@ function validateAndUpdateStatus(params) {
     var maxIdx = matchingRows[matchingRows.length - 1];
     var sliceCount = maxIdx - minIdx + 1;
     var sliceData = allData.slice(minIdx, maxIdx + 1);
-    sheet.getRange(MONITOR_START_ROW + minIdx, 1, sliceCount, MONITOR_TOTAL_COLS).setValues(sliceData);
+    var targetRange = sheet.getRange(MONITOR_START_ROW + minIdx, 1, sliceCount, MONITOR_TOTAL_COLS);
+    if (isIT) {
+      try {
+        targetRange.clearDataValidations();
+      } catch (eVal) {}
+    }
+    try {
+      targetRange.setValues(sliceData);
+    } catch (eSet) {
+      try {
+        targetRange.clearDataValidations();
+        targetRange.setValues(sliceData);
+        if (typeof relaxSheetDataValidation === "function") {
+          relaxSheetDataValidation(sheet);
+        }
+      } catch (eRetry) {
+        throw { code: "VALIDATION_ERROR", message: "Gagal memperbarui status KPM di spreadsheet: " + eRetry.message };
+      }
+    }
     SpreadsheetApp.flush();
 
     if (targetStatus === KPM_STATUS.TIBA && typeof appendTLogRecord === "function") {

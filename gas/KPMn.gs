@@ -612,6 +612,11 @@ function cleanOrphanedRows() {
     invalidateMonitoringCache();
   }
 
+  // 6. Ensure data validation rules allow testing values without throwing rejection errors
+  if (typeof relaxSheetDataValidation === 'function') {
+    relaxSheetDataValidation(sheet);
+  }
+
   var msg = "Pembersihan Selesai: " + cleanedCount + " baris kosong dan " + testCount + " rekaman testing (Test0/Test1/IT/ST) telah dibersihkan secara tuntas.";
   try {
     var ui = SpreadsheetApp.getUi();
