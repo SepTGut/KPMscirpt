@@ -6,6 +6,7 @@ const activeCategory = ref('overview')
 
 const categories = [
   { id: 'overview', label: 'Ringkasan & Peran', iconName: 'doc' },
+  { id: 'spreadsheet', label: 'Panduan Spreadsheet', iconName: 'doc' },
   { id: 'admin', label: 'Panduan Admin', iconName: 'shield' },
   { id: 'driver', label: 'Panduan Driver', iconName: 'truck' },
   { id: 'radar', label: 'Live Fleet Radar', iconName: 'map' },
@@ -139,6 +140,139 @@ const categories = [
             <p class="text-google-surface-600 leading-relaxed">
               Pindai kode QR unik pada kartu tanda pengenal fisik untuk langsung masuk tanpa mengetik PIN.
             </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB SPREADSHEET: PANDUAN PENGGUNAAN SPREADSHEET -->
+    <div v-else-if="activeCategory === 'spreadsheet'" class="space-y-6 animate-fadeIn">
+      <div class="panel space-y-5">
+        <h2 class="text-lg font-bold text-google-surface-900 flex items-center gap-2">
+          <Icon name="doc" className="w-5 h-5 text-emerald-600" />
+          <span>Buku Panduan & Struktur Google Sheets KPM</span>
+        </h2>
+        <p class="text-xs text-google-surface-600 leading-relaxed">
+          Google Sheets berfungsi sebagai database master dan arsip riwayat KPM. Seluruh baris data terhubung langsung ke Web Portal dan aplikasi ponsel Driver secara real-time.
+        </p>
+
+        <!-- 4 Sheets Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div class="p-4 rounded-2xl bg-google-surface-50 border border-google-surface-200 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800">Sheet 1</span>
+              <h3 class="font-bold text-google-surface-900 text-sm">KPM Monitor</h3>
+            </div>
+            <p class="text-xs text-google-surface-600 leading-relaxed">
+              Arsip transaksi dokumen KPM. Memuat kolom <strong>No. KPM</strong>, <strong>Tanggal</strong>, <strong>Asal ➔ Tujuan</strong>, <strong>Driver</strong>, <strong>Status</strong>, <strong>URL Foto Muat & Tiba</strong>, serta <strong>Koordinat GPS</strong>.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-google-surface-50 border border-google-surface-200 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800">Sheet 2</span>
+              <h3 class="font-bold text-google-surface-900 text-sm">DataBase (Master Material)</h3>
+            </div>
+            <p class="text-xs text-google-surface-600 leading-relaxed">
+              Katalog suku cadang. Header terletak di <strong>Baris 4</strong> dan data dimulai dari <strong>Baris 5</strong> (Kolom B = Kode Material, Kolom C = Nama Material, Kolom E = Satuan BUn).
+            </p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-google-surface-50 border border-google-surface-200 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-800">Sheet 3</span>
+              <h3 class="font-bold text-google-surface-900 text-sm">Users (Akun Pengguna)</h3>
+            </div>
+            <p class="text-xs text-google-surface-600 leading-relaxed">
+              Master akun staf & driver. Menyimpan Username, PIN (4-6 digit), Peran (Super Admin/Admin/Driver), WhatsApp, status aktif, dan QR token auto-login.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-google-surface-50 border border-google-surface-200 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-100 text-purple-800">Sheet 4</span>
+              <h3 class="font-bold text-google-surface-900 text-sm">Recipients (Daftar Penerima)</h3>
+            </div>
+            <p class="text-xs text-google-surface-600 leading-relaxed">
+              Daftar personil PIC penerima barang resmi per workshop (Candi Sewu, Tiron, Sukosari, Remul) untuk validasi serah terima di lokasi tujuan.
+            </p>
+          </div>
+        </div>
+
+        <!-- How to Use Sheet Menu -->
+        <div class="pt-4 border-t border-google-surface-200 space-y-3">
+          <h3 class="font-bold text-google-surface-900 text-sm flex items-center gap-2">
+            <Icon name="lightning" className="w-4 h-4 text-google-blue-600" />
+            <span>Panduan Operasi Menu "Menu KPM" di Google Sheets</span>
+          </h3>
+
+          <div class="space-y-2 text-xs">
+            <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <div class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-blue-100 text-google-blue-700 font-bold flex items-center justify-center text-[10px]">1</span>
+                <span>Mencetak Dokumen KPM Cetak Fisik</span>
+              </div>
+              <p class="text-slate-600 pl-7 leading-relaxed">
+                Pilih sel pada baris KPM yang ingin dicetak di sheet <code>KPM Monitor</code> ➔ Klik menu <strong>⚡ Menu KPM ➔ Cetak Dokumen KPM</strong>. Jendela print preview Letter Landscape akan muncul dengan QR Code KPP resmi.
+              </p>
+            </div>
+
+            <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <div class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-blue-100 text-google-blue-700 font-bold flex items-center justify-center text-[10px]">2</span>
+                <span>Mencetak Kartu ID & QR Auto-Login Driver</span>
+              </div>
+              <p class="text-slate-600 pl-7 leading-relaxed">
+                Buka menu <strong>⚡ Menu KPM ➔ Cetak Kartu QR Pengguna (ID Card)</strong>. Pilih akun driver yang ingin dicetak kartu fisiknya untuk mempermudah login di lapangan tanpa ketik PIN.
+              </p>
+            </div>
+
+            <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <div class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-blue-100 text-google-blue-700 font-bold flex items-center justify-center text-[10px]">3</span>
+                <span>Merapikan Format Sheet (Fix Format)</span>
+              </div>
+              <p class="text-slate-600 pl-7 leading-relaxed">
+                Jika nomor KPM kehilangan leading zero atau font terlihat berantakan ➔ Klik menu <strong>⚡ Menu KPM ➔ Pemeliharaan & Format ➔ Perbaiki Format Sheet</strong>. Sistem otomatis menata ulang grid dan format nomor 3 digit (001, 002).
+              </p>
+            </div>
+
+            <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <div class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-blue-100 text-google-blue-700 font-bold flex items-center justify-center text-[10px]">4</span>
+                <span>Membersihkan Baris Kosong (Clean Orphaned Rows)</span>
+              </div>
+              <p class="text-slate-600 pl-7 leading-relaxed">
+                Buka menu <strong>⚡ Menu KPM ➔ Pemeliharaan & Format ➔ Bersihkan Baris Kosong</strong> untuk memangkas baris sisa yang tidak sengaja terbuat agar file Google Sheets selalu cepat dan responsif.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Do's and Don'ts -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div class="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-2">
+            <div class="font-bold text-emerald-950 flex items-center gap-2">
+              <Icon name="check" className="w-4 h-4 text-emerald-600" />
+              <span>YANG HARUS DILAKUKAN (DO)</span>
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-emerald-900/80 leading-relaxed">
+              <li>Gunakan format tanggal standar (YYYY-MM-DD atau DD/MM/YYYY).</li>
+              <li>Input Kode Material sesuai yang tercantum di sheet <code>DataBase</code>.</li>
+              <li>Jalankan fitur <strong>Fix Format</strong> secara berkala untuk menjaga kerapian sheet.</li>
+            </ul>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-rose-50/80 border border-rose-200 text-xs space-y-2">
+            <div class="font-bold text-rose-950 flex items-center gap-2">
+              <Icon name="alert" className="w-4 h-4 text-rose-600" />
+              <span>YANG DILARANG KERAS (DON'T)</span>
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-rose-900/80 leading-relaxed">
+              <li><strong>JANGAN</strong> mengubah nama tab sheet (<code>KPM Monitor</code>, <code>DataBase</code>, <code>Users</code>, <code>Recipients</code>).</li>
+              <li><strong>JANGAN</strong> memindahkan atau menghapus kolom header utama A s/d L.</li>
+              <li><strong>JANGAN</strong> mengubah status manual saat armada di jalan; biarkan driver yang menyelesaikan via GPS.</li>
+            </ul>
           </div>
         </div>
       </div>

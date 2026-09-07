@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_blank">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --primary-surface: #eff6ff;
+      --emerald: #188038;
+      --emerald-surface: #e6f4ea;
+      --amber: #b06000;
+      --amber-surface: #fef7e0;
+      --rose: #d93025;
+      --rose-surface: #fce8e6;
+      --surface: #ffffff;
+      --background: #f8fafd;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.08);
+      --ease: cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--background);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Google Quad-Color Accent Bar */
+    .google-bar {
+      height: 3.5px;
+      background: linear-gradient(90deg, #4285f4 0%, #ea4335 33%, #fbbc04 66%, #34a853 100%);
+      flex-shrink: 0;
+    }
+
+    /* Top Header */
+    .top-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #188038, #059669);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(24, 128, 56, 0.28);
+      flex-shrink: 0;
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .title-text h1 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .title-text p {
+      font-size: 11.5px;
+      color: var(--text-subtle);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-box {
+      position: relative;
+      width: 220px;
+    }
+
+    .search-box input {
+      width: 100%;
+      height: 34px;
+      padding: 0 12px 0 34px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text-main);
+      transition: all 0.2s var(--ease);
+      outline: none;
+    }
+
+    .search-box input:focus {
+      background: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+      width: 260px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    /* Main Split Container */
+    .app-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 230px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-subtle);
+      padding: 6px 10px 4px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s var(--ease);
+    }
+
+    .nav-btn:hover {
+      background: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .nav-btn.active {
+      background: var(--primary-surface);
+      color: var(--primary);
+      font-weight: 700;
+      border-color: #bfdbfe;
+    }
+
+    .nav-btn svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px 48px;
+    }
+
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 14px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-icon-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .badge-blue { background: var(--primary-surface); color: var(--primary); }
+    .badge-green { background: var(--emerald-surface); color: var(--emerald); }
+    .badge-amber { background: var(--amber-surface); color: var(--amber); }
+    .badge-rose { background: var(--rose-surface); color: var(--rose); }
+
+    .section-title h2 {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    /* Visual Grid for Sheets / Steps */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .info-box {
+      background: #f8fafd;
+      border: 1px solid #e9eef6;
+      border-radius: var(--radius-md);
+      padding: 14px;
+      position: relative;
+    }
+
+    .info-box-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .info-box-text {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Column Specs Table */
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin: 12px 0 16px;
+    }
+
+    .spec-table th {
+      background: #f1f5f9;
+      text-align: left;
+      padding: 8px 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .spec-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+
+    .spec-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .pill-tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      font-size: 10.5px;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .pill-blue { background: #e8f0fe; color: #1a73e8; }
+    .pill-green { background: #e6f4ea; color: #188038; }
+    .pill-amber { background: #fef7e0; color: #b06000; }
+
+    /* Step Timeline */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .step-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Do's and Don'ts comparison */
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 14px 0;
+    }
+
+    .rule-card {
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+
+    .rule-do {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    .rule-dont {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .rule-card-header {
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .rule-card ul {
+      margin-left: 18px;
+    }
+
+    .rule-card li {
+      margin-bottom: 6px;
+    }
+
+    /* Footer Controls */
+    .app-footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .footer-note {
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    .btn-close {
+      padding: 7px 18px;
+      border-radius: var(--radius-pill);
+      background: #f1f5f9;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-close:hover {
+      background: #e2e8f0;
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Google 4-Color Accent Top Bar -->
+  <div class="google-bar"></div>
+
+  <!-- Header -->
+  <header class="top-header">
+    <div class="brand-title">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="3" y1="15" x2="21" y2="15"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+          <line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+      </div>
+      <div class="title-text">
+        <h1>Buku Panduan Spreadsheet KPM</h1>
+        <p>Petunjuk operasional lembar kerja Google Sheets, struktur database, dan pemeliharaan format.</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="search-box">
+        <span class="search-icon">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input type="text" id="tutorialSearch" placeholder="Cari petunjuk spreadsheet..." oninput="handleSearch()">
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-label">Navigasi Panduan</div>
+      <button class="nav-btn active" onclick="scrollToSection('sec-overview', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Peta Lembar Kerja</span>
+      </button>
+      <button class="nav-btn" onclick="scrollToSection('sec-kpm-monitor', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Sheet KPM Monitor</span>
+      </button>
+      <button class="nav-btn" onclick="scrollToSection('sec-database', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        <span>Sheet DataBase</span>
+      </button>
+      <button class="nav-btn" onclick="scrollToSection('sec-menu-usage', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Menu ⚡ Menu KPM</span>
+      </button>
+      <button class="nav-btn" onclick="scrollToSection('sec-maintenance', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Pemeliharaan & Fix</span>
+      </button>
+      <button class="nav-btn" onclick="scrollToSection('sec-dos-donts', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Aturan & Tips Anti-Error</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Body -->
+    <main class="content-area" id="contentArea">
+
+      <!-- SECTION 1: OVERVIEW & MAP -->
+      <section class="section-card" id="sec-overview">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <div>
+              <h2>Struktur & Peta Lembar Kerja Spreadsheet</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Buku kerja KPM terdiri dari 4 sheet utama yang saling terintegrasi otomatis dengan skrip GAS dan Web Portal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="info-box-title">
+              <span class="pill-tag pill-blue">Sheet 1</span>
+              <span>KPM Monitor</span>
+            </div>
+            <div class="info-box-text">
+              Lembar operasional utama berisi riwayat seluruh penerbitan KPM, alur status pengiriman (Antri, Jalan, Tiba, Selesai), driver bertugas, URL foto bukti muat & serah terima, serta koordinat GPS.
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-box-title">
+              <span class="pill-tag pill-green">Sheet 2</span>
+              <span>DataBase (Master Material)</span>
+            </div>
+            <div class="info-box-text">
+              Database master suku cadang yang memuat Kode Material unik, Deskripsi, Satuan (BUn), Material Group, dan Plant. Digunakan saat lookup dan auto-fill pembuatan KPM.
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-box-title">
+              <span class="pill-tag pill-amber">Sheet 3</span>
+              <span>Users (Pengguna & Driver)</span>
+            </div>
+            <div class="info-box-text">
+              Master akun staf dan driver. Berisi Username, Password/PIN, Nama Lengkap, Peran (Admin/Driver), WhatsApp, status aktif, serta token auto-login untuk cetak Kartu QR.
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-box-title">
+              <span class="pill-tag pill-blue">Sheet 4</span>
+              <span>Recipients (Daftar Penerima)</span>
+            </div>
+            <div class="info-box-text">
+              Daftar personil PIC penerima resmi di setiap workshop (Candi Sewu, Tiron, Sukosari, Remul) untuk verifikasi serah terima barang di tempat tujuan.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: SHEET KPM MONITOR -->
+      <section class="section-card" id="sec-kpm-monitor">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div>
+              <h2>Sheet "KPM Monitor": Spesifikasi Kolom</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Kolom transaksi dan alur pengiriman barang</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-desc">
+          Sheet ini merupakan pusat pemantauan pengiriman. Baris baru dapat dibuat melalui menu Apps Script atau formulir Web Admin. Pengemudi memperbarui status secara otomatis via smartphone.
+        </div>
+
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Nama Kolom</th>
+              <th style="width: 90px;">Tipe</th>
+              <th>Keterangan & Aturan Pengisian</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>No. KPM</b></td>
+              <td><span class="pill-tag pill-blue">Teks/Format</span></td>
+              <td>Nomor identitas unik dokumen KPM (contoh: <code>001/KPM-LF/IX/2026</code>). Dihasilkan otomatis oleh sistem penomoran.</td>
+            </tr>
+            <tr>
+              <td><b>Tanggal & Jam</b></td>
+              <td><span class="pill-tag pill-blue">Date/Time</span></td>
+              <td>Waktu pembuatan dokumen atau jadwal pengiriman. Format baku: <code>YYYY-MM-DD</code> atau <code>DD/MM/YYYY</code>.</td>
+            </tr>
+            <tr>
+              <td><b>Asal ➔ Tujuan</b></td>
+              <td><span class="pill-tag pill-green">Dropdown/Teks</span></td>
+              <td>Lokasi workshop keberangkatan dan workshop tujuan (Candi Sewu, Tiron, Sukosari, Remul).</td>
+            </tr>
+            <tr>
+              <td><b>Driver</b></td>
+              <td><span class="pill-tag pill-green">Teks</span></td>
+              <td>Nama personil pengemudi yang ditugaskan membawa barang. Harus terdaftar di sheet <code>Users</code>.</td>
+            </tr>
+            <tr>
+              <td><b>Status</b></td>
+              <td><span class="pill-tag pill-amber">Kunci/Status</span></td>
+              <td>Alur status: <code>Antri</code> ➔ <code>Jalan</code> ➔ <code>Tiba</code> ➔ <code>Selesai/Diterima</code>. Status ini diperbarui oleh sistem GPS dan Driver, jangan diedit sembarangan.</td>
+            </tr>
+            <tr>
+              <td><b>URL Foto Bukti</b></td>
+              <td><span class="pill-tag pill-blue">Link Drive</span></td>
+              <td>Tautan langsung ke foto barang saat dimuat dan foto saat diterima yang diunggah driver dari kamera HP.</td>
+            </tr>
+            <tr>
+              <td><b>GPS Tracking</b></td>
+              <td><span class="pill-tag pill-green">Koordinat</span></td>
+              <td>Data latitude, longitude, dan timestamp saat pengemudi memulai pengiriman dan tiba di workshop tujuan.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 3: SHEET DATABASE -->
+      <section class="section-card" id="sec-database">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            </div>
+            <div>
+              <h2>Sheet "DataBase": Master Suku Cadang & Material</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Header berada di baris 4, data material dimulai dari baris 5</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-desc">
+          Sheet <code>DataBase</code> menyimpan seluruh referensi material untuk pencarian cepat. Skrip mengacu pada urutan kolom tetap (Kolom B = Kode Material, Kolom C = Nama Material, Kolom E = Satuan BUn).
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">A</div>
+            <div class="step-content">
+              <div class="step-title">Kolom B: Kode Material (Unik)</div>
+              <div class="step-desc">Pastikan setiap material memiliki kode yang konsisten tanpa spasi ganda. Skrip pencarian menggunakan pencocokan substring cepat pada kolom ini.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">B</div>
+            <div class="step-content">
+              <div class="step-title">Kolom C: Deskripsi / Nama Material</div>
+              <div class="step-desc">Nama lengkap spesifikasi material yang akan otomatis dicetak pada lembar fisik dokumen KPM.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">C</div>
+            <div class="step-content">
+              <div class="step-title">Kolom E: Satuan Standar (Base Unit / BUn)</div>
+              <div class="step-desc">Satuan kuantitas (misal: <code>PCS</code>, <code>SET</code>, <code>MTR</code>, <code>KG</code>). Kolom ini terisi otomatis saat memilih kode material.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: MENU USAGE -->
+      <section class="section-card" id="sec-menu-usage">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <h2>Cara Menggunakan Menu "⚡ Menu KPM"</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Menu kustom di bilah atas Google Sheets untuk operasional harian</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-title">🖨️ Cetak Dokumen KPM (Print KPM)</div>
+              <div class="step-desc">
+                Pilih salah satu sel pada baris data KPM yang ingin dicetak pada sheet <code>KPM Monitor</code>, lalu klik <strong>⚡ Menu KPM ➔ 🖨️ Cetak Dokumen KPM</strong>. Jendela pratinjau Letter Landscape akan muncul lengkap dengan QR Code validasi dan tombol <strong>PRINT</strong>.
+              </div>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-title">📇 Cetak Kartu QR Pengguna (ID Card)</div>
+              <div class="step-desc">
+                Klik <strong>⚡ Menu KPM ➔ 📇 Cetak Kartu QR Pengguna</strong>. Pilih staf Admin atau Driver yang ingin dicetak kartu ID fisiknya. Driver cukup scan QR card menggunakan kamera ponsel untuk auto-login instan tanpa perlu mengetik PIN di lapangan.
+              </div>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-title">📊 Master Data ➔ ⚙️ Pengaturan Format Nomor KPM</div>
+              <div class="step-desc">
+                Buka submenu ini jika ingin mengatur format penomoran KPM (misal: prefix, kode divisi, format bulan romawi, dan counter angka). Terdapat fitur <em>Live Preview</em> instan sebelum menyimpan.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: MAINTENANCE -->
+      <section class="section-card" id="sec-maintenance">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div>
+              <h2>Submenu "🛠️ Pemeliharaan & Format"</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Alat perbaikan otomatis format sheet dan kebersihan data</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="info-box-title">📐 Perbaiki Format Sheet (Fix Format)</div>
+            <div class="info-box-text">
+              Jalankan fitur ini jika tampilan sheet terlihat berantakan, font tidak seragam, atau penomoran KPM kehilangan angka nol di depan (misal <code>1</code> bukannya <code>001</code>). Skrip akan menata ulang grid, border, perataan teks, dan format nomor standar.
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-box-title">🧹 Bersihkan Baris Kosong</div>
+            <div class="info-box-text">
+              Menghapus baris-baris kosong yang tidak sengaja terbuat akibat copy-paste atau penghapusan manual. Menjaga spreadsheet tetap cepat dan mencegah perhitungan data kosong pada web monitoring.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: DO'S AND DON'TS -->
+      <section class="section-card" id="sec-dos-donts">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon-badge badge-rose">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <h2>Aturan Mutlak & Tips Anti-Error</h2>
+              <p style="font-size: 11.5px; color: var(--text-subtle);">Hindari kerusakan skrip dan data integrity breach</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules-grid">
+          <div class="rule-card rule-do">
+            <div class="rule-card-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>YANG HARUS DILAKUKAN (DO)</span>
+            </div>
+            <ul>
+              <li>Gunakan formulir Web atau dialog Master KPM untuk menerbitkan nomor baru secara berurutan.</li>
+              <li>Pastikan nama driver diinput sesuai dengan username/nama yang ada di sheet <code>Users</code>.</li>
+              <li>Gunakan fitur <strong>"Perbaiki Format Sheet"</strong> secara berkala agar struktur kolom tetap konsisten.</li>
+              <li>Periksa koneksi internet saat mencetak dokumen KPM agar generator QR Code termuat sempurna.</li>
+            </ul>
+          </div>
+
+          <div class="rule-card rule-dont">
+            <div class="rule-card-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span>YANG DILARANG KERAS (DON'T)</span>
+            </div>
+            <ul>
+              <li><strong>JANGAN</strong> mengubah nama tab sheet (<code>KPM Monitor</code>, <code>DataBase</code>, <code>Users</code>, <code>Recipients</code>). Skrip GAS akan gagal menemukan data.</li>
+              <li><strong>JANGAN</strong> menghapus atau memindahkan urutan kolom header utama.</li>
+              <li><strong>JANGAN</strong> mengedit status pengiriman di sheet saat armada sedang berjalan, biarkan driver memperbarui status dengan bukti foto otentik.</li>
+              <li><strong>JANGAN</strong> memasukkan rumus formula berat di dalam baris transaksi.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-note">
+      Sistem KPM Line Feeding &copy; <span id="year">2026</span> &middot; Google Apps Script Enterprise Handbook
+    </div>
+    <button class="btn-close" onclick="google.script.host.close()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <span>Tutup Panduan</span>
+    </button>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    function scrollToSection(id, btn) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    function handleSearch() {
+      const q = document.getElementById('tutorialSearch').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.section-card');
+
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

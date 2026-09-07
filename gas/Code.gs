@@ -52,7 +52,8 @@ function onOpen() {
     .addItem('📡 Setup Kolom Tracking GPS', 'setupTrackingHeaders');
 
   var helpMenu = ui.createMenu('📖 Bantuan & Informasi')
-    .addItem('📖 Buku Panduan & Tutorial Interaktif', 'openTutorialDialog')
+    .addItem('📗 Panduan Penggunaan Spreadsheet', 'openSpreadsheetTutorialDialog')
+    .addItem('📖 Buku Panduan & Tutorial Interaktif (Web & App)', 'openTutorialDialog')
     .addItem('ℹ️ Tentang Sistem & Developer', 'openAboutDialog');
 
   ui.createMenu('⚡ Menu KPM')
@@ -64,6 +65,21 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(helpMenu)
     .addToUi();
+}
+
+// ============================================
+// SPREADSHEET TUTORIAL & HANDBOOK DIALOG
+// ============================================
+function openSpreadsheetTutorialDialog() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan.");
+    return;
+  }
+
+  var html = HtmlService.createHtmlOutputFromFile('SpreadsheetTutorialDialog')
+    .setWidth(860)
+    .setHeight(650);
+  SpreadsheetApp.getUi().showModalDialog(html, '📗 Panduan Penggunaan Spreadsheet KPM');
 }
 
 // ============================================
