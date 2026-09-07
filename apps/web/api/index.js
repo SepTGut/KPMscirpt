@@ -46,19 +46,17 @@ export default async function handler(req, res) {
   }
 
   const action = params.get('action') || ''
-  const role = params.get('role')
-  params.delete('role')
+  const clientRole = (params.get('authRole') || params.get('role') || '').toLowerCase()
 
-  const token = role === 'admin'
-    ? (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
-    : role === 'user'
-      ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
-      : (process.env.ADMIN_TOKEN || process.env.DRIVER_TOKEN || DEFAULT_ADMIN_TOKEN)
+  const isDriver = (clientRole === 'driver' || clientRole === 'user')
+  const token = isDriver
+    ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
+    : (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
 
   if (!token && action !== 'login') {
     return res.status(500).json({
       success: false,
-      error: { code: 'PROXY_ERROR', message: `Token role '${role || 'unknown'}' belum dikonfigurasi di Environment Variables Vercel (ADMIN_TOKEN / DRIVER_TOKEN).` },
+      error: { code: 'PROXY_ERROR', message: `Token role '${clientRole || 'unknown'}' belum dikonfigurasi di Environment Variables Vercel (ADMIN_TOKEN / DRIVER_TOKEN).` },
     })
   }
 

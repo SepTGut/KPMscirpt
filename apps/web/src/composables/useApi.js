@@ -18,7 +18,17 @@ export async function requestApi(action, options = {}, authState = {}) {
       params.set('action', action)
 
       const currentRole = authState.currentUser?.role || authState.mode || 'admin'
-      params.set('role', currentRole)
+      params.set('authRole', currentRole)
+      if (!params.has('role')) {
+        params.set('role', currentRole)
+      }
+
+      if (authState.currentUser?.username) {
+        params.set('authUsername', authState.currentUser.username)
+        if (!params.has('username')) {
+          params.set('username', authState.currentUser.username)
+        }
+      }
 
       if (authState.currentUser?.token) {
         params.set('apiToken', authState.currentUser.token)

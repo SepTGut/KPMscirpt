@@ -4,29 +4,83 @@
 
 @layer base {
   body {
-    @apply m-0 min-h-screen bg-google-surface-50 text-slate-800 antialiased;
+    @apply m-0 min-h-screen bg-google-surface-50 text-slate-800 antialiased selection:bg-google-blue-100 selection:text-google-blue-900;
     font-family: "Plus Jakarta Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 }
 
 @layer components {
   .field {
-    @apply mt-1.5 w-full rounded-xl border border-google-surface-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-google-blue-600 focus:ring-4 focus:ring-google-blue-100 hover:border-google-surface-400 placeholder:text-google-surface-400 font-medium;
+    @apply mt-1.5 w-full rounded-xl border border-google-surface-300 bg-white px-3.5 py-2.5 text-sm text-google-surface-900 outline-none transition-all duration-150 focus:border-google-blue-600 focus:ring-4 focus:ring-google-blue-100 hover:border-google-surface-400 placeholder:text-google-surface-400 font-medium disabled:bg-google-surface-100 disabled:cursor-not-allowed;
   }
+
   .btn {
-    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-google-blue-600 focus-visible:ring-offset-2;
   }
-  .btn-primary { @apply btn bg-gradient-to-r from-google-blue-600 to-indigo-600 hover:from-google-blue-700 hover:to-indigo-700 text-white shadow-m3-1 hover:shadow-m3-2; }
-  .btn-secondary { @apply btn bg-google-surface-100 text-google-surface-700 hover:bg-google-surface-200 border border-google-surface-300/80 shadow-sm; }
-  .btn-success { @apply btn bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-700 hover:to-teal-700 text-white shadow-m3-1 hover:shadow-m3-2; }
-  .btn-danger { @apply btn border border-google-red-200 bg-google-red-50 text-google-red-700 hover:bg-google-red-100; }
-  .panel { @apply rounded-2xl border border-google-surface-300/70 bg-white p-6 shadow-m3-1; }
-  .label { @apply text-xs font-bold uppercase tracking-wider text-google-surface-600; }
-  .chip { @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold; }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-google-blue-600 to-indigo-600 hover:from-google-blue-700 hover:to-indigo-700 text-white shadow-m3-1 hover:shadow-m3-2;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-google-surface-700 hover:bg-google-surface-100 hover:text-google-surface-900 border border-google-surface-300/80 shadow-sm;
+  }
+
+  .btn-success {
+    @apply btn bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-700 hover:to-teal-700 text-white shadow-m3-1 hover:shadow-m3-2;
+  }
+
+  .btn-danger {
+    @apply btn border border-google-red-200 bg-google-red-50 text-google-red-700 hover:bg-google-red-100;
+  }
+
+  .panel {
+    @apply rounded-3xl border border-google-surface-200/90 bg-white p-6 shadow-sm transition-shadow duration-200 hover:shadow-m3-1;
+  }
+
+  .label {
+    @apply text-xs font-bold uppercase tracking-wider text-google-surface-600;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition-all duration-150;
+  }
 }
 
 .google-bar {
-  height: 4px;
+  height: 3.5px;
   background: linear-gradient(90deg, #4285f4 0%, #ea4335 33%, #fbbc04 66%, #34a853 100%);
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,9 +1,11 @@
 <script setup>
+import Icon from './Icon.vue'
+
 defineProps({
   items: {
     type: Array,
     required: true,
-    // Format: [{ label: 'Beranda', icon: '🏠', href: '#', current: false }]
+    // Format: [{ label: 'Beranda', iconName: 'home', action: () => {}, current: false }]
   }
 })
 
@@ -23,34 +25,37 @@ const emit = defineEmits(['navigate'])
       >
         <div class="flex items-center gap-1.5">
           <!-- Separator chevron if not first -->
-          <span v-if="index > 0" class="text-slate-400 select-none text-[10px]" aria-hidden="true">›</span>
+          <Icon v-if="index > 0" name="chevron-right" className="w-3 h-3 text-google-surface-400 select-none" />
 
           <!-- Interactive link or active crumb -->
           <button
             v-if="!item.current && item.action"
             type="button"
             @click="$emit('navigate', item.action)"
-            class="inline-flex items-center gap-1 text-google-surface-600 hover:text-google-blue-700 transition"
+            class="inline-flex items-center gap-1.5 text-google-surface-600 hover:text-google-blue-700 transition font-medium"
             itemprop="item"
           >
-            <span v-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
+            <Icon v-if="item.iconName" :name="item.iconName" className="w-3.5 h-3.5 text-google-surface-500" />
+            <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
             <span itemprop="name">{{ item.label }}</span>
           </button>
           <span
             v-else-if="item.current"
-            class="inline-flex items-center gap-1 text-google-surface-900 font-bold"
+            class="inline-flex items-center gap-1.5 text-google-surface-900 font-bold"
             aria-current="page"
             itemprop="item"
           >
-            <span v-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
+            <Icon v-if="item.iconName" :name="item.iconName" className="w-3.5 h-3.5 text-google-blue-600" />
+            <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
             <span itemprop="name">{{ item.label }}</span>
           </span>
           <span
             v-else
-            class="inline-flex items-center gap-1 text-google-surface-600"
+            class="inline-flex items-center gap-1.5 text-google-surface-600"
             itemprop="item"
           >
-            <span v-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
+            <Icon v-if="item.iconName" :name="item.iconName" className="w-3.5 h-3.5 text-google-surface-400" />
+            <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
             <span itemprop="name">{{ item.label }}</span>
           </span>
         </div>

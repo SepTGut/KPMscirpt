@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import Icon from './Icon.vue'
 import { requestApi } from '../composables/useApi'
 
 const api = (action, opts) => requestApi(action, opts)
@@ -88,15 +89,15 @@ onMounted(() => {
 <template>
   <div class="max-w-md mx-auto py-6 px-4">
     <!-- Card Container -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden">
+    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden animate-fadeIn">
       <!-- Top Google Accent Bar -->
-      <div class="h-2.5 bg-gradient-to-r from-google-blue-500 via-google-yellow-500 to-google-green-500"></div>
+      <div class="google-bar"></div>
 
       <div class="p-6 sm:p-8">
         <!-- Success State -->
         <div v-if="isConfirmed" class="text-center py-6 animate-fadeIn">
-          <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center text-4xl shadow-inner mb-4">
-            ✓
+          <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center shadow-inner mb-4">
+            <Icon name="check" className="w-10 h-10 text-emerald-600" />
           </div>
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 mb-2">
             Status: Telah Tiba & Diterima
@@ -133,11 +134,11 @@ onMounted(() => {
         <!-- Form Confirmation State -->
         <div v-else>
           <div class="text-center mb-6">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 border border-google-blue-200 flex items-center justify-center text-2xl shadow-sm mb-3">
-              📦
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 border border-google-blue-200 flex items-center justify-center text-google-blue-600 shadow-sm mb-3">
+              <Icon name="box" className="w-7 h-7" />
             </div>
             <h1 class="text-xl font-black text-slate-900 tracking-tight">Konfirmasi Penerimaan KPM</h1>
-            <p class="text-xs text-slate-500 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
+            <p class="text-xs text-google-surface-500 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
           </div>
 
           <!-- KPM Info Badge -->
@@ -146,15 +147,15 @@ onMounted(() => {
               <span class="text-[10px] font-bold text-google-blue-600 uppercase tracking-wider block">Surat Penugasan KPM</span>
               <span class="text-sm font-mono font-black text-slate-900">{{ kpmId || 'Nomor Tidak Terdeteksi' }}</span>
             </div>
-            <span class="chip !text-[11px] !font-bold bg-white text-google-blue-700 border border-google-blue-200 shadow-2xs">
+            <span class="chip !text-[11px] !font-bold bg-white text-google-blue-700 border border-google-blue-200 shadow-sm">
               Serah Terima
             </span>
           </div>
 
           <!-- Error Alert -->
-          <div v-if="errorMessage" class="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 animate-fadeIn">
-            <span class="text-rose-500 text-sm">⚠️</span>
-            <div class="flex-1">{{ errorMessage }}</div>
+          <div v-if="errorMessage" class="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-fadeIn">
+            <Icon name="alert" className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div class="flex-1 font-semibold">{{ errorMessage }}</div>
           </div>
 
           <form @submit.prevent="handleConfirm" class="space-y-4">
@@ -174,7 +175,7 @@ onMounted(() => {
             <label class="block">
               <span class="label">Pilih Nama Penerima</span>
               <div v-if="loadingList" class="field bg-slate-50 text-slate-400 flex items-center gap-2">
-                <span class="inline-block w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                <Icon name="refresh" className="w-3.5 h-3.5 animate-spin" />
                 <span>Memuat daftar penerima dari database...</span>
               </div>
               <select
@@ -207,11 +208,12 @@ onMounted(() => {
             <div class="pt-3">
               <button
                 type="submit"
-                class="btn-success w-full !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+                class="btn-success w-full min-h-[48px] !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
                 :disabled="!canSubmit"
               >
-                <span v-if="submitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span>{{ submitting ? 'Mengonfirmasi Penerimaan...' : 'Konfirmasi Penerimaan Barang ✓' }}</span>
+                <Icon v-if="submitting" name="refresh" className="w-4 h-4 animate-spin" />
+                <Icon v-else name="check" className="w-4 h-4" />
+                <span>{{ submitting ? 'Mengonfirmasi Penerimaan...' : 'Konfirmasi Penerimaan Barang' }}</span>
               </button>
             </div>
           </form>

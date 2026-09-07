@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import Icon from './Icon.vue'
 import {
   openWorkshopNavigation,
   trackingState,
@@ -66,21 +67,40 @@ function startPollingConfirmation(nomorKPM) {
   stopPolling()
   pollTimer = setInterval(async () => {
     try {
-      const data = await api('getMonitoring', { method: 'GET', body: { bypassCache: 'true' } })
-      if (Array.isArray(data)) {
-        const found = data.find(k => k.nomor === nomorKPM || k.kpmId === nomorKPM)
-        if (found && (found.status === 'Tiba' || found.status === 'Selesai' || found.penerima)) {
+      // 1. Primary: Check dedicated arrival verification endpoint
+      const res = await api('checkArrivalStatus', {
+        method: 'GET',
+        body: { nomorKPM: nomorKPM, refresh: 'true' }
+      })
+      if (res && res.isConfirmed) {
+        stopPolling()
+        isConfirmed.value = true
+        confirmedRecipientName.value = res.penerima || 'Penerima Terdaftar'
+        setTimeout(() => {
+          closeQrModal()
+          emit('refresh-deliveries')
+        }, 2000)
+        return
+      }
+    } catch {}
+
+    // 2. Secondary fallback: Check if KPM is completed and removed from active deliveries
+    try {
+      const activeList = await api('getDeliveries', { method: 'GET', body: { refresh: 'true' } })
+      if (Array.isArray(activeList)) {
+        const stillActive = activeList.some(k => k.nomor === nomorKPM || k.kpmId === nomorKPM)
+        if (!stillActive) {
           stopPolling()
           isConfirmed.value = true
-          confirmedRecipientName.value = found.penerima || 'Penerima Terdaftar'
+          confirmedRecipientName.value = 'Penerima Terdaftar'
           setTimeout(() => {
             closeQrModal()
             emit('refresh-deliveries')
-          }, 2500)
+          }, 2000)
         }
       }
     } catch {}
-  }, 3000)
+  }, 2000)
 }
 
 async function handleStageArrivalQr() {
@@ -161,28 +181,30 @@ onUnmounted(() => {
 <template>
   <section>
     <div class="mb-4">
-      <h1 class="text-xl font-bold text-google-surface-800">Portal Pembaruan Personel</h1>
+      <h1 class="text-xl font-bold text-google-surface-800">Portal Pembaruan Personel Driver</h1>
       <p class="text-xs text-google-surface-500 mt-0.5">Pilih KPM yang ditugaskan, lampirkan foto bukti, lalu kirim status perjalanan.</p>
     </div>
 
     <!-- GPS Live Status Banner -->
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-2 p-3.5 bg-white rounded-2xl border border-google-surface-200 shadow-sm text-xs">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-2 p-3.5 bg-white rounded-2xl border border-google-surface-200/90 shadow-sm text-xs">
       <div class="flex items-center gap-2.5">
         <span class="relative flex h-3 w-3">
           <span v-if="trackingState.isTracking" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-3 w-3" :class="trackingState.isTracking ? 'bg-emerald-500' : 'bg-slate-400'"></span>
         </span>
-        <div>
+        <div class="flex items-center gap-1.5">
+          <Icon :name="trackingState.isTracking ? 'lightning' : 'location'" className="w-3.5 h-3.5 text-emerald-600" />
           <span class="font-bold text-google-surface-800">
-            {{ trackingState.isTracking ? '📡 GPS Live Tracking Aktif' : '📍 GPS Siap (Standby)' }}
+            {{ trackingState.isTracking ? 'GPS Live Tracking Aktif' : 'GPS Siaga (Standby)' }}
           </span>
           <span v-if="trackingState.activeKpmCount" class="text-slate-500 font-medium ml-1">
             ({{ trackingState.activeKpmCount }} KPM berjalan)
           </span>
         </div>
       </div>
-      <div v-if="trackingState.latitude" class="font-mono text-[11px] text-google-blue-700 font-semibold bg-google-blue-50 px-2.5 py-1 rounded-lg border border-google-blue-100">
-        📍 {{ trackingState.latitude.toFixed(5) }}, {{ trackingState.longitude.toFixed(5) }}
+      <div v-if="trackingState.latitude" class="font-mono text-[11px] text-google-blue-700 font-semibold bg-google-blue-50 px-2.5 py-1 rounded-lg border border-google-blue-100 flex items-center gap-1">
+        <Icon name="location" className="w-3 h-3 text-google-blue-600" />
+        <span>{{ trackingState.latitude.toFixed(5) }}, {{ trackingState.longitude.toFixed(5) }}</span>
         <span v-if="trackingState.accuracy" class="text-slate-500 font-normal"> (±{{ trackingState.accuracy }}m)</span>
       </div>
     </div>
@@ -190,34 +212,47 @@ onUnmounted(() => {
     <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
       <!-- Deliveries List -->
       <div class="panel">
-        <div class="flex items-center justify-between pb-3 border-b border-google-surface-200">
-          <h3 class="font-bold text-sm text-google-surface-800">Daftar KPM Tersedia</h3>
-          <button class="btn-secondary !py-1 !px-3 !text-xs !font-bold" :disabled="busy" @click="$emit('refresh-deliveries')">
-            <span :class="{ 'animate-spin inline-block': busy }">↻</span>
+        <div class="flex items-center justify-between pb-3 border-b border-google-surface-200/90">
+          <h3 class="font-bold text-sm text-google-surface-800 flex items-center gap-1.5">
+            <Icon name="truck" className="w-4 h-4 text-google-blue-600" />
+            <span>Daftar KPM Tersedia</span>
+            <span class="text-xs text-google-surface-500 font-semibold">({{ deliveries.length }})</span>
+          </h3>
+          <button class="btn-secondary !py-1.5 !px-3 !text-xs !font-bold" :disabled="busy" @click="$emit('refresh-deliveries')">
+            <Icon name="refresh" :className="busy ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'" />
           </button>
         </div>
 
-        <div v-if="!deliveries.length" class="py-12 text-center text-xs text-google-surface-400">
-          <p class="text-3xl mb-2">🎉</p>
-          Tidak ada KPM yang perlu diperbarui saat ini.
+        <div v-if="!deliveries.length" class="py-14 text-center text-xs text-google-surface-500">
+          <div class="w-12 h-12 mx-auto mb-2 rounded-2xl bg-google-surface-100 flex items-center justify-center text-google-surface-400">
+            <Icon name="check" className="w-6 h-6 text-google-green-600" />
+          </div>
+          <p class="font-bold text-google-surface-700">Tidak ada KPM yang perlu diperbarui</p>
+          <p class="text-[11px] text-google-surface-400 mt-0.5">Semua penugasan saat ini telah selesai diproses.</p>
         </div>
 
         <div class="mt-3 space-y-2.5">
           <button
             v-for="item in deliveries"
             :key="item.nomor"
-            class="w-full rounded-2xl border p-4 text-left transition-all hover:border-google-blue-400 hover:bg-google-blue-50/50 shadow-sm"
+            class="w-full rounded-2xl border p-4 text-left transition-all hover:border-google-blue-400 hover:bg-google-blue-50/50 shadow-sm focus-visible:outline-none"
             :class="selectedDelivery?.nomor === item.nomor ? 'border-google-blue-600 bg-google-blue-50/70 ring-2 ring-google-blue-600/20' : 'border-google-surface-300 bg-white'"
             @click="handleSelectDelivery(item)"
           >
             <div class="flex justify-between items-start gap-2">
               <div>
-                <span class="text-xs font-mono font-bold text-google-blue-700 uppercase">{{ item.nomor }}</span>
-                <p class="text-xs font-bold text-google-surface-800 mt-0.5">{{ item.proyek || 'Line Feeding' }}</p>
-                <p class="text-[11px] text-google-surface-500">{{ item.lokasi || `${item.lokasiBerangkat || '-'} ➔ ${item.lokasiTiba || '-'}` }}</p>
+                <span class="text-xs font-mono font-bold text-google-blue-700 uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
+                  {{ item.nomor }}
+                </span>
+                <p class="text-xs font-bold text-google-surface-800 mt-1.5">{{ item.proyek || 'Line Feeding' }}</p>
+                <p class="text-[11px] text-google-surface-500 flex items-center gap-1 mt-0.5">
+                  <Icon name="location" className="w-3 h-3 text-google-surface-400" />
+                  <span>{{ item.lokasi || `${item.lokasiBerangkat || '-'} ➔ ${item.lokasiTiba || '-'}` }}</span>
+                </p>
               </div>
-              <span class="chip !text-[10px] !font-bold bg-google-blue-100 text-google-blue-800 border border-google-blue-200">
-                ➔ {{ item.nextAction }}
+              <span class="chip !text-[10px] !font-bold bg-google-blue-100 text-google-blue-800 border border-google-blue-200 flex items-center gap-1">
+                <Icon name="chevron-right" className="w-3 h-3" />
+                <span>{{ item.nextAction }}</span>
               </span>
             </div>
           </button>
@@ -227,33 +262,45 @@ onUnmounted(() => {
       <!-- Update Form -->
       <form class="panel space-y-5" @submit.prevent="handleSubmit">
         <div v-if="!selectedDelivery" class="py-16 text-center text-xs text-google-surface-400">
-          <p class="text-3xl mb-2">👈</p>
-          Pilih salah satu KPM dari daftar di sebelah kiri untuk melihat rincian dan mengunggah foto.
+          <div class="w-12 h-12 mx-auto mb-2.5 rounded-2xl bg-google-surface-100 flex items-center justify-center text-google-surface-400">
+            <Icon name="doc" className="w-6 h-6" />
+          </div>
+          <p class="font-bold text-google-surface-700 text-sm">Pilih KPM dari daftar</p>
+          <p class="text-xs text-google-surface-500 mt-0.5">Klik salah satu KPM di sebelah kiri untuk melihat rincian dan mengunggah foto.</p>
         </div>
 
         <template v-else>
-          <div class="border-b border-google-surface-200 pb-3">
-            <span class="text-xs font-mono font-bold text-google-blue-700 uppercase">{{ selectedDelivery.nomor }}</span>
-            <h3 class="text-base font-bold text-google-surface-900 mt-0.5">{{ selectedDelivery.proyek }}</h3>
-            <p class="text-xs text-google-surface-500">{{ selectedDelivery.lokasi || `${selectedDelivery.lokasiBerangkat || '-'} ➔ ${selectedDelivery.lokasiTiba || '-'}` }}</p>
+          <div class="border-b border-google-surface-200/90 pb-3">
+            <span class="text-xs font-mono font-bold text-google-blue-700 uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
+              {{ selectedDelivery.nomor }}
+            </span>
+            <h3 class="text-base font-bold text-google-surface-900 mt-1.5">{{ selectedDelivery.proyek }}</h3>
+            <p class="text-xs text-google-surface-500 flex items-center gap-1 mt-0.5">
+              <Icon name="location" className="w-3.5 h-3.5 text-google-surface-400" />
+              <span>{{ selectedDelivery.lokasi || `${selectedDelivery.lokasiBerangkat || '-'} ➔ ${selectedDelivery.lokasiTiba || '-'}` }}</span>
+            </p>
           </div>
 
           <!-- 1-Click GMaps Navigation Button -->
           <div>
             <button
               type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-google-blue-50 hover:bg-google-blue-100 text-google-blue-700 text-xs font-bold flex items-center justify-center gap-2 border border-google-blue-200 transition shadow-sm"
+              class="w-full min-h-[44px] py-2.5 px-3 rounded-xl bg-google-blue-50 hover:bg-google-blue-100 text-google-blue-700 text-xs font-bold flex items-center justify-center gap-2 border border-google-blue-200 transition shadow-sm focus-visible:outline-none"
               @click="openWorkshopNavigation(selectedDelivery.lokasiTiba || selectedDelivery.wsTujuan)"
             >
-              <span>🗺️</span>
+              <Icon name="map" className="w-4 h-4" />
               <span>Buka Navigasi Rute di Google Maps (Ke {{ selectedDelivery.lokasiTiba || selectedDelivery.wsTujuan || 'Tujuan' }})</span>
+              <Icon name="external" className="w-3.5 h-3.5 text-google-blue-500" />
             </button>
           </div>
 
-          <div class="rounded-2xl bg-google-yellow-50/70 border border-google-yellow-200 p-4 text-xs">
-            <p class="font-bold text-google-yellow-900 mb-2">📦 Material Bawaan:</p>
+          <div class="rounded-2xl bg-google-yellow-50/80 border border-google-yellow-200/90 p-4 text-xs">
+            <p class="font-bold text-google-yellow-950 mb-2 flex items-center gap-1.5">
+              <Icon name="box" className="w-3.5 h-3.5 text-google-yellow-800" />
+              <span>Material Bawaan:</span>
+            </p>
             <div v-for="material in selectedDelivery.daftarBarang" :key="`${material.nama}-${material.qty}`" class="flex justify-between py-1 border-b border-google-yellow-200/50 last:border-0 text-google-yellow-950">
-              <span>{{ material.nama }}</span>
+              <span class="font-medium">{{ material.nama }}</span>
               <strong class="font-mono font-bold">{{ material.qty }} {{ material.uom }}</strong>
             </div>
           </div>
@@ -272,21 +319,23 @@ onUnmounted(() => {
 
           <label class="block">
             <span class="label">Foto Bukti (Kamera Langsung)</span>
-            <input class="field bg-white cursor-pointer file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100" type="file" accept="image/*" capture="environment" required @change="onPhoto" />
+            <input class="field bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100" type="file" accept="image/*" capture="environment" required @change="onPhoto" />
           </label>
 
           <div class="pt-2">
             <button
-              class="btn-success w-full !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+              class="btn-success w-full min-h-[48px] !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
               :disabled="busy || stagingBusy"
             >
-              <span v-if="stagingBusy || busy" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span v-if="updateForm.statusKPM === 'Tiba'">
-                {{ stagingBusy ? 'Menyimpan Foto & Menyiapkan QR...' : '📷 Ambil Foto & Tampilkan QR Penerima ➔' }}
-              </span>
-              <span v-else>
-                {{ busy ? 'Mengunggah Data & Foto...' : 'Simpan Pembaruan Status ✓' }}
-              </span>
+              <Icon v-if="stagingBusy || busy" name="refresh" className="w-4 h-4 animate-spin" />
+              <template v-else-if="updateForm.statusKPM === 'Tiba'">
+                <Icon name="qr" className="w-4 h-4" />
+                <span>Ambil Foto & Tampilkan QR Penerima</span>
+              </template>
+              <template v-else>
+                <Icon name="check" className="w-4 h-4" />
+                <span>Simpan Pembaruan Status</span>
+              </template>
             </button>
           </div>
         </template>
@@ -299,13 +348,13 @@ onUnmounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fadeIn"
     >
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center relative overflow-hidden">
-        <!-- Accent bar -->
-        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-google-blue-500 via-google-yellow-500 to-google-green-500"></div>
+        <!-- Google Quad-Color Top Accent Bar -->
+        <div class="google-bar absolute top-0 left-0 right-0"></div>
 
         <!-- Success Animation if Recipient Confirmed -->
         <div v-if="isConfirmed" class="py-6 animate-fadeIn">
-          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center text-3xl font-black mb-3">
-            ✓
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mb-3">
+            <Icon name="check" className="w-8 h-8" />
           </div>
           <h3 class="text-lg font-black text-slate-900">Barang Resmi Diterima!</h3>
           <p class="text-xs text-slate-500 mt-1">Dikonfirmasi oleh <strong class="text-slate-900">{{ confirmedRecipientName }}</strong>.</p>
@@ -316,15 +365,16 @@ onUnmounted(() => {
         <div v-else>
           <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
             <div class="text-left">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-google-blue-600 block">Serah Terima Material</span>
+              <span class="text-[10.5px] font-bold uppercase tracking-wider text-google-blue-600 block">Serah Terima Material</span>
               <h3 class="text-sm font-black text-slate-900 font-mono">{{ selectedDelivery?.nomor }}</h3>
             </div>
             <button
               type="button"
-              class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold"
+              class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold transition focus-visible:outline-none"
               @click="closeQrModal"
+              title="Tutup dialog QR"
             >
-              ✕
+              <Icon name="close" className="w-4 h-4" />
             </button>
           </div>
 
@@ -342,7 +392,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Live Waiting Indicator -->
-          <div class="flex items-center justify-center gap-2 text-xs font-semibold text-google-blue-700 bg-google-blue-50 py-2 px-3 rounded-xl mb-4">
+          <div class="flex items-center justify-center gap-2 text-xs font-semibold text-google-blue-700 bg-google-blue-50 py-2.5 px-3 rounded-xl mb-4">
             <span class="relative flex h-2.5 w-2.5">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-google-blue-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-google-blue-600"></span>
@@ -354,19 +404,21 @@ onUnmounted(() => {
           <div class="space-y-2">
             <button
               type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition"
+              class="w-full min-h-[44px] py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition focus-visible:outline-none"
               @click="copyConfirmationLink"
             >
-              <span>📋</span>
-              <span>{{ copySuccess ? '✓ Link Berhasil Disalin!' : 'Salin Tautan Konfirmasi' }}</span>
+              <Icon v-if="copySuccess" name="check" className="w-3.5 h-3.5 text-emerald-600" />
+              <Icon v-else name="doc" className="w-3.5 h-3.5 text-slate-500" />
+              <span>{{ copySuccess ? 'Link Berhasil Disalin!' : 'Salin Tautan Konfirmasi' }}</span>
             </button>
 
             <a
               :href="qrTargetUrl"
               target="_blank"
-              class="block w-full py-2 text-center text-[11px] font-bold text-google-blue-600 hover:underline"
+              class="inline-flex items-center justify-center gap-1 w-full py-2 text-center text-[11px] font-bold text-google-blue-600 hover:underline"
             >
-              Buka Halaman Konfirmasi di Tab Baru ↗
+              <span>Buka Halaman Konfirmasi di Tab Baru</span>
+              <Icon name="external" className="w-3 h-3" />
             </a>
 
             <button

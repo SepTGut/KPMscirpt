@@ -76,10 +76,10 @@ async function handleApiProxy(req, res) {
   }
 
   const action = params.get('action') || ''
-  const role = params.get('role')
-  params.delete('role')
+  const clientRole = (params.get('authRole') || params.get('role') || '').toLowerCase()
 
-  const token = role === 'admin' ? ADMIN_TOKEN : role === 'user' ? DRIVER_TOKEN : (ADMIN_TOKEN || DRIVER_TOKEN || '')
+  const isDriver = (clientRole === 'driver' || clientRole === 'user')
+  const token = isDriver ? DRIVER_TOKEN : ADMIN_TOKEN
   if (token) {
     params.set('apiToken', token)
   }

@@ -39,20 +39,30 @@ function onOpen() {
     return;
   }
 
-  SpreadsheetApp.getUi()
-    .createMenu('Menu KPM')
-    .addItem('📖 Panduan & Tutorial Aplikasi', 'openTutorialDialog')
-    .addSeparator()
+  var ui = SpreadsheetApp.getUi();
+
+  var masterMenu = ui.createMenu('📊 Master Data & Konfigurasi')
+    .addItem('⚙️ Pengaturan Format Nomor KPM', 'openMasterKpm')
+    .addItem('👥 Inisialisasi Sheet Pengguna (Users)', 'setupUsersSheet')
+    .addItem('📦 Inisialisasi Sheet Penerima (Recipients)', 'setupRecipientsSheet');
+
+  var maintMenu = ui.createMenu('🛠️ Pemeliharaan & Format')
+    .addItem('📐 Perbaiki Format Sheet (Fix Format)', 'fixFormat')
+    .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
+    .addItem('📡 Setup Kolom Tracking GPS', 'setupTrackingHeaders');
+
+  var helpMenu = ui.createMenu('📖 Bantuan & Informasi')
+    .addItem('📖 Buku Panduan & Tutorial Interaktif', 'openTutorialDialog')
+    .addItem('ℹ️ Tentang Sistem & Developer', 'openAboutDialog');
+
+  ui.createMenu('⚡ Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
     .addItem('📇 Cetak Kartu QR Pengguna (ID Card)', 'openPrintUserQrDialog')
-    .addItem('🧹 Bersihkan Baris Kosong', 'cleanOrphanedRows')
-    .addItem('📐 Perbaiki Format Sheet (Fix Format)', 'fixFormat')
-    .addItem('🛠️ Setup Kolom Tracking', 'setupTrackingHeaders')
-    .addItem('👥 Setup Sheet Pengguna (Users)', 'setupUsersSheet')
-    .addItem('📦 Setup Sheet Penerima (Recipients)', 'setupRecipientsSheet')
     .addSeparator()
-    .addItem('⚙️ Pengaturan Master KPM', 'openMasterKpm')
-    .addItem('ℹ️ Tentang Pembuat', 'openAboutDialog')
+    .addSubMenu(masterMenu)
+    .addSubMenu(maintMenu)
+    .addSeparator()
+    .addSubMenu(helpMenu)
     .addToUi();
 }
 

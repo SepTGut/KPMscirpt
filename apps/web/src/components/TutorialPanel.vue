@@ -8,7 +8,7 @@ const categories = [
   { id: 'admin', label: '📋 Panduan Admin', icon: '📋' },
   { id: 'driver', label: '🚚 Panduan Driver', icon: '🚚' },
   { id: 'radar', label: '🗺️ Live Fleet Radar', icon: '🗺️' },
-  { id: 'super_admin', label: '👑 Super Admin & IT', icon: '👑' },
+  { id: 'super_admin', label: '👑 Super Admin', icon: '👑' },
   { id: 'faq', label: '❓ FAQ & Kendala', icon: '❓' }
 ]
 </script>
@@ -26,7 +26,7 @@ const categories = [
           Panduan Penggunaan Sistem KPM Line Feeding
         </h1>
         <p class="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
-          Pelajari alur kerja terpadu penerbitan KPM, pembaruan status pengemudi di lapangan, pelacakan radar armada GPS real-time, dan manajemen pengguna 4-tier.
+          Pelajari alur kerja terpadu penerbitan KPM, pembaruan status pengemudi di lapangan, pelacakan radar armada GPS real-time, dan manajemen pengguna.
         </p>
       </div>
 
@@ -49,37 +49,23 @@ const categories = [
       </button>
     </div>
 
-    <!-- TAB 1: OVERVIEW & 4-TIER ROLES -->
+    <!-- TAB 1: OVERVIEW & 3-TIER ROLES -->
     <div v-if="activeCategory === 'overview'" class="space-y-6 animate-fadeIn">
       <div class="panel space-y-4">
         <h2 class="text-lg font-bold text-google-surface-900 flex items-center gap-2">
           <span>🌟</span>
-          <span>Pengenalan Sistem & 4 Peran Pengguna (RBAC)</span>
+          <span>Pengenalan Sistem & 3 Peran Pengguna (RBAC)</span>
         </h2>
         <p class="text-xs text-google-surface-600 leading-relaxed">
-          Sistem KPM Line Feeding menggunakan arsitektur keamanan berbasis 4 tingkat hak akses. Setiap peran memiliki tanggung jawab dan wewenang yang terpisah untuk menjaga integritas data logistik:
+          Sistem KPM Line Feeding menggunakan arsitektur keamanan berbasis 3 tingkat hak akses. Setiap peran memiliki tanggung jawab dan wewenang yang terpisah untuk menjaga integritas data logistik:
         </p>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <!-- IT -->
-          <div class="p-4 rounded-2xl border border-purple-200 bg-purple-50/60 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
-                1. IT ("The Makers")
-              </span>
-              <span class="text-lg">⚡</span>
-            </div>
-            <h3 class="text-sm font-bold text-purple-950">Akses Penuh Sistem & Pengembang</h3>
-            <p class="text-xs text-purple-900/80 leading-relaxed">
-              Memiliki kontrol tertinggi tanpa batasan. Mengelola seluruh akun pengguna, diagnostik sistem, perbaikan format otomatis, dan dapat beralih ke Mode Admin maupun Driver kapan saja.
-            </p>
-          </div>
-
+        <div class="grid gap-4 sm:grid-cols-3">
           <!-- Super Admin -->
           <div class="p-4 rounded-2xl border border-amber-200 bg-amber-50/60 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                2. Super Admin
+                1. Super Admin
               </span>
               <span class="text-lg">👑</span>
             </div>
@@ -93,7 +79,7 @@ const categories = [
           <div class="p-4 rounded-2xl border border-blue-200 bg-blue-50/60 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
-                3. Admin Logistik
+                2. Admin Logistik
               </span>
               <span class="text-lg">🛡️</span>
             </div>
@@ -107,7 +93,7 @@ const categories = [
           <div class="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                4. Driver (Pengemudi)
+                3. Driver (Pengemudi)
               </span>
               <span class="text-lg">🚚</span>
             </div>
@@ -131,7 +117,7 @@ const categories = [
               <span>⌨️</span> 1. Username & PIN
             </span>
             <p class="text-google-surface-600 leading-relaxed">
-              Ketik username (atau email) beserta nomor PIN yang telah didaftarkan oleh Super Admin / IT.
+              Ketik username (atau email) beserta nomor PIN yang telah didaftarkan oleh Super Admin.
             </p>
           </div>
           <div class="p-3.5 bg-google-surface-50 rounded-2xl border border-google-surface-200 space-y-1.5">
@@ -342,12 +328,12 @@ const categories = [
       </div>
     </div>
 
-    <!-- TAB 5: SUPER ADMIN & IT -->
+    <!-- TAB 5: SUPER ADMIN -->
     <div v-else-if="activeCategory === 'super_admin'" class="space-y-6 animate-fadeIn">
       <div class="panel space-y-5">
         <h2 class="text-lg font-bold text-google-surface-900 flex items-center gap-2">
           <span>👑</span>
-          <span>Panduan Super Admin & IT ("The Makers")</span>
+          <span>Panduan Super Admin</span>
         </h2>
 
         <div class="space-y-4 text-xs">
@@ -357,7 +343,7 @@ const categories = [
               <span>🔄</span> Tombol Switcher Mode (Admin ⇄ Driver)
             </h3>
             <p class="text-amber-900/80 leading-relaxed">
-              Super Admin dan IT dapat beralih peran seketika dengan menekan tombol <strong>"🔄 Mode Driver"</strong> atau <strong>"🔄 Mode Admin"</strong> di bar navigasi atas. Fitur ini memungkinkan pimpinan menguji tampilan driver atau mengambil pengiriman darurat tanpa perlu keluar (logout).
+              Super Admin dapat beralih peran seketika dengan menekan tombol <strong>"🔄 Mode Driver"</strong> atau <strong>"🔄 Mode Admin"</strong> di bar navigasi atas. Fitur ini memungkinkan pimpinan menguji tampilan driver atau mengambil pengiriman darurat tanpa perlu keluar (logout).
             </p>
           </div>
 
@@ -367,7 +353,7 @@ const categories = [
               <span>⚙️</span> Override Status Darurat
             </h3>
             <p class="text-amber-900/80 leading-relaxed">
-              Berbeda dengan Admin biasa yang statusnya terkunci, Super Admin dan IT memiliki menu dropdown aktif pada tabel pantauan untuk mengoreksi status KPM jika terjadi kendala teknis pada perangkat driver.
+              Berbeda dengan Admin biasa yang statusnya terkunci, Super Admin memiliki menu dropdown aktif pada tabel pantauan untuk mengoreksi status KPM jika terjadi kendala teknis pada perangkat driver.
             </p>
           </div>
 
@@ -377,7 +363,7 @@ const categories = [
               <span>👥</span> Menu Kelola Pengguna & Cetak QR ID Card
             </h3>
             <p class="text-amber-900/80 leading-relaxed">
-              Buka tab <strong>"👥 Kelola Pengguna"</strong> untuk menambah akun staf baru, mengubah peran (IT, Super Admin, Admin, Driver), mengubah status Aktif/Nonaktif, dan melihat atau mencetak <strong>ID Card QR Login</strong>.
+              Buka tab <strong>"👥 Kelola Pengguna"</strong> untuk menambah akun staf baru, mengubah peran (Super Admin, Admin, Driver), mengubah status Aktif/Nonaktif, dan melihat atau mencetak <strong>ID Card QR Login</strong>.
             </p>
           </div>
         </div>
@@ -399,7 +385,7 @@ const categories = [
               <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <p class="text-google-surface-600 mt-2 leading-relaxed">
-              Hal ini adalah aturan sistem yang disengaja. Status pengiriman harus digerakkan secara otentik oleh Driver di lapangan dengan bukti foto dan koordinat GPS. Hanya Super Admin dan IT yang dapat mengubah status secara manual jika ada keadaan darurat.
+              Hal ini adalah aturan sistem yang disengaja. Status pengiriman harus digerakkan secara otentik oleh Driver di lapangan dengan bukti foto dan koordinat GPS. Hanya Super Admin yang dapat mengubah status secara manual jika ada keadaan darurat.
             </p>
           </details>
 
@@ -419,7 +405,7 @@ const categories = [
               <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <p class="text-google-surface-600 mt-2 leading-relaxed">
-              Driver dapat memindai kartu fisik QR ID card miliknya menggunakan kamera smartphone. Alternatif lain, Super Admin atau IT dapat melihat atau memperbarui PIN driver melalui tab <strong>"Kelola Pengguna"</strong>.
+              Driver dapat memindai kartu fisik QR ID card miliknya menggunakan kamera smartphone. Alternatif lain, Super Admin dapat melihat atau memperbarui PIN driver melalui tab <strong>"Kelola Pengguna"</strong>.
             </p>
           </details>
 

@@ -710,10 +710,72 @@ function confirmArrivalReceipt(params) {
   var result = validateAndUpdateStatus(updateParams);
 
   try {
-    CacheService.getScriptCache().remove("STAGED_ARRIVAL_" + encodeURIComponent(nomorKPM));
+    var cache = CacheService.getScriptCache();
+    cache.remove("STAGED_ARRIVAL_" + encodeURIComponent(nomorKPM));
+    cache.put(
+      "CONFIRMED_ARRIVAL_" + encodeURIComponent(nomorKPM),
+      JSON.stringify({
+        status: KPM_STATUS.TIBA,
+        penerima: namaPenerima,
+        confirmedAt: new Date().toISOString()
+      }),
+      600 // 10 minutes
+    );
   } catch (remErr) {}
 
   result.namaPenerima = namaPenerima;
   result.message = "Penerimaan KPM " + nomorKPM + " berhasil dikonfirmasi oleh " + namaPenerima + ".";
   return result;
+}
+
+/**
+ * Checks whether a specific KPM has been confirmed as received/arrived.
+ * Uses high-speed CacheService first, falling back to spreadsheet query.
+ */
+function checkArrivalStatus(params) {
+  var nomorKPM = (params && (params.nomorKPM || params.kpmId || params.kpm)) ? String(params.nomorKPM || params.kpmId || params.kpm).trim() : "";
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
+  }
+
+  // 1. Fast path: check ScriptCache (instant cache retrieval)
+  try {
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("CONFIRMED_ARRIVAL_" + encodeURIComponent(nomorKPM));
+    if (cached) {
+      var data = JSON.parse(cached);
+      return {
+        nomorKPM: nomorKPM,
+        isConfirmed: true,
+        status: data.status || KPM_STATUS.TIBA,
+        penerima: data.penerima || "",
+        confirmedAt: data.confirmedAt || ""
+      };
+    }
+  } catch (e) {
+    Logger.log("checkArrivalStatus cache notice: " + e.message);
+  }
+
+  // 2. Query spreadsheet row
+  var allKpm = getKpmMonitoringData(true, true);
+  for (var i = 0; i < allKpm.length; i++) {
+    var item = allKpm[i];
+    if (item.nomor === nomorKPM || item.kpmId === nomorKPM) {
+      var isTiba = (item.status === KPM_STATUS.TIBA || item.status === KPM_STATUS.SELESAI || !!item.penerima);
+      return {
+        nomorKPM: nomorKPM,
+        isConfirmed: isTiba,
+        status: item.status,
+        penerima: item.penerima || "",
+        driver: item.driver || ""
+      };
+    }
+  }
+
+  return {
+    nomorKPM: nomorKPM,
+    isConfirmed: false,
+    status: "Unknown",
+    penerima: ""
+  };
 }

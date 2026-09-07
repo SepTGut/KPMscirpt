@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import Icon from './Icon.vue'
 import { requestApi } from '../composables/useApi'
 import { useAuth } from '../composables/useAuth'
 
@@ -30,11 +31,7 @@ const showQrModal = ref(false)
 const selectedUserForQr = ref(null)
 
 const roleOptions = computed(() => {
-  if (isIT.value) {
-    return ['IT', 'Super Admin', 'Admin', 'Driver']
-  }
-  // Super Admin can manage staff: Admin and Driver
-  return ['Admin', 'Driver']
+  return ['Super Admin', 'Admin', 'Driver']
 })
 
 const filteredUsers = computed(() => {
@@ -46,8 +43,7 @@ const filteredUsers = computed(() => {
 
     const matchRole = roleFilter.value === 'Semua' ||
       u.role === roleFilter.value ||
-      (roleFilter.value === 'IT' && u.role === 'it') ||
-      (roleFilter.value === 'Super Admin' && u.role === 'super_admin') ||
+      (roleFilter.value === 'Super Admin' && (u.role === 'super_admin' || u.role === 'it')) ||
       (roleFilter.value === 'Admin' && u.role === 'admin') ||
       (roleFilter.value === 'Driver' && u.role === 'driver')
 
@@ -57,10 +53,7 @@ const filteredUsers = computed(() => {
 
 function roleBadgeClass(role) {
   const r = String(role || '').toLowerCase()
-  if (r === 'it') {
-    return 'bg-purple-100 text-purple-800 border-purple-200'
-  }
-  if (r.includes('super')) {
+  if (r.includes('super') || r === 'it') {
     return 'bg-amber-100 text-amber-800 border-amber-200'
   }
   if (r.includes('admin')) {
@@ -98,8 +91,7 @@ function openAddModal() {
 
 function openEditModal(u) {
   isEditing.value = true
-  const roleLabel = (u.role === 'it') ? 'IT' :
-                    (u.role === 'super_admin') ? 'Super Admin' :
+  const roleLabel = (u.role === 'super_admin' || u.role === 'it') ? 'Super Admin' :
                     (u.role === 'admin') ? 'Admin' : 'Driver'
   form.value = {
     username: u.username,
@@ -185,7 +177,7 @@ onMounted(() => {
           <span>Kelola Pengguna & Peran</span>
         </h1>
         <p class="text-xs text-google-surface-500 mt-0.5 font-medium">
-          Daftar akun, pembagian hak akses 4-tier (IT, Super Admin, Admin, Driver), dan ID Card QR login.
+          Daftar akun, pembagian hak akses (Super Admin, Admin, Driver), dan ID Card QR login.
         </p>
       </div>
 
@@ -196,7 +188,7 @@ onMounted(() => {
           :disabled="busy"
           @click="loadUsers"
         >
-          <span :class="{ 'animate-spin': busy }">↻</span>
+          <Icon name="refresh" :className="busy ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'" />
           <span>Segarkan</span>
         </button>
         <button
@@ -204,19 +196,19 @@ onMounted(() => {
           class="btn-primary !py-2 !px-4 !text-xs !font-bold flex items-center gap-1.5 shadow-sm"
           @click="openAddModal"
         >
-          <span>➕</span>
+          <Icon name="plus" className="w-3.5 h-3.5" />
           <span>Tambah Pengguna</span>
         </button>
       </div>
     </div>
 
     <!-- Alert Notices -->
-    <div v-if="message" class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-semibold flex items-center gap-2">
-      <span>✓</span>
+    <div v-if="message" class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-fadeIn">
+      <Icon name="check" className="w-4 h-4 text-emerald-600 flex-shrink-0" />
       <span>{{ message }}</span>
     </div>
-    <div v-if="error" class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center gap-2">
-      <span>⚠️</span>
+    <div v-if="error" class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-fadeIn">
+      <Icon name="alert" className="w-4 h-4 text-rose-600 flex-shrink-0" />
       <span>{{ error }}</span>
     </div>
 
@@ -230,12 +222,14 @@ onMounted(() => {
             placeholder="Cari nama, username, atau email..."
             class="input-field pl-9 !py-2 !text-xs"
           />
-          <span class="absolute left-3 top-2.5 text-xs text-slate-400">🔍</span>
+          <span class="absolute left-3 top-2.5 text-xs text-slate-400">
+            <Icon name="eye" className="w-3.5 h-3.5" />
+          </span>
         </div>
 
         <div class="flex flex-wrap gap-1.5 w-full sm:w-auto">
           <button
-            v-for="roleOpt in ['Semua', 'IT', 'Super Admin', 'Admin', 'Driver']"
+            v-for="roleOpt in ['Semua', 'Super Admin', 'Admin', 'Driver']"
             :key="roleOpt"
             type="button"
             class="chip border text-xs"
@@ -250,7 +244,9 @@ onMounted(() => {
 
     <!-- User Grid Cards -->
     <div v-if="!filteredUsers.length" class="panel text-center py-12 text-google-surface-400">
-      <p class="text-3xl mb-2">👤</p>
+      <div class="w-12 h-12 mx-auto mb-2 rounded-2xl bg-google-surface-100 flex items-center justify-center text-google-surface-400">
+        <Icon name="users" className="w-6 h-6" />
+      </div>
       <p class="text-sm font-semibold text-google-surface-600">Tidak ada akun pengguna yang cocok.</p>
     </div>
 
@@ -276,20 +272,20 @@ onMounted(() => {
 
             <!-- Role Badge -->
             <span
-              class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs"
+              class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-sm"
               :class="roleBadgeClass(u.role)"
             >
-              {{ u.roleLabel || u.role }}
+              {{ (u.role === 'it' ? 'Super Admin' : (u.roleLabel || u.role)) }}
             </span>
           </div>
 
           <div class="py-3 space-y-1.5 text-xs text-google-surface-600">
             <p v-if="u.email" class="flex items-center gap-1.5 truncate">
-              <span class="text-slate-400">✉️</span>
+              <span class="text-slate-400 font-mono">@</span>
               <span>{{ u.email }}</span>
             </p>
             <p v-if="u.keterangan" class="flex items-center gap-1.5 text-google-surface-500 text-[11px] italic">
-              <span class="text-slate-400">📝</span>
+              <Icon name="doc" className="w-3 h-3 text-slate-400" />
               <span>{{ u.keterangan }}</span>
             </p>
           </div>
@@ -313,20 +309,22 @@ onMounted(() => {
           <div class="flex items-center gap-1.5">
             <button
               type="button"
-              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-slate-600 font-bold"
+              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center gap-1"
               title="Lihat QR Code Login"
               @click="openQrModal(u)"
             >
-              📱 QR
+              <Icon name="qr" className="w-3.5 h-3.5" />
+              <span>QR</span>
             </button>
             <button
               type="button"
-              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-google-blue-600 font-bold"
+              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-google-blue-600 font-bold flex items-center gap-1"
               title="Edit Akun"
               :disabled="u.username === 'ST'"
               @click="openEditModal(u)"
             >
-              ✏️ Edit
+              <Icon name="doc" className="w-3.5 h-3.5" />
+              <span>Edit</span>
             </button>
           </div>
         </div>

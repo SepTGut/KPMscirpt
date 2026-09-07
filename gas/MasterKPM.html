@@ -1,91 +1,98 @@
-<!--
-  MasterKPM.html
-  -------------
-  Settings dialog for the document-numbering master data. It loads
-  current values from Apps Script, lets the user edit them, and saves
-  them using google.script.run.
--->
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
   <base target="_top">
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-
     :root {
-      --google-blue: #1a73e8;
-      --google-blue-dark: #174ea6;
-      --google-green: #188038;
-      --google-green-bg: #e6f4ea;
-      --slate: #3c4043;
-      --slate-light: #747775;
-      --bg: #f8fafd;
-      --card: #ffffff;
-      --border: #e9eef6;
-      --border-strong: #dadce0;
-      --radius: 16px;
-      --font-ui: 'Plus Jakarta Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-display: 'Plus Jakarta Sans', var(--font-ui);
-      --font-mono: 'IBM Plex Mono', SFMono-Regular, Consolas, monospace;
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --surface: #ffffff;
+      --background: #f8fafd;
+      --border: #e2e8f0;
+      --border-focus: #1a73e8;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-pill: 9999px;
+      --font-mono: 'IBM Plex Mono', monospace;
     }
 
-    * {
+    *, *::before, *::after {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      font-family: var(--font-ui);
-      font-size: 12.5px;
-      color: var(--slate);
-      background: var(--bg);
-      margin: 0;
-      padding: 0 0 20px 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--background);
+      color: var(--text-main);
+      padding-bottom: 24px;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ---------- Google 4-Color Top Bar ---------- */
     .google-bar {
       height: 3.5px;
       background: linear-gradient(90deg, #4285f4 0%, #ea4335 33%, #fbbc04 66%, #34a853 100%);
     }
 
     .header {
-      background: linear-gradient(135deg, #1a73e8, #174ea6);
-      color: #fff;
+      background: linear-gradient(135deg, #1a73e8, #4f46e5);
+      color: #ffffff;
       padding: 16px 20px;
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+      box-shadow: 0 2px 8px rgba(26, 115, 232, 0.25);
+    }
+
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-icon svg {
+      width: 20px;
+      height: 20px;
+      color: #ffffff;
     }
 
     .header h1 {
-      font-family: var(--font-display);
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: .02em;
-      margin: 0;
+      letter-spacing: -0.01em;
     }
 
     .header p {
-      margin: 2px 0 0 0;
-      font-size: 11px;
-      color: #d2e3fc;
+      font-size: 11.5px;
+      color: #e0e7ff;
+      margin-top: 2px;
     }
 
     .content {
-      padding: 0 18px;
+      padding: 16px 20px;
     }
 
     .card {
-      background: var(--card);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-md);
       padding: 16px 18px;
       margin-bottom: 14px;
-      box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
     }
 
     .field {
@@ -100,60 +107,104 @@
       display: block;
       font-size: 11.5px;
       font-weight: 700;
-      color: #202124;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
+      color: var(--text-main);
       margin-bottom: 5px;
+      letter-spacing: 0.01em;
     }
 
     input[type=text],
     input[type=number] {
       width: 100%;
       padding: 9px 12px;
-      font-family: var(--font-ui);
+      font-family: inherit;
       font-size: 12.5px;
-      color: #202124;
-      background: #fff;
-      border: 1px solid var(--border-strong);
-      border-radius: 10px;
+      color: var(--text-main);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
       outline: none;
-      transition: border-color .15s, box-shadow .15s;
+      transition: all 0.15s;
     }
 
     input[type=text]:focus,
     input[type=number]:focus {
-      border-color: #1a73e8;
-      box-shadow: 0 0 0 3px rgba(26, 115, 232, .18);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.16);
     }
 
     .hint {
       font-size: 11px;
-      color: var(--slate-light);
+      color: var(--text-subtle);
       margin-top: 5px;
       line-height: 1.4;
     }
 
     .hint b {
-      color: #1a73e8;
+      color: var(--primary);
       font-family: var(--font-mono);
-      background: #e8f0fe;
+      background: #eff6ff;
       padding: 1px 4px;
       border-radius: 4px;
     }
 
+    /* Live Preview Box */
+    .preview-box {
+      background: #f1f5f9;
+      border: 1px dashed #cbd5e1;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .preview-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-subtle);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .preview-item {
+      font-size: 12px;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .preview-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--primary);
+      background: #ffffff;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      font-size: 11.5px;
+    }
+
     .btn {
       width: 100%;
-      padding: 12px;
-      font-family: var(--font-display);
+      padding: 11px 16px;
+      font-family: inherit;
       font-size: 13px;
       font-weight: 700;
-      color: white;
+      color: #ffffff;
       background: linear-gradient(135deg, #1a73e8, #185abc);
       border: none;
-      border-radius: 9999px;
+      border-radius: var(--radius-pill);
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
-      transition: all .2s;
+      transition: all 0.2s;
     }
 
     .btn:hover:not(:disabled) {
@@ -163,7 +214,8 @@
     }
 
     .btn:disabled {
-      background: #bdc1c6;
+      background: #cbd5e1;
+      color: #94a3b8;
       cursor: not-allowed;
       box-shadow: none;
       transform: none;
@@ -172,10 +224,10 @@
     .status-banner {
       margin-top: 12px;
       padding: 10px 14px;
-      background: var(--google-green-bg);
-      color: var(--google-green);
-      border: 1px solid #ceead6;
-      border-radius: 9999px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      border-radius: var(--radius-pill);
       font-size: 12px;
       font-weight: 700;
       text-align: center;
@@ -189,10 +241,12 @@
   <div class="google-bar"></div>
 
   <div class="header">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-    </svg>
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </div>
     <div>
       <h1>Pengaturan Master KPM</h1>
       <p>Konfigurasi format penomoran dokumen otomatis</p>
@@ -202,20 +256,39 @@
   <div class="content">
     <div class="card">
       <div class="field">
-        <label>Format Template KPM</label>
-        <input type="text" id="template" placeholder="{no}/REKA/KPM/{month}/{year}">
-        <div class="hint">Placeholder: <b>{no}</b> (nomor), <b>{month}</b> (Romawi: I-XII), <b>{monthNum}</b> (angka: 01-12), <b>{year}</b> (tahun).</div>
+        <label for="template">Format Template KPM</label>
+        <input type="text" id="template" placeholder="{no}/REKA/KPM/{month}/{year}" oninput="updateLivePreview()">
+        <div class="hint">Variabel: <b>{no}</b> (nomor), <b>{month}</b> (Romawi: I-XII), <b>{monthNum}</b> (01-12), <b>{year}</b> (tahun).</div>
       </div>
 
       <div class="field">
-        <label>Format Template No Lampiran KPM</label>
-        <input type="text" id="lampiranTemplate" placeholder="{no}/KPM-LAMP/{month}/{year}">
-        <div class="hint">Placeholder: <b>{no}</b> (nomor), <b>{month}</b> (Romawi: I-XII), <b>{monthNum}</b> (angka: 01-12), <b>{year}</b> (tahun).</div>
+        <label for="lampiranTemplate">Format Template No Lampiran KPM</label>
+        <input type="text" id="lampiranTemplate" placeholder="{no}/KPM-LAMP/{month}/{year}" oninput="updateLivePreview()">
+        <div class="hint">Variabel: <b>{no}</b> (nomor), <b>{month}</b> (Romawi), <b>{monthNum}</b> (angka), <b>{year}</b> (tahun).</div>
       </div>
 
       <div class="field">
-        <label>Nomor Urut Mulai (Start No)</label>
-        <input type="number" id="startNo" placeholder="1">
+        <label for="startNo">Nomor Urut Mulai (Start No)</label>
+        <input type="number" id="startNo" min="1" placeholder="1" oninput="updateLivePreview()">
+      </div>
+    </div>
+
+    <!-- Live Preview Card -->
+    <div class="preview-box">
+      <div class="preview-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Pratinjau Hasil Penomoran (Live Preview)
+      </div>
+      <div class="preview-item">
+        <span>No KPM:</span>
+        <span id="previewKpm" class="preview-val">-</span>
+      </div>
+      <div class="preview-item">
+        <span>No Lampiran:</span>
+        <span id="previewLampiran" class="preview-val">-</span>
       </div>
     </div>
 
@@ -228,7 +301,33 @@
       document.getElementById('template').value = settings.template || '';
       document.getElementById('lampiranTemplate').value = settings.lampiranTemplate || '';
       document.getElementById('startNo').value = settings.startNo || '1';
+      updateLivePreview();
     }).getMasterSettings();
+
+    function updateLivePreview() {
+      var tpl = document.getElementById('template').value || '{no}/REKA/KPM/{month}/{year}';
+      var lampTpl = document.getElementById('lampiranTemplate').value || '{no}/KPM-LAMP/{month}/{year}';
+      var startNo = parseInt(document.getElementById('startNo').value, 10) || 1;
+
+      var date = new Date();
+      var year = date.getFullYear();
+      var monthIndex = date.getMonth();
+      var romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+      var monthRoman = romanMonths[monthIndex];
+      var monthNum = String(monthIndex + 1).padStart(2, '0');
+      var formattedNo = String(startNo).padStart(3, '0');
+
+      function apply(s) {
+        return s
+          .replace(/\{no\}/g, formattedNo)
+          .replace(/\{year\}/g, year)
+          .replace(/\{month\}/g, monthRoman)
+          .replace(/\{monthNum\}/g, monthNum);
+      }
+
+      document.getElementById('previewKpm').innerText = apply(tpl);
+      document.getElementById('previewLampiran').innerText = apply(lampTpl);
+    }
 
     function saveSettings() {
       var btn = document.getElementById('saveBtn');
@@ -251,5 +350,4 @@
     }
   </script>
 </body>
-
 </html>

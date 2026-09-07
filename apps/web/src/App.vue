@@ -11,6 +11,7 @@ import NotFoundView from './components/NotFoundView.vue'
 import UserManagementPanel from './components/UserManagementPanel.vue'
 import TutorialPanel from './components/TutorialPanel.vue'
 import RecipientConfirmPanel from './components/RecipientConfirmPanel.vue'
+import Icon from './components/Icon.vue'
 import { useAuth } from './composables/useAuth'
 import { useKpm } from './composables/useKpm'
 
@@ -101,8 +102,7 @@ function handleBreadcrumbNav(action) {
 }
 
 const roleBadgeClass = computed(() => {
-  if (isIT.value) return 'bg-purple-100 text-purple-800 border-purple-300'
-  if (isSuperAdmin.value) return 'bg-amber-100 text-amber-800 border-amber-300'
+  if (isSuperAdmin.value || isIT.value) return 'bg-amber-100 text-amber-800 border-amber-300'
   if (isAdmin.value) return 'bg-blue-100 text-blue-800 border-blue-300'
   return 'bg-emerald-100 text-emerald-800 border-emerald-300'
 })
@@ -177,25 +177,25 @@ watch([currentUser, adminView, isNotFound, currentPath, mode], () => {
 const breadcrumbs = computed(() => {
   if (isRecipientConfirm.value) {
     return [
-      { label: 'Beranda', icon: '🏠', action: goToHome },
+      { label: 'Beranda', iconName: 'home', action: goToHome },
       { label: 'Konfirmasi Penerimaan', current: true }
     ]
   }
   if (isNotFound.value) {
     return [
-      { label: 'Beranda', icon: '🏠', action: goToHome },
+      { label: 'Beranda', iconName: 'home', action: goToHome },
       { label: '404 Tidak Ditemukan', current: true }
     ]
   }
   if (!currentUser.value) {
     return [
-      { label: 'Beranda', icon: '🏠' },
+      { label: 'Beranda', iconName: 'home' },
       { label: 'Otentikasi Masuk', current: true }
     ]
   }
   if (mode.value === 'admin') {
     const crumbs = [
-      { label: 'Beranda', icon: '🏠', action: () => { adminView.value = 'create' } },
+      { label: 'Beranda', iconName: 'home', action: () => { adminView.value = 'create' } },
       { label: 'Admin', action: () => { adminView.value = 'create' } }
     ]
     if (adminView.value === 'create') {
@@ -212,7 +212,7 @@ const breadcrumbs = computed(() => {
     return crumbs
   }
   return [
-    { label: 'Beranda', icon: '🏠', action: goToHome },
+    { label: 'Beranda', iconName: 'home', action: goToHome },
     { label: 'Portal Driver', current: true }
   ]
 })
@@ -310,48 +310,49 @@ onMounted(() => {
           <!-- Active User Badge -->
           <div class="flex items-center gap-2 rounded-full bg-google-surface-100 py-1 pl-3 pr-1.5 border border-google-surface-300/70 text-xs shadow-inner">
             <span class="font-bold text-google-surface-800 flex items-center gap-1.5">
-              <span>{{ isIT ? '⚡' : (isSuperAdmin ? '👑' : (isAdmin ? '🛡️' : '🚚')) }}</span>
+              <Icon :name="(isSuperAdmin || isIT) ? 'crown' : (isAdmin ? 'shield' : 'truck')" className="w-3.5 h-3.5 text-google-surface-700" />
               <span class="text-google-blue-700 font-semibold">{{ currentUser.name || currentUser.username }}</span>
               <span
                 class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs"
                 :class="roleBadgeClass"
               >
-                {{ currentUser.roleLabel || currentUser.role }}
+                {{ isIT ? 'Super Admin' : (currentUser.roleLabel || currentUser.role) }}
               </span>
             </span>
 
-            <!-- Role Switcher Button for Super Admin & IT -->
+            <!-- Role Switcher Button for Super Admin -->
             <button
               v-if="canSwitchRole"
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-bold transition shadow-sm border flex items-center gap-1"
+              class="rounded-full px-2.5 py-1 text-xs font-bold transition shadow-sm border flex items-center gap-1.5 focus-visible:outline-none"
               :class="mode === 'admin' ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200' : 'bg-blue-100 text-blue-900 border-blue-300 hover:bg-blue-200'"
               @click="toggleMode"
               :title="mode === 'admin' ? 'Beralih ke Tampilan Driver' : 'Beralih ke Tampilan Admin'"
             >
-              <span>🔄</span>
+              <Icon name="switch" className="w-3 h-3" />
               <span>{{ mode === 'admin' ? 'Mode Driver' : 'Mode Admin' }}</span>
             </button>
 
             <!-- Tutorial Quick Button -->
             <button
               type="button"
-              class="rounded-full bg-white hover:bg-google-surface-100 text-slate-700 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm flex items-center gap-1"
+              class="rounded-full bg-white hover:bg-google-surface-100 text-slate-700 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm flex items-center gap-1.5 focus-visible:outline-none"
               @click="mode === 'admin' ? (adminView = 'tutorial') : (showDriverTutorial = !showDriverTutorial)"
               title="Buka Buku Panduan & Tutorial"
             >
-              <span>📖</span>
+              <Icon name="tutorial" className="w-3.5 h-3.5 text-slate-600" />
               <span class="hidden sm:inline">Tutorial</span>
             </button>
 
             <!-- Logout Button -->
             <button
               type="button"
-              class="rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm"
+              class="rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm flex items-center gap-1 focus-visible:outline-none"
               @click="onLogout"
               title="Keluar / Ganti Akun"
             >
-              Keluar ➔
+              <span>Keluar</span>
+              <Icon name="logout" className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -373,19 +374,23 @@ onMounted(() => {
       <template v-else>
         <!-- Notices -->
         <div v-if="error" class="mb-5 rounded-2xl border border-google-red-200 bg-google-red-50 px-4 py-3.5 text-sm font-semibold text-google-red-700 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div class="flex items-center gap-2">
-            <span>⚠️</span>
+          <div class="flex items-center gap-2.5">
+            <Icon name="alert" className="w-4 h-4 text-google-red-600 flex-shrink-0" />
             <span>{{ error }}</span>
           </div>
-          <button @click="error = ''" class="text-google-red-700 hover:opacity-70 font-bold">✕</button>
+          <button @click="error = ''" class="text-google-red-700 hover:opacity-70 font-bold p-1">
+            <Icon name="close" className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <div v-if="message" class="mb-5 rounded-2xl border border-google-green-200 bg-google-green-50 px-4 py-3.5 text-sm font-semibold text-google-green-700 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div class="flex items-center gap-2">
-            <span>✓</span>
+          <div class="flex items-center gap-2.5">
+            <Icon name="check" className="w-4 h-4 text-google-green-600 flex-shrink-0" />
             <span>{{ message }}</span>
           </div>
-          <button @click="message = ''" class="text-google-green-700 hover:opacity-70 font-bold">✕</button>
+          <button @click="message = ''" class="text-google-green-700 hover:opacity-70 font-bold p-1">
+            <Icon name="close" className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <!-- ADMIN / SUPER ADMIN / IT SECTION -->
@@ -403,40 +408,45 @@ onMounted(() => {
             <!-- M3 Segmented Navigation Tabs -->
             <div class="flex bg-google-surface-100 p-1 rounded-full border border-google-surface-300/70 shadow-sm flex-wrap gap-1">
               <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
                 :class="adminView === 'create' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
                 @click="adminView = 'create'"
               >
-                📝 Buat KPM Baru
+                <Icon name="plus" className="w-3.5 h-3.5" />
+                <span>Buat KPM Baru</span>
               </button>
               <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
                 :class="adminView === 'monitor' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
                 @click="adminView = 'monitor'; loadMonitoring()"
               >
-                📊 Pantau KPM ({{ monitoring.length }})
+                <Icon name="doc" className="w-3.5 h-3.5" />
+                <span>Pantau KPM ({{ monitoring.length }})</span>
               </button>
               <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
                 :class="adminView === 'map' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
                 @click="adminView = 'map'; loadMonitoring()"
               >
-                🗺️ Live Radar Armada
+                <Icon name="map" className="w-3.5 h-3.5" />
+                <span>Live Radar</span>
               </button>
               <button
                 v-if="canManageUsers"
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
                 :class="adminView === 'users' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
                 @click="adminView = 'users'"
               >
-                👥 Kelola Pengguna
+                <Icon name="users" className="w-3.5 h-3.5" />
+                <span>Kelola Pengguna</span>
               </button>
               <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
                 :class="adminView === 'tutorial' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
                 @click="adminView = 'tutorial'"
               >
-                📖 Tutorial
+                <Icon name="tutorial" className="w-3.5 h-3.5" />
+                <span>Tutorial</span>
               </button>
             </div>
           </div>

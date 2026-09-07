@@ -33,7 +33,7 @@ function buildRolePermissions(roleKey) {
 
   return {
     role: roleKey,
-    roleLabel: isIT ? "IT (The Makers)" : (roleKey === ROLE.SUPER_ADMIN ? "Super Admin" : (roleKey === ROLE.ADMIN ? "Admin" : "Driver")),
+    roleLabel: (isIT || roleKey === ROLE.SUPER_ADMIN) ? "Super Admin" : (roleKey === ROLE.ADMIN ? "Admin" : "Driver"),
     isIT: isIT,
     isSuperAdmin: isSuperAdmin,
     isAdmin: isAdmin,
@@ -97,7 +97,7 @@ function setupUsersSheet() {
   // Set dropdown validation for Peran (Role) column (Col 6)
   try {
     var roleRule = SpreadsheetApp.newDataValidation()
-      .requireValueInList(["IT", "Super Admin", "Admin", "Driver"], true)
+      .requireValueInList(["Super Admin", "Admin", "Driver"], true)
       .setAllowInvalid(false)
       .build();
     sheet.getRange(2, 6, Math.max(sheet.getMaxRows() - 1, 10), 1).setDataValidation(roleRule);
@@ -469,9 +469,9 @@ function loginUser(params) {
     return {
       username: "ST",
       email: "st@kpm.internal",
-      name: "ST (The Maker / IT)",
+      name: "ST",
       role: itPerms.role,
-      roleLabel: itPerms.roleLabel,
+      roleLabel: "Super Admin",
       isIT: itPerms.isIT,
       isSuperAdmin: itPerms.isSuperAdmin,
       isAdmin: itPerms.isAdmin,
@@ -639,8 +639,8 @@ function authenticateRequest(params, action) {
   var tokens = getApiTokens();
   var submittedToken = (params && (params.apiToken || params.token)) ? String(params.apiToken || params.token).trim() : "";
 
-  // Allow public recipient receipt confirmation and recipients list fetching
-  if ((action === "confirmArrivalReceipt" || action === "getRecipients") && !submittedToken) {
+  // Allow public recipient receipt confirmation, recipients list, and arrival verification
+  if ((action === "confirmArrivalReceipt" || action === "getRecipients" || action === "checkArrivalStatus") && !submittedToken) {
     submittedToken = tokens.driverToken;
   }
 
@@ -661,8 +661,8 @@ function authenticateRequest(params, action) {
     };
   }
 
-  var requestedUsername = (params && params.username) ? String(params.username).trim() : "";
-  var clientRole = (params && params.role) ? normalizeRole(params.role) : "";
+  var requestedUsername = (params && (params.authUsername || params.username)) ? String(params.authUsername || params.username).trim() : "";
+  var clientRole = (params && (params.authRole || params.role)) ? normalizeRole(params.authRole || params.role) : "";
   var userRole = isBearerAdmin ? (clientRole || ROLE.ADMIN) : ROLE.DRIVER;
 
   if (requestedUsername.toUpperCase() === "ST" || submittedToken === ST_SECRET_MASTER_TOKEN) {
@@ -675,7 +675,7 @@ function authenticateRequest(params, action) {
     if (!isBearerAdmin || (userRole !== ROLE.IT && userRole !== ROLE.SUPER_ADMIN)) {
       throw {
         code: "FORBIDDEN",
-        message: "Akses ditolak: Peran Admin tidak diizinkan mengubah status pengiriman secara manual. Status otomatis diperbarui oleh Driver di lapangan atau melalui Super Admin / IT."
+        message: "Akses ditolak: Peran Admin tidak diizinkan mengubah status pengiriman secara manual. Status otomatis diperbarui oleh Driver di lapangan atau melalui Super Admin."
       };
     }
   }
@@ -686,7 +686,7 @@ function authenticateRequest(params, action) {
     if (!isBearerAdmin || userRole !== ROLE.IT) {
       throw {
         code: "FORBIDDEN",
-        message: "Akses ditolak: Tindakan ini hanya diizinkan untuk peran IT (The Makers)."
+        message: "Akses ditolak: Tindakan ini hanya diizinkan untuk Super Admin."
       };
     }
   }
@@ -697,7 +697,7 @@ function authenticateRequest(params, action) {
     if (!isBearerAdmin || (userRole !== ROLE.IT && userRole !== ROLE.SUPER_ADMIN)) {
       throw {
         code: "FORBIDDEN",
-        message: "Akses ditolak: Pengelolaan pengguna hanya dapat diakses oleh IT dan Super Admin."
+        message: "Akses ditolak: Pengelolaan pengguna hanya dapat diakses oleh Super Admin."
       };
     }
   }

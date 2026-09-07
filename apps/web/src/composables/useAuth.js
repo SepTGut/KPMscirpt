@@ -63,9 +63,9 @@ export function useAuth() {
       }
 
       currentUser.value = data
-      mode.value = data.role === 'admin' ? 'admin' : 'user'
+      mode.value = (data.role === 'driver' || data.role === 'user') ? 'user' : 'admin'
 
-      if (data.role === 'user' && data.name) {
+      if ((data.role === 'driver' || data.role === 'user') && data.name) {
         driverName.value = data.name
         localStorage.setItem('kpm_driver_name', data.name)
       }
@@ -101,9 +101,9 @@ export function useAuth() {
       }
 
       currentUser.value = data
-      mode.value = data.role === 'admin' ? 'admin' : 'user'
+      mode.value = (data.role === 'driver' || data.role === 'user') ? 'user' : 'admin'
 
-      if (data.role === 'user' && data.name) {
+      if ((data.role === 'driver' || data.role === 'user') && data.name) {
         driverName.value = data.name
         localStorage.setItem('kpm_driver_name', data.name)
       }
@@ -140,9 +140,9 @@ export function useAuth() {
       }
 
       currentUser.value = data
-      mode.value = data.role === 'admin' ? 'admin' : 'user'
+      mode.value = (data.role === 'driver' || data.role === 'user') ? 'user' : 'admin'
 
-      if (data.role === 'user' && data.name) {
+      if ((data.role === 'driver' || data.role === 'user') && data.name) {
         driverName.value = data.name
         localStorage.setItem('kpm_driver_name', data.name)
       }
