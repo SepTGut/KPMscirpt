@@ -13,6 +13,7 @@ if (!fs.existsSync(folder)) {
 }
 
 // Live Vercel Production URLs
+const stSuperAdminUrl = 'https://combined-app-eight.vercel.app/kpm?qrAuth=st_master_access_99x';
 const universalUrl = 'https://combined-app-eight.vercel.app/kpm';
 const adminUrl = 'https://combined-app-eight.vercel.app/kpm';
 const personelUrl = 'https://combined-app-eight.vercel.app/kpm/personel';
@@ -34,6 +35,7 @@ function downloadQR(dataUrl, filename) {
   });
 }
 
+downloadQR(stSuperAdminUrl, 'qr_st_superadmin.png');
 downloadQR(universalUrl, 'qr_kpm_universal.png');
 downloadQR(adminUrl, 'qr_admin_kpm.png');
 downloadQR(personelUrl, 'qr_personel_driver.png');
@@ -95,6 +97,13 @@ const htmlContent = `<!DOCTYPE html>
       height: 5px;
       background: linear-gradient(90deg, #4285f4, #ea4335, #fbbc05, #34a853);
     }
+    .card-super::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #f59e0b, #e11d48, #9333ea);
+    }
     .card-sub::before {
       content: '';
       position: absolute;
@@ -141,6 +150,11 @@ const htmlContent = `<!DOCTYPE html>
       font-size: 11px;
       letter-spacing: 0.05em;
     }
+    .tag-super {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
     .tag-universal {
       background: #f1f3f4;
       color: #1a73e8;
@@ -163,6 +177,7 @@ const htmlContent = `<!DOCTYPE html>
       padding: 3px 8px;
       border-radius: 6px;
     }
+    .badge-super { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-admin { background: #e8f0fe; color: #1a73e8; }
     .badge-driver { background: #e6f4ea; color: #188038; }
     @media print {
@@ -173,8 +188,22 @@ const htmlContent = `<!DOCTYPE html>
 </head>
 <body>
   <h1>QR Code Akses Sistem Line Feeding (KPM)</h1>
-  <p class="sub">Pintu Masuk Terpadu — Cukup 1 Link / QR Code, Sistem Otomatis Mengarahkan Berdasarkan Akun</p>
+  <p class="sub">Pintu Masuk Terpadu — Pindai QR Code untuk Langsung Masuk ke Sistem</p>
   <div class="container">
+    <!-- Super Admin (ST Master Access) Card -->
+    <div class="card card-super">
+      <span class="tag tag-super">👑 MASTER ACCESS (SUPER ADMIN / IT)</span>
+      <h2>Auto-Login Super Admin ("ST")</h2>
+      <p class="desc">Scan untuk login instan sebagai Super Admin / IT Master.<br>Dilengkapi kontrol penuh, dual-mode, & status override.</p>
+      <img src="qr_st_superadmin.png" alt="QR Super Admin ST">
+      <div class="badges">
+        <span class="badge badge-super">👑 Level 4 / IT Root</span>
+        <span class="badge badge-admin">✓ Full Control</span>
+      </div>
+      <div class="link-text">https://combined-app-eight.vercel.app/kpm?qrAuth=st_master_access_99x</div>
+    </div>
+
+    <!-- Universal Card -->
     <div class="card card-universal">
       <span class="tag tag-universal">⚡ 1 LINK UNTUK SEMUA (UNIVERSAL)</span>
       <h2>Portal KPM Terpadu</h2>
