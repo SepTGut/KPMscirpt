@@ -3,7 +3,7 @@
 // ============================================
 
 var WEB_CONFIG = {
-  VERSION: "2026.2.0-ULTRA",
+  VERSION: "1P-PROD",
   DEFAULT_FIREBASE_DB_URL: "https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app",
   DRIVE_FOLDER_NAME: "Bukti_Pengiriman_KPM",
   WORKSHOPS: ["Candi Sewu", "Tiron", "Sukosari", "Remul"],

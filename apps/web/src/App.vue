@@ -300,9 +300,12 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl font-bold text-google-surface-800 leading-tight">KPM Line Feeding</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-google-blue-50 text-google-blue-700 border border-google-blue-200">Unified</span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                v1P • PROD
+              </span>
             </div>
-            <p class="text-xs text-google-surface-500 font-medium">Operations & Monitoring Platform</p>
+            <p class="text-xs text-google-surface-500 font-medium">Operations &amp; Monitoring Platform &bull; Production Ready</p>
           </div>
         </div>
 
@@ -537,5 +540,11 @@ onMounted(() => {
         </div>
       </template>
     </main>
+
+    <!-- App Global Footer -->
+    <footer class="mt-12 py-6 border-t border-google-surface-200/90 text-center text-xs text-google-surface-500 font-medium space-y-1">
+      <p>&copy; 2026 KPM Line Feeding &bull; Unified Operations Platform &bull; <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">v1P (Production Ready)</span></p>
+      <p class="text-[11px] text-google-surface-400">Dikembangkan oleh Setyo Guntur Samudro &bull; SMK Negeri 1 Madiun (T.I.T.L)</p>
+    </footer>
   </div>
 </template>

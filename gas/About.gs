@@ -11,7 +11,7 @@ var ABOUT_CONFIG = {
   INSTITUTION: "SMK Negeri 1 Madiun",
   FACULTY: "T.I.T.L (Teknik Instalasi Tenaga Listrik)",
   APP_NAME: "Sistem Otomasi KPM 2026",
-  VERSION: "8.0.0",
+  VERSION: "1P",
   YEAR: "2026",
   LOGO_ID: "1UWZKajgW8l1vJX7pTL8kYuF7A6tprIjT"
 };

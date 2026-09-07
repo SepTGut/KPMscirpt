@@ -202,8 +202,9 @@ function initGis() {
       </form>
     </div>
 
-    <footer class="mt-6 text-center text-xs text-google-surface-500 font-medium">
-      &copy; 2026 KPM Line Feeding &bull; Unified Operations Platform
+    <footer class="mt-6 text-center text-xs text-google-surface-500 font-medium space-y-1">
+      <div>&copy; 2026 KPM Line Feeding &bull; Unified Operations Platform &bull; <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">v1P (Production Ready)</span></div>
+      <div class="text-[11px] text-google-surface-400">SMK Negeri 1 Madiun &bull; Setyo Guntur Samudro</div>
     </footer>
   </div>
 </template>

@@ -93,6 +93,7 @@ function setupRecipientsSheet() {
 function getMasterData() {
   var fbConfig = (typeof getFirebaseConfig === "function") ? getFirebaseConfig() : { firebaseDbUrl: WEB_CONFIG.DEFAULT_FIREBASE_DB_URL };
   return {
+    version: (typeof ABOUT_CONFIG !== 'undefined' ? ABOUT_CONFIG.VERSION : '1P'),
     workshops: WEB_CONFIG.WORKSHOPS,
     pics: WEB_CONFIG.PICS,
     uoms: WEB_CONFIG.UOMS,

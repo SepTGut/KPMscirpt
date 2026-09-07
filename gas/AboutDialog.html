@@ -292,7 +292,10 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#188038" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
         </div>
         <div class="info-label">Versi</div>
-        <div class="info-value">v<?= info.version ?></div>
+        <div class="info-value" style="display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
+          <span>v<?= info.version ?></span>
+          <span style="font-size: 9.5px; padding: 1.5px 6px; background: #e6f4ea; color: #137333; border-radius: 999px; font-weight: 700; border: 1px solid #ceead6; letter-spacing: 0.02em;">PROD</span>
+        </div>
       </div>
       <div class="info-card">
         <div class="info-icon" style="display: flex; justify-content: center; align-items: center; margin-bottom: 6px;">

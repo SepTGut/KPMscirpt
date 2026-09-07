@@ -15,11 +15,30 @@ Dokumentasi historis lengkap mengenai evolusi arsitektur, refaktorisasi kode, pe
 | **v5.0.0** | 5-Step Lifecycle | Pembaruan state machine 5 langkah (`Baru Dibuat` ➔ `Belum Berangkat` ➔ `Jalan` ➔ `Tiba` ➔ `Selesai`) dan pemisahan kolom rute. |
 | **v6.0.0** | Multi-Item & Performa | Perbaikan penomoran multi-item, grouping material tanpa duplikasi No LF, normalisasi PIC uppercase, batching query, dan eliminasi error 504. |
 | **v7.0.0** | Produksi & QR Assets | Verifikasi endpoint produksi Version 11 dan pembuatan generator QR Code akses portal (`qr code/`). |
+| **v1P** | 2026-09-07 | **Production Ready Release**: Redesain total UI/UX spreadsheet menu & web app (M3 Expressive, SVG icons, Google quad-color), User Management & 4-tier RBAC (Super Admin ST), Interactive Tutorial Dialog, QR Auto-Login suite, Live Fleet Radar, dan penguatan arsitektur produksi. |
 | **v8.0.0** | 2026-08-22 | **Deep High-Performance & Responsiveness Overhaul**: Multi-tier caching (`ScriptCache` + RAM), eliminasi `SpreadsheetApp.flush()`, pembacaan formula selektif 2-kolom, slice write-back bertarget, kompresi gambar off-thread via `createImageBitmap` + `OffscreenCanvas`, dan smart cache invalidation. |
 
 ---
 
 ## 📝 Catatan Perubahan Rinci Per Versi
+
+---
+
+### [v1P] - 2026-09-07
+#### 🚀 Rilis Resmi Produksi (Production Ready Milestone)
+- **UI/UX Overhaul Menyeluruh**:
+  - Menu Google Sheets berjenjang (*Hierarchical Submenus*) mengisolasi operasi pemeliharaan dan mencegah salah klik.
+  - Dialog interaktif `TutorialDialog.html` dengan pencarian instan dan timeline operasional.
+  - Dialog `MasterKPM.html` dengan live preview nomor surat KPM secara real-time.
+  - Web App Vue 3 dipoles dengan Material Design 3 Expressive, SVG icon system (`Icon.vue`), Breadcrumb bar, Google Quad-Color ambient glows, dan responsive mobile touch targets >= 44px.
+- **Role-Based Access Control (4-Tier RBAC) & Super Admin**:
+  - Penambahan panel khusus `UserManagementPanel.vue` untuk manajemen akun pengguna secara visual.
+  - Peran Super Admin / IT (`ST` - Setyo Guntur Samudro) dengan bypass login aman via token QR, dual-mode switcher (Admin ⇄ Driver), dan status override.
+- **Generator QR Code Akses Portal & Kartu Cetak**:
+  - Script otomatisasi `scripts/generate_qr.mjs` menghasilkan QR code beresolusi tinggi untuk Super Admin ST, Universal Portal, dan Driver Portal.
+  - Template cetak fisik siap pakai `assets/qr-codes/print_qr_codes.html` untuk display meja workshop dan driver clipboard.
+- **Integrasi Versioning v1P**:
+  - Standarisasi nomor versi `v1P (Production Ready)` pada `About.gs`, `AboutDialog.html`, `WebConfig.gs`, `App.vue`, `LoginScreen.vue`, dan dokumentasi resmi.
 
 ---
 
