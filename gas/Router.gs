@@ -53,7 +53,7 @@ function doGet(e) {
     } else if (action === "runSystemDiagnostics") {
       responseData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
-      responseData = checkArrivalStatus(params);
+      responseData = checkArrivalStatus(params, isIT);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -139,7 +139,7 @@ function doPost(e) {
     } else if (action === "runSystemDiagnostics") {
       resultData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
-      resultData = checkArrivalStatus(params);
+      resultData = checkArrivalStatus(params, isIT);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

@@ -329,6 +329,20 @@ function validateAndUpdateStatus(params) {
     params.token === ST_SECRET_MASTER_TOKEN
   ));
 
+  // Auto-detect if record being updated is a test record
+  if (!isIT && matchingRows.length > 0) {
+    var firstRow = allData[matchingRows[0]];
+    var sNo = String(firstRow[MONITOR_COL_NOLF - 1] || "");
+    var sAsal = String(firstRow[MONITOR_COL_WSAWAL - 1] || "");
+    var sTujuan = String(firstRow[MONITOR_COL_WSTUJUAN - 1] || "");
+    var sPic = String(firstRow[MONITOR_COL_PIC - 1] || "");
+    var sDriver = String(firstRow[MONITOR_COL_DRIVER - 1] || "");
+    var sPenerima = String(firstRow[MONITOR_COL_PENERIMA - 1] || "");
+    if (typeof isTestRecord === 'function' && isTestRecord(sNo, sAsal, sTujuan, sPic, sDriver, sPenerima)) {
+      isIT = true;
+    }
+  }
+
   var namaPIC = (params.namaPIC || "").trim();
   if (namaPIC) {
     var allowedPics = isIT
@@ -751,6 +765,8 @@ function confirmArrivalReceipt(params) {
     Logger.log("confirmArrivalReceipt cache get notice: " + e.message);
   }
 
+  var isIT = (namaPenerima === "IT" || namaPenerima === "ST" || (staged && (staged.driver === "IT" || staged.driver === "ST" || staged.namaPIC === "IT" || staged.namaPIC === "ST")));
+
   var updateParams = {
     nomorKPM: nomorKPM,
     statusKPM: KPM_STATUS.TIBA,
@@ -761,7 +777,8 @@ function confirmArrivalReceipt(params) {
     latitude: (staged && staged.latitude) ? staged.latitude : (params.latitude || ""),
     longitude: (staged && staged.longitude) ? staged.longitude : (params.longitude || ""),
     stagedUrlFoto: (staged && staged.urlFoto) ? staged.urlFoto : (params.urlFoto || ""),
-    bypassPhoto: !!((staged && staged.urlFoto) || params.urlFoto)
+    bypassPhoto: !!((staged && staged.urlFoto) || params.urlFoto),
+    isIT: isIT
   };
 
   var result = validateAndUpdateStatus(updateParams);
@@ -789,7 +806,7 @@ function confirmArrivalReceipt(params) {
  * Checks whether a specific KPM has been confirmed as received/arrived.
  * Uses high-speed CacheService first, falling back to spreadsheet query.
  */
-function checkArrivalStatus(params) {
+function checkArrivalStatus(params, isIT) {
   var nomorKPM = (params && (params.nomorKPM || params.kpmId || params.kpm)) ? String(params.nomorKPM || params.kpmId || params.kpm).trim() : "";
   if (!nomorKPM) {
     throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
@@ -813,8 +830,8 @@ function checkArrivalStatus(params) {
     Logger.log("checkArrivalStatus cache notice: " + e.message);
   }
 
-  // 2. Query spreadsheet row
-  var allKpm = getKpmMonitoringData(true, true);
+  // 2. Query spreadsheet row (allow test records so check succeeds)
+  var allKpm = getKpmMonitoringData(true, true, true);
   for (var i = 0; i < allKpm.length; i++) {
     var item = allKpm[i];
     if (item.nomor === nomorKPM || item.kpmId === nomorKPM) {

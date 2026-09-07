@@ -68,7 +68,6 @@ function startPollingConfirmation(nomorKPM) {
   stopPolling()
   pollTimer = setInterval(async () => {
     try {
-      // 1. Primary: Check dedicated arrival verification endpoint
       const res = await api('checkArrivalStatus', {
         method: 'GET',
         body: { nomorKPM: nomorKPM, refresh: 'true' }
@@ -76,29 +75,11 @@ function startPollingConfirmation(nomorKPM) {
       if (res && res.isConfirmed) {
         stopPolling()
         isConfirmed.value = true
-        confirmedRecipientName.value = res.penerima || 'Penerima Terdaftar'
+        confirmedRecipientName.value = res.penerima || 'Penerima'
         setTimeout(() => {
           closeQrModal()
           emit('refresh-deliveries')
-        }, 2000)
-        return
-      }
-    } catch {}
-
-    // 2. Secondary fallback: Check if KPM is completed and removed from active deliveries
-    try {
-      const activeList = await api('getDeliveries', { method: 'GET', body: { refresh: 'true' } })
-      if (Array.isArray(activeList)) {
-        const stillActive = activeList.some(k => k.nomor === nomorKPM || k.kpmId === nomorKPM)
-        if (!stillActive) {
-          stopPolling()
-          isConfirmed.value = true
-          confirmedRecipientName.value = 'Penerima Terdaftar'
-          setTimeout(() => {
-            closeQrModal()
-            emit('refresh-deliveries')
-          }, 2000)
-        }
+        }, 2500)
       }
     } catch {}
   }, 2000)
