@@ -161,6 +161,43 @@ function statusClass(status) {
           </a>
         </div>
 
+        <!-- Delivery & Handover Photo Proof Badges -->
+        <div v-if="item.buktiBerangkat || item.buktiTiba || item.buktiDiterima" class="mt-2.5 flex flex-wrap gap-1.5">
+          <a
+            v-if="item.buktiBerangkat"
+            :href="item.buktiBerangkat"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="py-1 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold inline-flex items-center gap-1 border border-blue-200 transition shadow-2xs"
+            title="Lihat Foto Bukti Keberangkatan"
+          >
+            <span>📷 Foto Berangkat</span>
+            <Icon name="external" className="w-2.5 h-2.5 text-blue-500" />
+          </a>
+          <a
+            v-if="item.buktiTiba"
+            :href="item.buktiTiba"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="py-1 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold inline-flex items-center gap-1 border border-amber-200 transition shadow-2xs"
+            title="Lihat Foto Bukti Ketibaan"
+          >
+            <span>📷 Foto Tiba</span>
+            <Icon name="external" className="w-2.5 h-2.5 text-amber-600" />
+          </a>
+          <a
+            v-if="item.buktiDiterima"
+            :href="item.buktiDiterima"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="py-1 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1 border border-emerald-300 transition shadow-2xs"
+            title="Lihat Foto Bukti Serah Terima / Diterima"
+          >
+            <span>📸 Foto Diterima</span>
+            <Icon name="external" className="w-2.5 h-2.5 text-emerald-600" />
+          </a>
+        </div>
+
         <!-- Collapsible Material Details -->
         <details class="mt-3.5 rounded-2xl bg-google-surface-50 p-3 border border-google-surface-200">
           <summary class="cursor-pointer text-xs font-bold text-google-blue-700 outline-none flex items-center gap-1.5">

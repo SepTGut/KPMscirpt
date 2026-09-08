@@ -110,7 +110,7 @@ async function handleStageArrivalQr() {
       }
     })
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://combined-app-eight.vercel.app'
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://lnfd.vercel.app'
     qrTargetUrl.value = `${origin}/kpm/confirm?kpm=${encodeURIComponent(kpmNomor)}`
     isConfirmed.value = false
     confirmedRecipientName.value = ''

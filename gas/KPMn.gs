@@ -7,9 +7,9 @@ var MONITOR_SHEET_NAME = "KPM Monitor 2026";
 var MONITOR_SHEET_NAME_LOWER = MONITOR_SHEET_NAME.trim().toLowerCase();
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
-var MONITOR_TOTAL_COLS = 27;   // Total 27 columns (A to AA)
+var MONITOR_TOTAL_COLS = 28;   // Total 28 columns (A to AB)
 
-// Column mapping (1-indexed, A to AA):
+// Column mapping (1-indexed, A to AB):
 var MONITOR_COL_NO = 1;             // Column A: NO (Oto)
 var MONITOR_COL_POST_DATE = 2;      // Column B: Post Date (Otomatis)
 var MONITOR_COL_NOLF = 3;           // Column C: No LF (Counting Manual/Auto)
@@ -37,6 +37,7 @@ var MONITOR_COL_FOTO_BER = 24;      // Column X: Foto Berangkat (URL Drive)
 var MONITOR_COL_FOTO_TIB = 25;      // Column Y: Foto Tiba (URL Drive)
 var MONITOR_COL_GPS_TRACK = 26;     // Column Z: GPS Track (Link Google Maps Router / Live Link)
 var MONITOR_COL_PENERIMA = 27;      // Column AA: Penerima (Nama Penerima)
+var MONITOR_COL_FOTO_DITERIMA = 28; // Column AB: Foto Diterima (URL Drive)
 
 var TLOG_SHEET_NAME = "T.Log";
 
@@ -251,7 +252,8 @@ function inheritGroupMetadataInMemory(sheet, row, rowData) {
         MONITOR_COL_WSAWAL, MONITOR_COL_WSTUJUAN, MONITOR_COL_PROYEK,
         MONITOR_COL_WBS, MONITOR_COL_PIC, MONITOR_COL_TYPECAR,
         MONITOR_COL_DRIVER, MONITOR_COL_STATUS, MONITOR_COL_WKT_BERANGKAT, MONITOR_COL_WKT_TIBA,
-        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB, MONITOR_COL_GPS_TRACK
+        MONITOR_COL_DURASI, MONITOR_COL_FOTO_BER, MONITOR_COL_FOTO_TIB, MONITOR_COL_GPS_TRACK,
+        MONITOR_COL_PENERIMA, MONITOR_COL_FOTO_DITERIMA
       ];
       for (var i = 0; i < groupCols.length; i++) {
         var cIdx = groupCols[i] - 1;
@@ -417,7 +419,8 @@ function onEdit(e) {
     col === MONITOR_COL_DRIVER || col === MONITOR_COL_STATUS ||
     col === MONITOR_COL_WKT_BERANGKAT || col === MONITOR_COL_WKT_TIBA ||
     col === MONITOR_COL_DURASI || col === MONITOR_COL_FOTO_BER ||
-    col === MONITOR_COL_FOTO_TIB || col === MONITOR_COL_GPS_TRACK) {
+    col === MONITOR_COL_FOTO_TIB || col === MONITOR_COL_GPS_TRACK ||
+    col === MONITOR_COL_PENERIMA || col === MONITOR_COL_FOTO_DITERIMA) {
     syncDownstreamGroupMetadata(sheet, row, col, cellVal, rowData[MONITOR_COL_NOLF - 1]);
   }
 
@@ -789,11 +792,24 @@ function printKpmM() {
   var displayTanggal = headerInfo.tanggal || today;
   var totalPage = Math.max(1, Math.ceil(materialList.length / PAGE_SIZE));
 
+  var shortRecipientUrl = "";
+  try {
+    if (typeof createShortRecipientLink === "function") {
+      shortRecipientUrl = createShortRecipientLink(headerInfo.noRefKpp);
+    }
+  } catch (shortErr) {
+    Logger.log("createShortRecipientLink notice: " + shortErr.message);
+  }
+  if (!shortRecipientUrl) {
+    shortRecipientUrl = "https://lnfd.vercel.app/kpm/confirm?kpm=" + encodeURIComponent(headerInfo.noRefKpp);
+  }
+
   var data = {
     logo: getLogoSafe(),
     tanggalCetak: today,
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
+    shortRecipientUrl: shortRecipientUrl,
     header: {
       noRefKpp: headerInfo.noRefKpp,
       noLampiranKpm: headerInfo.noLampiranKpm,

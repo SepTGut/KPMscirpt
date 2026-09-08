@@ -13,10 +13,10 @@ if (!fs.existsSync(folder)) {
 }
 
 // Live Vercel Production URLs
-const stSuperAdminUrl = 'https://combined-app-eight.vercel.app/kpm?qrAuth=st_master_access_99x';
-const universalUrl = 'https://combined-app-eight.vercel.app/kpm';
-const adminUrl = 'https://combined-app-eight.vercel.app/kpm';
-const personelUrl = 'https://combined-app-eight.vercel.app/kpm/personel';
+const stSuperAdminUrl = 'https://lnfd.vercel.app/kpm?qrAuth=st_master_access_99x';
+const universalUrl = 'https://lnfd.vercel.app/kpm';
+const adminUrl = 'https://lnfd.vercel.app/kpm';
+const personelUrl = 'https://lnfd.vercel.app/kpm/personel';
 
 function downloadQR(dataUrl, filename) {
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(dataUrl)}`;
@@ -200,7 +200,7 @@ const htmlContent = `<!DOCTYPE html>
         <span class="badge badge-super">👑 Level 4 / IT Root</span>
         <span class="badge badge-admin">✓ Full Control</span>
       </div>
-      <div class="link-text">https://combined-app-eight.vercel.app/kpm?qrAuth=st_master_access_99x</div>
+      <div class="link-text">lnfd.vercel.app/kpm?qrAuth=st_master_access_99x</div>
     </div>
 
     <!-- Universal Card -->
@@ -213,7 +213,7 @@ const htmlContent = `<!DOCTYPE html>
         <span class="badge badge-admin">✓ Login Admin</span>
         <span class="badge badge-driver">✓ Login Driver</span>
       </div>
-      <div class="link-text">https://combined-app-eight.vercel.app/kpm</div>
+      <div class="link-text">lnfd.vercel.app/kpm</div>
     </div>
   </div>
 </body>

@@ -63,7 +63,7 @@ function getApiTokens() {
 }
 
 var USERS_SHEET_NAME = "Users";
-var KPM_WEB_BASE_URL = "https://combined-app-eight.vercel.app/kpm";
+var KPM_WEB_BASE_URL = "https://lnfd.vercel.app/kpm";
 var ST_SECRET_MASTER_TOKEN = "st_master_access_99x";
 
 /**
@@ -150,7 +150,7 @@ function ensureUserQrCodes(sheet) {
         hasTokenChanges = true;
       }
       tokenUpdates[i] = [qrToken];
-      formulaUpdates[i] = ['=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Fcombined-app-eight.vercel.app%2Fkpm%3FqrAuth%3D" & I' + rowNum + ')'];
+      formulaUpdates[i] = ['=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Flnfd.vercel.app%2Fkpm%3FqrAuth%3D" & I' + rowNum + ')'];
     } else {
       tokenUpdates[i] = [qrToken];
       formulaUpdates[i] = [""];
@@ -363,7 +363,7 @@ function saveUser(params) {
     ];
 
     sheet.getRange(targetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
-    sheet.getRange(targetRow, 10).setFormula('=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Fcombined-app-eight.vercel.app%2Fkpm%3FqrAuth%3D" & I' + targetRow + ')');
+    sheet.getRange(targetRow, 10).setFormula('=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Flnfd.vercel.app%2Fkpm%3FqrAuth%3D" & I' + targetRow + ')');
 
     return { success: true, message: "Pengguna '" + rawFullName + "' (" + roleLabel + ") berhasil diperbarui.", username: rawUsername };
   } else {
@@ -386,7 +386,7 @@ function saveUser(params) {
     ];
 
     sheet.getRange(newRow, 1, 1, newVals.length).setValues([newVals]);
-    sheet.getRange(newRow, 10).setFormula('=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Fcombined-app-eight.vercel.app%2Fkpm%3FqrAuth%3D" & I' + newRow + ')');
+    sheet.getRange(newRow, 10).setFormula('=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Flnfd.vercel.app%2Fkpm%3FqrAuth%3D" & I' + newRow + ')');
 
     return { success: true, message: "Pengguna baru '" + rawFullName + "' (" + roleLabel + ") berhasil didaftarkan.", username: rawUsername };
   }
@@ -645,8 +645,8 @@ function authenticateRequest(params, action) {
   var tokens = getApiTokens();
   var submittedToken = (params && (params.apiToken || params.token)) ? String(params.apiToken || params.token).trim() : "";
 
-  // Allow public recipient receipt confirmation, recipients list, and arrival verification
-  if ((action === "confirmArrivalReceipt" || action === "getRecipients" || action === "checkArrivalStatus") && !submittedToken) {
+  // Allow public recipient receipt confirmation, recipients list, arrival verification, and short link resolution
+  if ((action === "confirmArrivalReceipt" || action === "getRecipients" || action === "checkArrivalStatus" || action === "resolveShortLink") && !submittedToken) {
     submittedToken = tokens.driverToken;
   }
 

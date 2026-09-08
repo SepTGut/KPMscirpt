@@ -382,6 +382,7 @@ function validateAndUpdateStatus(params) {
   var lat = params.latitude || params.lat || "";
   var lng = params.longitude || params.lng || "";
   var currentCoordStr = (lat && lng) ? (String(lat).trim() + "," + String(lng).trim()) : "";
+  var urlFotoDiterima = params.urlFotoDiterima || "";
 
   for (var idx = 0; idx < matchingRows.length; idx++) {
     var rIndex = matchingRows[idx];
@@ -425,6 +426,9 @@ function validateAndUpdateStatus(params) {
     if (namaPIC) allData[rIndex][MONITOR_COL_PIC - 1] = sanitizeSpreadsheetInput(namaPIC);
     if (namaDriver) allData[rIndex][MONITOR_COL_DRIVER - 1] = sanitizeSpreadsheetInput(namaDriver);
     if (namaPenerima) allData[rIndex][MONITOR_COL_PENERIMA - 1] = sanitizeSpreadsheetInput(namaPenerima);
+    if (urlFotoDiterima) {
+      allData[rIndex][MONITOR_COL_FOTO_DITERIMA - 1] = createHyperlinkFormula(urlFotoDiterima, "📸 Bukti Diterima");
+    }
     allData[rIndex][MONITOR_COL_STATUS - 1] = targetStatus;
     if (lokasiWorkshop) {
       if (targetStatus === KPM_STATUS.TIBA) {
@@ -470,6 +474,7 @@ function validateAndUpdateStatus(params) {
         var fotoBerLink = extractHyperlinkUrl(firstRow[MONITOR_COL_FOTO_BER - 1], "", firstRow[MONITOR_COL_FOTO_BER - 1]);
         var fotoTibLink = urlFoto || extractHyperlinkUrl(firstRow[MONITOR_COL_FOTO_TIB - 1], "", firstRow[MONITOR_COL_FOTO_TIB - 1]);
         var gpsTrackLink = extractHyperlinkUrl(firstRow[MONITOR_COL_GPS_TRACK - 1], "", firstRow[MONITOR_COL_GPS_TRACK - 1]);
+        var fotoDiterimaLink = urlFotoDiterima || extractHyperlinkUrl(firstRow[MONITOR_COL_FOTO_DITERIMA - 1], "", firstRow[MONITOR_COL_FOTO_DITERIMA - 1]);
 
         appendTLogRecord({
           tanggal: String(firstRow[MONITOR_COL_POST_DATE - 1] || waktuSekarang).split(" ")[0],
@@ -484,7 +489,8 @@ function validateAndUpdateStatus(params) {
           gpsTrack: gpsTrackLink,
           fotoBerangkat: fotoBerLink,
           fotoTiba: fotoTibLink,
-          penerima: namaPenerima || String(firstRow[MONITOR_COL_PENERIMA - 1] || "")
+          penerima: namaPenerima || String(firstRow[MONITOR_COL_PENERIMA - 1] || ""),
+          fotoDiterima: fotoDiterimaLink
         });
       } catch (tlogErr) {
         Logger.log("T.Log archiving notice: " + tlogErr.message);
@@ -622,6 +628,8 @@ function editLatestKpmItems(params) {
   var fotoBer = templateRow[MONITOR_COL_FOTO_BER - 1] || "";
   var fotoTib = templateRow[MONITOR_COL_FOTO_TIB - 1] || "";
   var gpsTrack = templateRow[MONITOR_COL_GPS_TRACK - 1] || "";
+  var penerima = templateRow[MONITOR_COL_PENERIMA - 1] || "";
+  var fotoDiterima = templateRow[MONITOR_COL_FOTO_DITERIMA - 1] || "";
 
   var newRows = [];
   for (var j = 0; j < newItems.length; j++) {
@@ -663,6 +671,8 @@ function editLatestKpmItems(params) {
     rowArray[MONITOR_COL_FOTO_BER - 1] = fotoBer;
     rowArray[MONITOR_COL_FOTO_TIB - 1] = fotoTib;
     rowArray[MONITOR_COL_GPS_TRACK - 1] = gpsTrack;
+    rowArray[MONITOR_COL_PENERIMA - 1] = penerima;
+    rowArray[MONITOR_COL_FOTO_DITERIMA - 1] = fotoDiterima;
 
     newRows.push(rowArray);
   }
@@ -765,12 +775,23 @@ function confirmArrivalReceipt(params) {
     Logger.log("confirmArrivalReceipt cache get notice: " + e.message);
   }
 
+  var rawFotoDiterima = params.fotoDiterima || params.fotoData || "";
+  var urlFotoDiterima = "";
+  if (rawFotoDiterima && typeof uploadProofPhoto === "function") {
+    try {
+      urlFotoDiterima = uploadProofPhoto(nomorKPM, "Diterima", rawFotoDiterima);
+    } catch (photoErr) {
+      Logger.log("uploadProofPhoto Foto Diterima error: " + photoErr.message);
+    }
+  }
+
   var isIT = (namaPenerima === "IT" || namaPenerima === "ST" || (staged && (staged.driver === "IT" || staged.driver === "ST" || staged.namaPIC === "IT" || staged.namaPIC === "ST")));
 
   var updateParams = {
     nomorKPM: nomorKPM,
     statusKPM: KPM_STATUS.TIBA,
     namaPenerima: namaPenerima,
+    urlFotoDiterima: urlFotoDiterima,
     driver: (staged && staged.driver) ? staged.driver : (params.driver || ""),
     namaPIC: (staged && staged.namaPIC) ? staged.namaPIC : (params.namaPIC || ""),
     lokasiWorkshop: (staged && staged.lokasiWorkshop) ? staged.lokasiWorkshop : (params.lokasiWorkshop || ""),
@@ -791,6 +812,7 @@ function confirmArrivalReceipt(params) {
       JSON.stringify({
         status: KPM_STATUS.TIBA,
         penerima: namaPenerima,
+        fotoDiterima: urlFotoDiterima,
         confirmedAt: new Date().toISOString()
       }),
       600 // 10 minutes
@@ -798,6 +820,7 @@ function confirmArrivalReceipt(params) {
   } catch (remErr) {}
 
   result.namaPenerima = namaPenerima;
+  result.urlFotoDiterima = urlFotoDiterima;
   result.message = "Penerimaan KPM " + nomorKPM + " berhasil dikonfirmasi oleh " + namaPenerima + ".";
   return result;
 }

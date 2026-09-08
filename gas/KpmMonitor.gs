@@ -226,8 +226,8 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
   var numRows = lastRow - MONITOR_START_ROW + 1;
   var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
   var displayData = range.getDisplayValues();
-  // Fetch formulas for photo & GPS Track columns (Cols X, Y, Z: 3 columns)
-  var photoAndGpsFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 3).getFormulas();
+  // Fetch formulas for photo & GPS Track & recipient photo columns (Cols X, Y, Z, AA, AB: 5 columns)
+  var photoAndGpsFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 5).getFormulas();
   var kpmMap = {};
 
   var lastSeenKpm = "";
@@ -245,6 +245,7 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
   var lastSeenBuktiTib = "";
   var lastSeenGpsTrack = "";
   var lastSeenPenerima = "";
+  var lastSeenBuktiDiterima = "";
 
   var pendingStatusRowUpdates = [];
 
@@ -303,6 +304,11 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
         displayData[i][MONITOR_COL_GPS_TRACK - 1]
       );
       lastSeenPenerima = String(row[MONITOR_COL_PENERIMA - 1] || "").trim();
+      lastSeenBuktiDiterima = extractHyperlinkUrl(
+        displayData[i][MONITOR_COL_FOTO_DITERIMA - 1],
+        photoAndGpsFormulas[i][4],
+        displayData[i][MONITOR_COL_FOTO_DITERIMA - 1]
+      );
     }
 
     var kpm = rawKpm || (barang ? lastSeenKpm : "");
@@ -333,6 +339,11 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
       photoAndGpsFormulas[i][2],
       displayData[i][MONITOR_COL_GPS_TRACK - 1]
     ) || lastSeenGpsTrack;
+    var buktiDiterima = extractHyperlinkUrl(
+      displayData[i][MONITOR_COL_FOTO_DITERIMA - 1],
+      photoAndGpsFormulas[i][4],
+      displayData[i][MONITOR_COL_FOTO_DITERIMA - 1]
+    ) || lastSeenBuktiDiterima;
 
     var isTest = (typeof isTestRecord === 'function')
       ? isTestRecord(kpm, wsAwal, wsTujuan, lastSeenPic, lastSeenDriver, penerima)
@@ -375,6 +386,7 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
         buktiTiba: buktiTiba,
         gpsTrack: gpsTrack,
         penerima: penerima,
+        buktiDiterima: buktiDiterima,
         isTest: isTest,
         daftarBarang: []
       };

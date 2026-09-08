@@ -29,4 +29,4 @@ if ($env:VERCEL_TOKEN) {
 }
 
 Write-Host ""
-Write-Host "Deployment Complete! Live at: https://combined-app-eight.vercel.app" -ForegroundColor Cyan
+Write-Host "Deployment Complete! Live at: https://lnfd.vercel.app" -ForegroundColor Cyan

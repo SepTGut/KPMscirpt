@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import Icon from './Icon.vue'
 import { requestApi } from '../composables/useApi'
+import { compressImage } from '../composables/useGps'
 
 const api = (action, opts) => requestApi(action, opts)
 
@@ -13,6 +14,10 @@ const props = defineProps({
 const emit = defineEmits(['confirmed', 'back-to-home'])
 
 const kpmId = ref(props.kpmNomor || '')
+
+watch(() => props.kpmNomor, (newVal) => {
+  if (newVal) kpmId.value = newVal
+})
 const selectedRecipient = ref(props.initialRecipient || '')
 const customRecipient = ref('')
 const isCustom = ref(false)
@@ -23,6 +28,10 @@ const errorMessage = ref('')
 const isConfirmed = ref(false)
 const confirmedRecipient = ref('')
 const confirmedAt = ref('')
+const fotoData = ref('')
+const photoPreview = ref('')
+const processingPhoto = ref(false)
+const photoInputRef = ref(null)
 
 const finalRecipientName = computed(() => {
   if (isCustom.value) return customRecipient.value.trim().toUpperCase()
@@ -49,6 +58,30 @@ async function fetchRecipients() {
   }
 }
 
+async function onPhotoChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  processingPhoto.value = true
+  errorMessage.value = ''
+  try {
+    const compressed = await compressImage(file)
+    fotoData.value = compressed
+    photoPreview.value = compressed
+  } catch (err) {
+    errorMessage.value = 'Gagal memproses foto: ' + (err.message || String(err))
+  } finally {
+    processingPhoto.value = false
+  }
+}
+
+function clearPhoto() {
+  fotoData.value = ''
+  photoPreview.value = ''
+  if (photoInputRef.value) {
+    photoInputRef.value.value = ''
+  }
+}
+
 async function handleConfirm() {
   if (!canSubmit.value) return
   errorMessage.value = ''
@@ -58,7 +91,8 @@ async function handleConfirm() {
     const res = await api('confirmArrivalReceipt', {
       body: {
         nomorKPM: kpmId.value.trim(),
-        namaPenerima: finalRecipientName.value
+        namaPenerima: finalRecipientName.value,
+        fotoDiterima: fotoData.value || ''
       }
     })
 
@@ -117,6 +151,15 @@ onMounted(() => {
             <div class="flex justify-between items-center py-1">
               <span class="text-slate-500">Waktu Konfirmasi:</span>
               <span class="font-mono text-slate-700">{{ confirmedAt }} WIB</span>
+            </div>
+          </div>
+
+          <!-- Photo Preview in Confirmation State if Attached -->
+          <div v-if="photoPreview" class="mt-4 rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm max-w-[220px] mx-auto animate-fadeIn">
+            <img :src="photoPreview" alt="Foto Serah Terima" class="w-full h-28 object-cover" />
+            <div class="py-1 px-2 bg-slate-50 text-[10.5px] text-emerald-700 font-bold text-center border-t border-slate-200 flex items-center justify-center gap-1">
+              <Icon name="check" className="w-3 h-3" />
+              <span>Foto Serah Terima Terlampir</span>
             </div>
           </div>
 
@@ -203,6 +246,53 @@ onMounted(() => {
                 required
               />
             </label>
+
+            <!-- Photo Bukti Serah Terima (Optional & Recommended) -->
+            <div class="pt-1">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="label !mb-0">Foto Bukti Serah Terima</span>
+                <span class="text-[10px] text-slate-400 font-medium">Opsional (Kamera/Galeri)</span>
+              </div>
+
+              <!-- If photo selected, show preview thumbnail -->
+              <div v-if="photoPreview" class="relative rounded-2xl overflow-hidden border-2 border-emerald-400 bg-slate-900 shadow-sm animate-fadeIn">
+                <img :src="photoPreview" alt="Foto Serah Terima" class="w-full h-40 object-cover" />
+                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2.5 flex items-center justify-between text-white text-xs">
+                  <span class="font-bold text-[11px] flex items-center gap-1.5">
+                    <Icon name="check" className="w-3.5 h-3.5 text-emerald-400" />
+                    Foto Siap Diunggah
+                  </span>
+                  <button
+                    type="button"
+                    class="px-2.5 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                    @click="clearPhoto"
+                  >
+                    <Icon name="trash" className="w-3 h-3" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- If no photo yet, show file/camera input button -->
+              <label v-else class="block cursor-pointer">
+                <input
+                  ref="photoInputRef"
+                  class="field bg-white cursor-pointer file:mr-3 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  :disabled="processingPhoto || submitting"
+                  @change="onPhotoChange"
+                />
+                <span v-if="processingPhoto" class="text-[11px] text-google-blue-600 font-semibold flex items-center gap-1 mt-1">
+                  <Icon name="refresh" className="w-3 h-3 animate-spin" />
+                  Mengompresi foto...
+                </span>
+                <span v-else class="text-[10.5px] text-slate-400 block mt-1">
+                  💡 Ambil foto bersama barang atau surat serah terima resmi (otomatis terkompresi).
+                </span>
+              </label>
+            </div>
 
             <!-- Submit Button -->
             <div class="pt-3">

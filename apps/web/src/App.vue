@@ -11,9 +11,9 @@ import NotFoundView from './components/NotFoundView.vue'
 import UserManagementPanel from './components/UserManagementPanel.vue'
 import TutorialPanel from './components/TutorialPanel.vue'
 import RecipientConfirmPanel from './components/RecipientConfirmPanel.vue'
-import Icon from './components/Icon.vue'
 import { useAuth } from './composables/useAuth'
 import { useKpm } from './composables/useKpm'
+import { requestApi } from './composables/useApi'
 
 const showDriverTutorial = ref(false)
 
@@ -73,10 +73,56 @@ const adminView = ref('create')
 // SPA Route & 404 Detection
 const currentPath = ref(typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/')
 const validRoutes = ['/', '', '/kpm', '/kpm/personel', '/personel', '/admin', '/kpm/confirm', '/confirm']
-const isRecipientConfirm = computed(() => {
-  return currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || (typeof window !== 'undefined' && window.location.search.includes('confirm='))
+const isShortRoute = computed(() => {
+  return currentPath.value.startsWith('/r/') || currentPath.value.startsWith('/s/')
 })
-const isNotFound = ref(!validRoutes.includes(currentPath.value))
+const isRecipientConfirm = computed(() => {
+  return currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || isShortRoute.value || (typeof window !== 'undefined' && window.location.search.includes('confirm='))
+})
+const isNotFound = ref(!validRoutes.includes(currentPath.value) && !isShortRoute.value)
+const resolvedKpmNomor = ref('')
+
+async function resolveShortRoute() {
+  if (typeof window === 'undefined') return
+  const path = window.location.pathname
+  const match = path.match(/^\/(r|s)\/([^\/?#]+)/i)
+  if (!match) return
+
+  const shortId = match[2].trim().toLowerCase()
+
+  // 1. Primary: Try Firebase Realtime Database
+  const fbDbUrl = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app'
+  try {
+    const res = await fetch(`${fbDbUrl}/short_links/${encodeURIComponent(shortId)}.json`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data && data.nomorKPM) {
+        resolvedKpmNomor.value = data.nomorKPM
+        return
+      }
+    }
+  } catch (fbErr) {
+    console.warn('[Firebase Short Link Resolve Notice]', fbErr)
+  }
+
+  // 2. Redundancy: Try GAS Backend API
+  try {
+    const gasRes = await requestApi('resolveShortLink', { method: 'GET', body: { shortId: shortId } })
+    if (gasRes && gasRes.nomorKPM) {
+      resolvedKpmNomor.value = gasRes.nomorKPM
+      return
+    }
+  } catch (gasErr) {
+    console.warn('[GAS Short Link Resolve Notice]', gasErr)
+  }
+
+  // 3. Fallback: Deterministic decode (e.g. k001 -> 001)
+  if (shortId.startsWith('k') && /^\d+$/.test(shortId.substring(1))) {
+    resolvedKpmNomor.value = shortId.substring(1)
+  } else {
+    resolvedKpmNomor.value = decodeURIComponent(shortId)
+  }
+}
 
 function goToHome() {
   isNotFound.value = false
@@ -166,7 +212,7 @@ function updateSeoMetadata() {
   if (metaDesc) metaDesc.setAttribute('content', desc)
   const canonicalLink = document.querySelector('link[rel="canonical"]')
   if (canonicalLink) {
-    const baseOrigin = window.location.origin || 'https://combined-app-eight.vercel.app'
+    const baseOrigin = window.location.origin || 'https://lnfd.vercel.app'
     canonicalLink.setAttribute('href', `${baseOrigin}${canonicalPath}`)
   }
 }
@@ -239,6 +285,10 @@ function onLogout() {
 }
 
 onMounted(() => {
+  if (isShortRoute.value) {
+    resolveShortRoute()
+  }
+
   const urlParams = new URLSearchParams(window.location.search)
   const qrAuthToken = urlParams.get('qrAuth') || urlParams.get('auth')
 
@@ -264,7 +314,7 @@ onMounted(() => {
   <!-- Recipient Confirmation View (when QR code is scanned) -->
   <div v-if="isRecipientConfirm" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
-    <RecipientConfirmPanel @back-to-home="goToHome" />
+    <RecipientConfirmPanel :kpm-nomor="resolvedKpmNomor" @back-to-home="goToHome" />
   </div>
 
   <!-- 404 View when unauthenticated on unknown route -->

@@ -16,7 +16,7 @@
   Real-time Fleet Radar • Strict State Machine • Google Sheets Cloud Database • Hybrid Web & Mobile Native Architecture
 </p>
 
-[🌐 Live Web Portal](https://combined-app-eight.vercel.app) • [📱 Download Driver APK](https://github.com/SepTGut/KPMscirpt/releases) • [📇 Akses Kartu QR](assets/qr-codes/print_qr_codes.html)
+[🌐 Live Web Portal](https://lnfd.vercel.app) • [📱 Download Driver APK](https://github.com/SepTGut/KPMscirpt/releases) • [📇 Akses Kartu QR](assets/qr-codes/print_qr_codes.html)
 
 </div>
 
@@ -300,7 +300,7 @@ Deploy frontend Vue 3 dan Edge Serverless Function Proxy ke Vercel:
 npm run deploy:vercel
 ```
 
-Production URL: 👉 **[https://combined-app-eight.vercel.app](https://combined-app-eight.vercel.app)**
+Production URL: 👉 **[https://lnfd.vercel.app](https://lnfd.vercel.app)**
 
 ### 3. Deploy Backend Google Apps Script
 

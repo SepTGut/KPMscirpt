@@ -141,7 +141,9 @@ function fixFormat() {
     MONITOR_COL_STATUS,
     MONITOR_COL_FOTO_BER,
     MONITOR_COL_FOTO_TIB,
-    MONITOR_COL_GPS_TRACK
+    MONITOR_COL_GPS_TRACK,
+    MONITOR_COL_PENERIMA,
+    MONITOR_COL_FOTO_DITERIMA
   ];
 
   for (var i = 0; i < centerCols.length; i++) {

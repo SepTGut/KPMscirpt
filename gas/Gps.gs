@@ -54,7 +54,7 @@ function setupTLogSheet() {
     tlogSheet = ss.insertSheet(sheetName);
   }
   var headers = [
-    ["No", "Tanggal", "No LF / KPM", "Driver", "PIC", "Proyek", "Rute Asal ➔ Tujuan", "Waktu Berangkat", "Waktu Tiba", "Durasi", "GPS Track Router", "Foto Berangkat", "Foto Tiba", "Penerima", "Arsip Pada"]
+    ["No", "Tanggal", "No LF / KPM", "Driver", "PIC", "Proyek", "Rute Asal ➔ Tujuan", "Waktu Berangkat", "Waktu Tiba", "Durasi", "GPS Track Router", "Foto Berangkat", "Foto Tiba", "Penerima", "Foto Diterima", "Arsip Pada"]
   ];
   tlogSheet.getRange(1, 1, 1, headers[0].length).setValues(headers);
   tlogSheet.getRange(1, 1, 1, headers[0].length).setFontWeight("bold").setBackground("#e8f0fe");
@@ -87,6 +87,7 @@ function appendTLogRecord(record) {
       record.fotoBerangkat ? createHyperlinkFormula(record.fotoBerangkat, "📷 Foto Asal") : "",
       record.fotoTiba ? createHyperlinkFormula(record.fotoTiba, "📷 Foto Tiba") : "",
       record.penerima || "",
+      record.fotoDiterima ? createHyperlinkFormula(record.fotoDiterima, "📷 Foto Diterima") : "",
       Utilities.formatDate(new Date(), getCachedScriptTimeZone(), "dd/MM/yyyy HH:mm:ss")
     ];
     sheet.appendRow(row);
@@ -109,10 +110,10 @@ function setupTrackingHeaders() {
   }
 
   var headers = [
-    ["Driver", "Waktu Berangkat", "Waktu Tiba", "Durasi", "Status Tracking", "Foto Berangkat", "Foto Tiba", "GPS Track", "Penerima"]
+    ["Driver", "Waktu Berangkat", "Waktu Tiba", "Durasi", "Status Tracking", "Foto Berangkat", "Foto Tiba", "GPS Track", "Penerima", "Foto Diterima"]
   ];
 
-  sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_DRIVER, 1, 9).setValues(headers);
+  sheet.getRange(MONITOR_HEADER_ROW, MONITOR_COL_DRIVER, 1, headers[0].length).setValues(headers);
 
   // Keep the visible tracking choices limited to the tracking states.
   var statusValidation = SpreadsheetApp.newDataValidation()

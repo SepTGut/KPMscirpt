@@ -17,8 +17,10 @@ Buku kerja Google Sheets KPM terdiri dari 4 sheet utama:
   - **Lokasi Tiba**: Workshop tujuan pengiriman.
   - **Driver**: Nama pengemudi yang membawa armada (harus terdaftar di sheet `Users`).
   - **Status**: Alur status otomatis (`Antri` ➔ `Jalan` ➔ `Tiba` ➔ `Diterima`).
-  - **URL Bukti Muat & Tiba**: Tautan foto Google Drive yang diunggah oleh driver melalui aplikasi ponsel.
-  - **GPS Tracking**: Koordinat latitude, longitude, dan timestamp saat berangkat/tiba.
+  - **URL Bukti Muat & Tiba**: Tautan foto Google Drive yang diunggah oleh driver melalui aplikasi ponsel (Kolom X & Y).
+  - **GPS Tracking**: Koordinat latitude, longitude, rute Google Maps saat berangkat/tiba (Kolom Z).
+  - **Penerima**: Nama personil yang menerima barang di lokasi (Kolom AA).
+  - **Foto Diterima**: Tautan foto Google Drive bukti serah terima barang saat konfirmasi (Kolom AB).
 
 ### 2. `DataBase` (Master Data Suku Cadang & Material)
 - **Fungsi**: Katalog suku cadang dan material untuk auto-fill saat pembuatan surat KPM.

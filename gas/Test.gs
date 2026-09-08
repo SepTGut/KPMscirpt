@@ -40,6 +40,7 @@ function generateTestData(itemCount) {
     tanggalCetak: today,
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
+    shortRecipientUrl: "https://lnfd.vercel.app/r/k000",
     header: {
       noRefKpp: "TEST-KPM-000",
       noLampiranKpm: "TEST-LAMP-000",

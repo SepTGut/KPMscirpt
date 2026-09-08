@@ -14,7 +14,7 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "cleanOrphanedAndTestRows"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows"];
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -26,6 +26,8 @@ function doGet(e) {
 
     if (action === "getMasterData") {
       responseData = getMasterData(isIT);
+    } else if (action === "resolveShortLink") {
+      responseData = resolveShortLink(params);
     } else if (action === "getRecipients") {
       responseData = getRecipientsList(isIT);
     } else if (action === "getDeliveries") {
@@ -88,7 +90,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "cleanOrphanedAndTestRows"];
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows"];
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -112,6 +114,8 @@ function doPost(e) {
       resultData = stageArrival(params);
     } else if (action === "confirmArrivalReceipt") {
       resultData = confirmArrivalReceipt(params);
+    } else if (action === "resolveShortLink") {
+      resultData = resolveShortLink(params);
     } else if (action === "adminUpdateStatus") {
       resultData = adminUpdateStatus(params);
     } else if (action === "editLatestKpmItems") {
