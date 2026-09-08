@@ -20,7 +20,7 @@ function fixFormat() {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) {
     var msg = "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan.";
     if (ui) ui.alert("Error", msg, ui.ButtonSet.OK);
@@ -200,7 +200,7 @@ function relaxSheetDataValidation(sheet) {
   if (!sheet) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) return;
-    sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+    sheet = getMonitoringSheet(ss);
   }
   if (!sheet) return;
 

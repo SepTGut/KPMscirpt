@@ -138,7 +138,7 @@ function validateAndCreateKpm(params) {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) {
     throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
   }
@@ -254,7 +254,7 @@ function validateAndUpdateStatus(params) {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) {
     throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
   }
@@ -567,7 +567,7 @@ function editLatestKpmItems(params) {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) {
     throw { code: "SERVER_ERROR", message: "Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan." };
   }

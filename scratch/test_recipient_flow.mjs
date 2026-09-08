@@ -89,8 +89,10 @@ assert(shortLinkCode.includes('SHORTLINKS_SHEET_NAME'), 'SHORTLINKS_SHEET_NAME d
 const printKpmPath = path.join(rootDir, 'gas', 'PrintKPM.html');
 const printKpmCode = fs.readFileSync(printKpmPath, 'utf8');
 assert(printKpmCode.includes('dual-qr-container'), 'PrintKPM.html includes dual-qr-container');
-assert(printKpmCode.includes('Verifikasi KPM'), 'PrintKPM.html includes Verifikasi KPM badge');
-assert(printKpmCode.includes('Scan Penerima'), 'PrintKPM.html includes Scan Penerima badge');
+assert(printKpmCode.includes('qr-separator'), 'PrintKPM.html includes qr-separator divider');
+assert(printKpmCode.includes('ID: <\?='), 'PrintKPM.html includes ID: prefix');
+assert(printKpmCode.includes('Recipients'), 'PrintKPM.html includes Recipients label');
+assert(printKpmCode.includes('98'), 'PrintKPM.html renders 98px QR codes');
 assert(printKpmCode.includes('shortRecipientUrl'), 'PrintKPM.html binds shortRecipientUrl');
 
 // 10. Audit Frontend Components

@@ -101,7 +101,7 @@ function appendTLogRecord(record) {
  */
 function setupTrackingHeaders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) {
     if (typeof SpreadsheetApp.getUi === "function") {
       SpreadsheetApp.getUi().alert("Sheet '" + MONITOR_SHEET_NAME + "' tidak ditemukan.");

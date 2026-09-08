@@ -30,6 +30,10 @@
     @apply mt-1.5 w-full rounded-xl border border-google-surface-300 bg-white px-3.5 py-2.5 text-sm text-google-surface-900 outline-none transition-all duration-150 focus:border-google-blue-600 focus:ring-4 focus:ring-google-blue-100 hover:border-google-surface-400 placeholder:text-google-surface-400 font-medium disabled:bg-google-surface-100 disabled:cursor-not-allowed;
   }
 
+  .input-field {
+    @apply field;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-google-blue-600 focus-visible:ring-offset-2;
   }

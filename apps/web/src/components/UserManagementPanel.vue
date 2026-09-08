@@ -235,10 +235,10 @@ onMounted(() => {
             v-model="search"
             type="text"
             placeholder="Cari nama, username, atau email..."
-            class="input-field pl-9 !py-2 !text-xs"
+            class="field pl-9 !py-2 !text-xs mt-0"
           />
           <span class="absolute left-3 top-2.5 text-xs text-slate-400">
-            <Icon name="eye" className="w-3.5 h-3.5" />
+            <Icon name="search" className="w-3.5 h-3.5" />
           </span>
         </div>
 
@@ -367,7 +367,7 @@ onMounted(() => {
               required
               :disabled="isEditing"
               placeholder="contoh: budi_driver"
-              class="input-field"
+              class="field mt-1"
             />
           </div>
 
@@ -378,7 +378,7 @@ onMounted(() => {
               type="text"
               required
               placeholder="contoh: Budi Santoso"
-              class="input-field"
+              class="field mt-1"
             />
           </div>
 
@@ -388,7 +388,7 @@ onMounted(() => {
               v-model="form.email"
               type="email"
               placeholder="budi@kpm.com"
-              class="input-field"
+              class="field mt-1"
             />
           </div>
 
@@ -398,21 +398,21 @@ onMounted(() => {
               v-model="form.pin"
               type="text"
               :placeholder="isEditing ? 'Biarkan kosong jika tidak diubah' : 'Minimal 4 digit'"
-              class="input-field"
+              class="field mt-1"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block font-bold text-google-surface-700 mb-1">Peran (Role):</label>
-              <select v-model="form.role" class="input-field">
+              <select v-model="form.role" class="field mt-1">
                 <option v-for="r in roleOptions" :key="r" :value="r">{{ r }}</option>
               </select>
             </div>
 
             <div>
               <label class="block font-bold text-google-surface-700 mb-1">Status:</label>
-              <select v-model="form.status" class="input-field">
+              <select v-model="form.status" class="field mt-1">
                 <option value="Aktif">Aktif</option>
                 <option value="Nonaktif">Nonaktif</option>
               </select>
@@ -425,7 +425,7 @@ onMounted(() => {
               v-model="form.keterangan"
               type="text"
               placeholder="contoh: Driver Truk Colt Diesel"
-              class="input-field"
+              class="field mt-1"
             />
           </div>
 

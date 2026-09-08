@@ -217,7 +217,7 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) return [];
 
   var lastRow = sheet.getLastRow();

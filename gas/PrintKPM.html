@@ -13,6 +13,9 @@
   <base target="_top">
   <meta charset="UTF-8">
   <title>Preview KPM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     /* Print-first layout: physical millimetres are used so the preview matches
    the letter-landscape paper size selected in @page. */
@@ -105,13 +108,25 @@
       }
 
       .page {
-        width: auto;
-        min-height: 203.2mm;
-        margin: 0;
-        padding: 0;
+        width: 100% !important;
+        min-height: auto !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
         page-break-after: always;
+        break-after: page;
+      }
+
+      .page:last-child,
+      .page:last-of-type {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
+      .page-last-space {
+        display: none !important;
       }
 
       button {
@@ -142,64 +157,69 @@
 
     .header td {
       border: 1px solid #000;
-      padding: 8px 6px;
+      padding: 12px 6px;
       vertical-align: middle;
       overflow: hidden;
     }
 
     .logo {
-      width: 14%;
+      width: 16%;
       text-align: center;
+      padding: 6px 4px !important;
     }
 
-    .logo img {
-      width: 112px;
+    .logo img,
+    .logo-image {
+      max-width: 96%;
+      max-height: 92px;
+      width: auto;
       height: auto;
       display: block;
-      margin: auto;
+      margin: 0 auto;
+      object-fit: contain;
     }
 
     .company {
-      width: 42%;
+      width: 38%;
       text-align: center;
     }
 
     .company h1 {
-      font-size: 20px;
-      line-height: 22px;
+      font-size: 21px;
+      line-height: 24px;
       margin: 0;
       font-weight: bold;
     }
 
     .company h2 {
-      font-size: 15px;
+      font-size: 15.5px;
       margin: 3px 0;
       font-weight: bold;
     }
 
     .company p {
       margin: 0;
-      font-size: 11px;
+      font-size: 11.5px;
     }
 
     .printDate {
-      width: 18%;
-      font-size: 11px;
-      line-height: 18px;
+      width: 16%;
+      font-size: 11.5px;
+      line-height: 19px;
     }
 
     .qrcode-cell {
-      width: 26%;
+      width: 30%;
       text-align: center;
       vertical-align: middle;
-      padding: 4px 2px !important;
+      padding: 3px 2px !important;
     }
 
     .dual-qr-container {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-evenly;
-      gap: 4px;
+      gap: 6px;
       width: 100%;
     }
 
@@ -211,51 +231,46 @@
       flex: 1;
     }
 
-    .qrcode-badge {
-      font-size: 7.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 1.5px 4px;
-      border-radius: 3px;
-      margin-bottom: 3px;
-      letter-spacing: 0.2px;
-      white-space: nowrap;
-    }
-
-    .badge-kpm {
-      background: #f1f3f4;
-      color: #202124;
-      border: 1px solid #dadce0;
-    }
-
-    .badge-penerima {
-      background: #e6f4ea;
-      color: #137333;
-      border: 1px solid #ceead6;
+    .qr-separator {
+      width: 1px;
+      height: 98px;
+      background: #c8c8c8;
+      margin: 0 4px;
+      flex-shrink: 0;
+      align-self: flex-start;
     }
 
     .qrcode-target {
       display: inline-block;
       margin: 0 auto;
+      width: 98px;
+      height: 98px;
     }
 
     .qrcode-target img,
     .qrcode-target canvas {
-      width: 54px !important;
-      height: 54px !important;
+      width: 98px !important;
+      height: 98px !important;
       display: block;
       margin: 0 auto;
     }
 
     .qrcode-sublabel {
-      font-size: 8px;
+      font-size: 8.5px;
       color: #3c4043;
-      margin-top: 2px;
+      margin-top: 4px;
       font-weight: 700;
       text-align: center;
-      word-break: break-all;
-      max-width: 85px;
-      line-height: 9.5px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      width: 98px;
+      max-width: 98px;
+      line-height: 11px;
+      min-height: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     /* Tabel Informasi Dokumen */
@@ -312,7 +327,8 @@
       padding: 4px 5px;
       height: 20px;
       vertical-align: middle;
-      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .material thead {
@@ -377,7 +393,7 @@ var pageCounter = 0;
 // value when estimating how many pages a generated document will need.
 var pageSize = 15; // Set kapasitas maksimum 15 baris per halaman
 var minimumBlankRows = 5; // Keep up to five writable blank rows on each page
-var rawKpp = data.header.noRefKpp || "";
+var rawKpp = (data && data.header && data.header.noRefKpp) || "";
 // A non-empty fallback keeps barcode generation valid for blank-layout tests.
 var barcodeData = rawKpp.trim() !== "" ? rawKpp : "DUMMY-KPP-000";
 
@@ -413,7 +429,7 @@ for(var g = 0; g < groups.length; g++){
     <!-- Repeated document header: logo, title, print metadata, and barcode. -->
     <table class="header">
       <tr>
-        <td class="logo"><img src="<?!= data.logo ?>" class="logo-image"></td>
+        <td class="logo"><img src="<?!= data.logo ?>" class="logo-image" alt="Logo Rekaindo"></td>
         <td class="company">
           <h1>PT REKAINDO GLOBAL JASA</h1>
           <h2>KANBAN PERMINTAAN MATERIAL (KPM)</h2>
@@ -430,15 +446,15 @@ for(var g = 0; g < groups.length; g++){
           <div class="dual-qr-container">
             <!-- QR 1: Verifikasi Dokumen KPM -->
             <div class="qrcode-box">
-              <span class="qrcode-badge badge-kpm">Verifikasi KPM</span>
               <div class="qrcode-target" data-val="<?= barcodeData ?>"></div>
-              <span class="qrcode-sublabel"><?= barcodeData ?></span>
+              <span class="qrcode-sublabel">ID: <?= barcodeData ?></span>
             </div>
+            <!-- Separator Line -->
+            <div class="qr-separator"></div>
             <!-- QR 2: Scan Penerima (Short Link) -->
             <div class="qrcode-box">
-              <span class="qrcode-badge badge-penerima">Scan Penerima</span>
               <div class="qrcode-target" data-val="<?= data.shortRecipientUrl || ('https://lnfd.vercel.app/kpm/confirm?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
-              <span class="qrcode-sublabel"><?= (data.shortRecipientUrl || '').replace(/^https?:\/\//, '') || 'Serah Terima' ?></span>
+              <span class="qrcode-sublabel">Recipients</span>
             </div>
           </div>
         </td>
@@ -579,8 +595,8 @@ for(var g = 0; g < groups.length; g++){
       var val = target.getAttribute('data-val') || "DUMMY-KPP-000";
       new QRCode(target, {
         text: val,
-        width: 54,
-        height: 54,
+        width: 98,
+        height: 98,
         colorDark: "#000000",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M

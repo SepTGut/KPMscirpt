@@ -3,8 +3,36 @@
 // ============================================
 
 // KPM Monitor Sheet Config
-var MONITOR_SHEET_NAME = "KPM Monitor 2026";
+var MONITOR_SHEET_NAME = "Lf Monitor";
 var MONITOR_SHEET_NAME_LOWER = MONITOR_SHEET_NAME.trim().toLowerCase();
+var MONITOR_SHEET_ALIASES = ["lf monitor", "kpm monitor 2026", "kpm monitor", "monitor"];
+
+/**
+ * Dynamically resolves the active monitoring sheet, supporting "Lf Monitor"
+ * and backward-compatible aliases with case-insensitivity.
+ */
+function getMonitoringSheet(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  if (sheet) return sheet;
+
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var nameLower = sheets[i].getName().trim().toLowerCase();
+    for (var j = 0; j < MONITOR_SHEET_ALIASES.length; j++) {
+      if (nameLower === MONITOR_SHEET_ALIASES[j]) {
+        return sheets[i];
+      }
+    }
+  }
+  for (var k = 0; k < sheets.length; k++) {
+    if (sheets[k].getName().toLowerCase().indexOf("monitor") !== -1) {
+      return sheets[k];
+    }
+  }
+  return null;
+}
+
 var MONITOR_HEADER_ROW = 8;    // header labels are on row 8
 var MONITOR_START_ROW = 10;    // data starts at row 10
 var MONITOR_TOTAL_COLS = 28;   // Total 28 columns (A to AB)
@@ -289,7 +317,7 @@ function onEdit(e) {
     return;
   }
 
-  if (sheetName !== MONITOR_SHEET_NAME_LOWER) return;
+  if (sheetName !== MONITOR_SHEET_NAME_LOWER && MONITOR_SHEET_ALIASES.indexOf(sheetName) === -1) return;
 
   var startRow = e.range.getRow();
   var numRows = e.range.getNumRows();
@@ -485,7 +513,7 @@ function cleanOrphanedRows() {
   if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) return;
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(MONITOR_SHEET_NAME);
+  var sheet = getMonitoringSheet(ss);
   if (!sheet) return;
 
   var lastRow = sheet.getLastRow();
@@ -650,7 +678,9 @@ function printKpmM() {
   var sheet = ss.getActiveSheet();
   var ui = SpreadsheetApp.getUi();
 
-  if (sheet.getName().trim().toLowerCase() !== MONITOR_SHEET_NAME_LOWER) {
+  var sheetNameLower = sheet.getName().trim().toLowerCase();
+  var isMonitorSheet = (sheetNameLower === MONITOR_SHEET_NAME_LOWER || MONITOR_SHEET_ALIASES.indexOf(sheetNameLower) !== -1);
+  if (!isMonitorSheet) {
     ui.alert('Fitur ini hanya dapat digunakan pada sheet "' + MONITOR_SHEET_NAME + '".');
     return;
   }
