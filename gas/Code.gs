@@ -290,7 +290,7 @@ function openPrintView(data) {
     .setWidth(1200)
     .setHeight(820);
 
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Preview KPM - ' + data.header.noRefKpp);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Cetak Dokumen KPM - ' + data.header.noRefKpp);
   return true;
 }
 

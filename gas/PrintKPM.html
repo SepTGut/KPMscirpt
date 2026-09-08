@@ -587,10 +587,38 @@ for(var g = 0; g < groups.length; g++){
       });
     });
 
-    // Kept as a named helper for callers that want to trigger printing
+    // Kept as a named helper for manual re-print button
     function printKPM() {
-      setTimeout(function () { window.print(); }, 500);
+      window.print();
     }
+
+    // Auto-trigger native browser Print Preview immediately after QR codes are drawn
+    function triggerAutoPrint() {
+      setTimeout(function () {
+        try {
+          window.print();
+        } catch (e) {
+          console.error("Auto-print error:", e);
+        }
+      }, 450);
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      triggerAutoPrint();
+    } else {
+      window.addEventListener('DOMContentLoaded', triggerAutoPrint);
+    }
+
+    // Auto-close modal dialog after printing is completed or cancelled
+    window.onafterprint = function () {
+      setTimeout(function () {
+        try {
+          if (typeof google !== 'undefined' && google.script && google.script.host) {
+            google.script.host.close();
+          }
+        } catch (e) {}
+      }, 350);
+    };
   </script>
 </body>
 
