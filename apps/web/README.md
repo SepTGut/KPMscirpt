@@ -42,7 +42,7 @@ Aplikasi ini menyatukan portal operasional logistik kantor dan portal pengemudi 
   2. `📋 Panduan Admin`: Alur kerja 5-langkah dari pembuatan dokumen, pemantauan, aturan kunci status, hingga pengarsipan.
   3. `🚚 Panduan Driver`: Alur 4-langkah penerimaan tugas, navigasi Google Maps 1-klik, konfirmasi berangkat, dan konfirmasi tiba.
   4. `🗺️ Live Fleet Radar`: Penjelasan fitur rotasi heading, jejak lintasan rute, dan landmark workshop.
-  5. `👑 Super Admin & IT`: Panduan penggunaan Dual Mode Switcher, User Management, dan Emergency Override.
+  5. `👑 Super Admin`: Panduan penggunaan Dual Mode Switcher, User Management, dan Emergency Override.
   6. `❓ FAQ & Pemecahan Kendala`: Solusi GPS akurasi rendah, lupa PIN, alasan status terkunci, dan modul perbaikan format.
 
 ### 6. 🚚 Portal Driver Lapangan (`/kpm/personel`)

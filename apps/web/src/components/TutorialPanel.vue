@@ -478,7 +478,7 @@ const categories = [
       <div class="panel space-y-5">
         <h2 class="text-lg font-bold text-google-surface-900 flex items-center gap-2">
           <Icon name="crown" className="w-5 h-5 text-amber-700" />
-          <span>Panduan Super Admin & IT</span>
+          <span>Panduan Super Admin</span>
         </h2>
 
         <div class="space-y-4 text-xs">
