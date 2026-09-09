@@ -38,6 +38,13 @@ const confirmedRecipientName = ref('')
 const copySuccess = ref(false)
 let pollTimer = null
 
+// Departure Staging & Checker Waiting State for "Jalan" Confirmation
+const departureStagingBusy = ref(false)
+const showDepartureModal = ref(false)
+const departureConfirmed = ref(false)
+const departureCheckerName = ref('')
+let departurePollTimer = null
+
 const qrImageUrl = computed(() => {
   if (!qrTargetUrl.value) return ''
   return `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrTargetUrl.value)}`
@@ -87,16 +94,18 @@ function startPollingConfirmation(nomorKPM) {
 
 async function handleStageArrivalQr() {
   if (!props.selectedDelivery) return
-  if (!photoFile.value) {
-    alert('Foto bukti kedatangan wajib dilampirkan sebelum membuka QR Code penerima.')
-    return
-  }
-
   stagingBusy.value = true
   try {
     const kpmNomor = props.selectedDelivery.nomor || props.selectedDelivery.kpmId
     const coords = await getCurrentCoordinates().catch(() => null)
-    const fotoData = await compressImage(photoFile.value)
+    let fotoData = ''
+    if (photoFile.value) {
+      try {
+        fotoData = await compressImage(photoFile.value)
+      } catch (err) {
+        console.warn('Gagal mengompres foto kedatangan:', err)
+      }
+    }
 
     await api('stageArrival', {
       body: {
@@ -138,17 +147,103 @@ function copyConfirmationLink() {
   })
 }
 
+function stopDeparturePolling() {
+  if (departurePollTimer) {
+    clearInterval(departurePollTimer)
+    departurePollTimer = null
+  }
+}
+
+function closeDepartureModal() {
+  stopDeparturePolling()
+  showDepartureModal.value = false
+}
+
+function startPollingDepartureConfirmation(nomorKPM) {
+  stopDeparturePolling()
+  departurePollTimer = setInterval(async () => {
+    try {
+      const res = await api('checkDepartureStatus', {
+        method: 'GET',
+        body: { nomorKPM: nomorKPM, refresh: 'true' }
+      })
+      if (res) {
+        if (res.isConfirmed) {
+          stopDeparturePolling()
+          departureConfirmed.value = true
+          departureCheckerName.value = res.checker || 'Checker Pos Gerbang'
+          setTimeout(() => {
+            closeDepartureModal()
+            emit('refresh-deliveries')
+          }, 2500)
+        } else if (res.isRejected) {
+          stopDeparturePolling()
+          closeDepartureModal()
+          alert(`⚠️ Keberangkatan Ditolak oleh Checker (${res.checker || 'Pos Gerbang'}).\n\nAlasan: ${res.alasan || 'Pemeriksaan fisik tidak sesuai'}.\n\nSilakan periksa kembali muatan Anda bersama tim gudang/produksi.`)
+          emit('refresh-deliveries')
+        }
+      }
+    } catch {}
+  }, 2000)
+}
+
+async function handleStageDepartureGate() {
+  if (!props.selectedDelivery) return
+  departureStagingBusy.value = true
+  try {
+    const kpmNomor = props.selectedDelivery.nomor || props.selectedDelivery.kpmId
+    const coords = await getCurrentCoordinates().catch(() => null)
+    let fotoData = ''
+    if (photoFile.value) {
+      try {
+        fotoData = await compressImage(photoFile.value)
+      } catch (err) {
+        console.warn('Gagal mengompres foto keberangkatan:', err)
+      }
+    }
+
+    await api('stageDeparture', {
+      body: {
+        nomorKPM: kpmNomor,
+        fotoData: fotoData,
+        driver: props.driverName || '',
+        namaPIC: props.selectedDelivery.pic || '',
+        lokasiWorkshop: props.selectedDelivery.lokasi || `${props.selectedDelivery.lokasiBerangkat || ''} ➔ ${props.selectedDelivery.lokasiTiba || ''}`,
+        latitude: coords?.latitude || '',
+        longitude: coords?.longitude || '',
+      }
+    })
+
+    departureConfirmed.value = false
+    departureCheckerName.value = ''
+    showDepartureModal.value = true
+
+    // Start auto-poll to detect Checker authorization
+    startPollingDepartureConfirmation(kpmNomor)
+  } catch (err) {
+    alert('Gagal menginisialisasi keberangkatan: ' + (err.message || String(err)))
+  } finally {
+    departureStagingBusy.value = false
+  }
+}
+
 function handleSubmit() {
   if (!props.selectedDelivery) return
   const actionTarget = updateForm.value.statusKPM || props.selectedDelivery.nextAction
 
-  // If next status is Tiba, initiate the photo staging & QR Code handover workflow
+  // If next status is Tiba, initiate the photo staging & QR Code handover workflow (Photo mandatory)
   if (actionTarget === 'Tiba') {
     handleStageArrivalQr()
     return
   }
 
-  // Otherwise (Berangkat / Jalan), standard direct update
+  // If next status is Jalan / Berangkat, initiate two-stage departure with Checker (Photo optional)
+  if (actionTarget === 'Jalan' || actionTarget === 'Berangkat') {
+    handleStageDepartureGate()
+    return
+  }
+
+  // Otherwise, standard direct update
   emit('submit-status-update', {
     statusKPM: actionTarget,
     photoFile: photoFile.value
@@ -157,6 +252,7 @@ function handleSubmit() {
 
 onUnmounted(() => {
   stopPolling()
+  stopDeparturePolling()
 })
 </script>
 
@@ -305,19 +401,32 @@ onUnmounted(() => {
           </label>
 
           <label class="block">
-            <span class="label">Foto Bukti (Kamera Langsung)</span>
-            <input class="field bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100" type="file" accept="image/*" capture="environment" required @change="onPhoto" />
+            <span class="label flex items-center justify-between">
+              <span>Foto Bukti (Kamera Langsung)</span>
+              <span class="text-[11px] font-normal text-slate-400">(Opsional)</span>
+            </span>
+            <input
+              class="field bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              @change="onPhoto"
+            />
           </label>
 
           <div class="pt-2">
             <button
               class="btn-success w-full min-h-[48px] !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
-              :disabled="busy || stagingBusy"
+              :disabled="busy || stagingBusy || departureStagingBusy"
             >
-              <Icon v-if="stagingBusy || busy" name="refresh" className="w-4 h-4 animate-spin" />
+              <Icon v-if="stagingBusy || departureStagingBusy || busy" name="refresh" className="w-4 h-4 animate-spin" />
               <template v-else-if="updateForm.statusKPM === 'Tiba'">
                 <Icon name="qr" className="w-4 h-4" />
-                <span>Ambil Foto & Tampilkan QR Penerima</span>
+                <span>Tampilkan QR Penerima</span>
+              </template>
+              <template v-else-if="updateForm.statusKPM === 'Jalan' || updateForm.statusKPM === 'Berangkat'">
+                <Icon name="truck" className="w-4 h-4" />
+                <span>Minta Izin Checker (Gate Out)</span>
               </template>
               <template v-else>
                 <Icon name="check" className="w-4 h-4" />
@@ -416,6 +525,72 @@ onUnmounted(() => {
               Tutup Jendela
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+    <!-- Departure Waiting Modal (Driver waiting for Origin Gate Checker to authorize) -->
+    <div
+      v-if="showDepartureModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fadeIn"
+    >
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center relative overflow-hidden">
+        <!-- Google Quad-Color Top Accent Bar -->
+        <div class="google-bar absolute top-0 left-0 right-0"></div>
+
+        <!-- Success Animation if Checker Confirmed -->
+        <div v-if="departureConfirmed" class="py-6 animate-fadeIn">
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mb-3">
+            <Icon name="check" className="w-8 h-8" />
+          </div>
+          <h3 class="text-lg font-black text-slate-900">Izin Jalan Diberikan!</h3>
+          <p class="text-xs text-slate-500 mt-1">Diverifikasi oleh <strong class="text-slate-900">{{ departureCheckerName }}</strong> di Pos Gerbang.</p>
+          <p class="text-[11px] text-emerald-600 font-bold mt-3">Status KPM resmi 'Jalan'. Memperbarui daftar...</p>
+        </div>
+
+        <!-- Live Waiting for Checker State -->
+        <div v-else>
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div class="text-left">
+              <span class="text-[10.5px] font-bold uppercase tracking-wider text-google-blue-600 block">Pemeriksaan Gerbang Keluar</span>
+              <h3 class="text-sm font-black text-slate-900 font-mono">{{ selectedDelivery?.nomor }}</h3>
+            </div>
+            <button
+              type="button"
+              class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold transition focus-visible:outline-none"
+              @click="closeDepartureModal"
+              title="Tutup jendela"
+            >
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div class="w-16 h-16 mx-auto my-3 rounded-2xl bg-google-blue-50 border border-google-blue-200 text-google-blue-600 flex items-center justify-center">
+            <Icon name="shield" className="w-8 h-8 text-google-blue-600" />
+          </div>
+
+          <p class="text-xs font-bold text-slate-800 mb-1">
+            Menunggu Verifikasi Petugas Checker
+          </p>
+          <p class="text-[11px] text-slate-500 mb-4 leading-relaxed">
+            Tunjukkan lembar fisik KPM kepada petugas Checker di pos gerbang asal. Petugas akan men-scan <strong>QR Checker (Tengah)</strong> untuk memeriksa muatan dan mengizinkan jalan.
+          </p>
+
+          <!-- Live Waiting Pulsing Indicator -->
+          <div class="flex items-center justify-center gap-2 text-xs font-semibold text-google-blue-700 bg-google-blue-50 py-2.5 px-3 rounded-xl mb-4 border border-google-blue-100">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-google-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-google-blue-600"></span>
+            </span>
+            <span>Menunggu scan & izin dari Checker...</span>
+          </div>
+
+          <button
+            type="button"
+            class="w-full py-2 text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition"
+            @click="closeDepartureModal"
+          >
+            Tutup (Tetap Berjalan di Latar)
+          </button>
         </div>
       </div>
     </div>

@@ -25,6 +25,7 @@ const frontendFiles = [
   path.join(rootDir, 'apps/web/src/components/MaterialEditorModal.vue'),
   path.join(rootDir, 'apps/web/src/components/LiveTrackingMap.vue'),
   path.join(rootDir, 'apps/web/src/components/RecipientConfirmPanel.vue'),
+  path.join(rootDir, 'apps/web/src/components/CheckerVerifyPanel.vue'),
   path.join(rootDir, 'apps/web/src/services/trackingService.js'),
   path.join(rootDir, 'apps/mobile/src/services/api.js')
 ];

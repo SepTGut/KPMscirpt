@@ -11,6 +11,7 @@ import NotFoundView from './components/NotFoundView.vue'
 import UserManagementPanel from './components/UserManagementPanel.vue'
 import TutorialPanel from './components/TutorialPanel.vue'
 import RecipientConfirmPanel from './components/RecipientConfirmPanel.vue'
+import CheckerVerifyPanel from './components/CheckerVerifyPanel.vue'
 import { useAuth } from './composables/useAuth'
 import { useKpm } from './composables/useKpm'
 import { requestApi } from './composables/useApi'
@@ -72,12 +73,15 @@ const adminView = ref('create')
 
 // SPA Route & 404 Detection
 const currentPath = ref(typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/')
-const validRoutes = ['/', '', '/kpm', '/kpm/personel', '/personel', '/admin', '/kpm/confirm', '/confirm']
+const validRoutes = ['/', '', '/kpm', '/kpm/personel', '/personel', '/admin', '/kpm/confirm', '/confirm', '/kpm/gate', '/gate', '/kpm/security', '/security']
 const isShortRoute = computed(() => {
   return currentPath.value.startsWith('/r/') || currentPath.value.startsWith('/s/')
 })
+const isCheckerGate = computed(() => {
+  return currentPath.value === '/kpm/gate' || currentPath.value === '/gate' || currentPath.value === '/kpm/security' || currentPath.value === '/security' || currentPath.value.startsWith('/s/') || (typeof window !== 'undefined' && window.location.search.includes('gate='))
+})
 const isRecipientConfirm = computed(() => {
-  return currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || isShortRoute.value || (typeof window !== 'undefined' && window.location.search.includes('confirm='))
+  return !isCheckerGate.value && (currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || currentPath.value.startsWith('/r/') || (typeof window !== 'undefined' && (window.location.search.includes('confirm=') || window.location.search.includes('kpm='))))
 })
 const isNotFound = ref(!validRoutes.includes(currentPath.value) && !isShortRoute.value)
 const resolvedKpmNomor = ref('')
@@ -116,8 +120,8 @@ async function resolveShortRoute() {
     console.warn('[GAS Short Link Resolve Notice]', gasErr)
   }
 
-  // 3. Fallback: Deterministic decode (e.g. k001 -> 001)
-  if (shortId.startsWith('k') && /^\d+$/.test(shortId.substring(1))) {
+  // 3. Fallback: Deterministic decode (e.g. k001 -> 001, s001 -> 001)
+  if ((shortId.startsWith('k') || shortId.startsWith('s')) && /^\d+$/.test(shortId.substring(1))) {
     resolvedKpmNomor.value = shortId.substring(1)
   } else {
     resolvedKpmNomor.value = decodeURIComponent(shortId)
@@ -290,6 +294,11 @@ onMounted(() => {
   }
 
   const urlParams = new URLSearchParams(window.location.search)
+  const kpmParam = urlParams.get('kpm') || urlParams.get('confirm')
+  if (kpmParam && !resolvedKpmNomor.value) {
+    resolvedKpmNomor.value = kpmParam
+  }
+
   const qrAuthToken = urlParams.get('qrAuth') || urlParams.get('auth')
 
   if (qrAuthToken) {
@@ -311,8 +320,14 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- Checker Gate Verification View (when QR 2 is scanned) -->
+  <div v-if="isCheckerGate" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+    <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
+    <CheckerVerifyPanel :kpm-nomor="resolvedKpmNomor" @back-to-home="goToHome" />
+  </div>
+
   <!-- Recipient Confirmation View (when QR code is scanned) -->
-  <div v-if="isRecipientConfirm" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <div v-else-if="isRecipientConfirm" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
     <RecipientConfirmPanel :kpm-nomor="resolvedKpmNomor" @back-to-home="goToHome" />
   </div>

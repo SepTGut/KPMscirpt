@@ -455,10 +455,10 @@ function getAvailableDeliveries(isIT) {
         statusCode: item.statusCode,
         nextAction: nextAction,
         nextActionCode: nextActionCode,
-        requiresPhoto: true,
+        requiresPhoto: false,
         photoLabel: (nextAction === KPM_STATUS.BERANGKAT)
-          ? "📷 Unggah Bukti Foto Keberangkatan (Wajib):"
-          : "📷 Unggah Bukti Foto Ketibaan (Wajib):",
+          ? "📷 Unggah Bukti Foto Keberangkatan (Opsional):"
+          : "📷 Unggah Bukti Foto Ketibaan (Opsional):",
         daftarBarang: item.daftarBarang,
         isTest: item.isTest
       });

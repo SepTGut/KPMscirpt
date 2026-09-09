@@ -268,7 +268,7 @@
         <!-- Camera / Photo Zone -->
         <div class="space-y-3">
           <label class="text-xs sm:text-sm font-bold text-slate-700 block">
-            {{ selectedItem.status === 'Jalan' ? '📷 Foto Bukti Kedatangan (Wajib)' : '📷 Foto Muatan Berangkat (Wajib)' }}
+            {{ selectedItem.status === 'Jalan' ? '📷 Foto Bukti Kedatangan (Opsional)' : '📷 Foto Muatan Berangkat (Opsional)' }}
           </label>
 
           <div
@@ -311,7 +311,7 @@
           </button>
           <button
             @click="submitUpdate"
-            :disabled="isSubmitting || !photoPreview"
+            :disabled="isSubmitting"
             class="flex-[2] py-3.5 rounded-full text-xs sm:text-sm font-bold text-white shadow-m3-2 transition active:scale-98 disabled:opacity-50"
             :class="selectedItem.status === 'Jalan' ? 'bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-500 hover:to-teal-500 shadow-google-green-500/25' : 'bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-500 hover:from-google-blue-500 hover:to-indigo-500 shadow-google-blue-500/25'"
           >
@@ -526,15 +526,13 @@ async function onPhotoSelected(e) {
 
 async function submitUpdate() {
   if (isSubmitting.value) return
-  if (!selectedItem.value || !photoPreview.value) {
-    showNotice('Foto bukti wajib diambil terlebih dahulu.', 'error')
-    return
-  }
+  if (!selectedItem.value) return
+
+  const isJalan = (selectedItem.value.status === 'Jalan' || selectedItem.value.statusCode === 'BERANGKAT')
+  const targetStatus = isJalan ? 'Tiba' : 'Jalan'
 
   saveDriverName()
   isSubmitting.value = true
-  const isJalan = (selectedItem.value.status === 'Jalan' || selectedItem.value.statusCode === 'BERANGKAT')
-  const targetStatus = isJalan ? 'Tiba' : 'Jalan'
   const kpmNo = selectedItem.value.nomor || selectedItem.value.kpmId
 
   let coords = null

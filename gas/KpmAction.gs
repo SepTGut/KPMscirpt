@@ -301,22 +301,14 @@ function validateAndUpdateStatus(params) {
     }
   }
 
-  var requiresPhoto = (targetStatus === KPM_STATUS.BERANGKAT || targetStatus === KPM_STATUS.TIBA);
+  // All photos are optional across all statuses
   var urlFoto = params.stagedUrlFoto || "";
 
-  if (requiresPhoto && !urlFoto && !params.bypassPhoto) {
-    if (!params.fotoData || params.fotoData.indexOf(",") === -1) {
-      throw {
-        code: "PHOTO_REQUIRED",
-        message: "Foto bukti pengiriman wajib dilampirkan untuk status '" + targetStatus + "'."
-      };
-    }
-    urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, targetStatus);
-    if (!urlFoto) {
-      throw {
-        code: "PHOTO_UPLOAD_FAILED",
-        message: "Gagal mengunggah foto bukti ke Google Drive. Status tidak diperbarui."
-      };
+  if (params.fotoData && params.fotoData.indexOf(",") !== -1 && !urlFoto) {
+    try {
+      urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, targetStatus);
+    } catch (photoErr) {
+      Logger.log("Optional photo upload notice: " + photoErr.message);
     }
   }
 
@@ -715,13 +707,14 @@ function stageArrival(params) {
   if (!nomorKPM) {
     throw { code: "INVALID_INPUT", message: "Nomor KPM wajib diisi." };
   }
-  if (!params.fotoData || params.fotoData.indexOf(",") === -1) {
-    throw { code: "PHOTO_REQUIRED", message: "Foto bukti kedatangan wajib dilampirkan sebelum meminta konfirmasi penerima." };
-  }
 
-  var urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, KPM_STATUS.TIBA);
-  if (!urlFoto) {
-    throw { code: "PHOTO_UPLOAD_FAILED", message: "Gagal mengunggah foto bukti ke Google Drive." };
+  var urlFoto = "";
+  if (params.fotoData && params.fotoData.indexOf(",") !== -1) {
+    try {
+      urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, KPM_STATUS.TIBA);
+    } catch (photoErr) {
+      Logger.log("stageArrival optional photo upload notice: " + photoErr.message);
+    }
   }
 
   var stagedData = {
@@ -746,7 +739,7 @@ function stageArrival(params) {
     nomorKPM: nomorKPM,
     urlFoto: urlFoto,
     staged: true,
-    message: "Foto bukti kedatangan berhasil disimpan. Silakan minta penerima scan QR Code."
+    message: "Data kedatangan berhasil disiapkan. Menunggu konfirmasi penerima via QR Code."
   };
 }
 
@@ -798,7 +791,7 @@ function confirmArrivalReceipt(params) {
     latitude: (staged && staged.latitude) ? staged.latitude : (params.latitude || ""),
     longitude: (staged && staged.longitude) ? staged.longitude : (params.longitude || ""),
     stagedUrlFoto: (staged && staged.urlFoto) ? staged.urlFoto : (params.urlFoto || ""),
-    bypassPhoto: !!((staged && staged.urlFoto) || params.urlFoto),
+    bypassPhoto: true,
     isIT: isIT
   };
 
@@ -874,5 +867,270 @@ function checkArrivalStatus(params, isIT) {
     isConfirmed: false,
     status: "Unknown",
     penerima: ""
+  };
+}
+
+/**
+ * Stages a departure by the driver, with optional photo.
+ * Stores staged departure info in ScriptCache so Checker can verify via QR 2.
+ */
+function stageDeparture(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib diisi." };
+  }
+
+  var urlFoto = "";
+  if (params.fotoData && params.fotoData.indexOf(",") !== -1) {
+    try {
+      urlFoto = uploadProofPhoto(params.fotoData, nomorKPM, KPM_STATUS.BERANGKAT);
+    } catch (photoErr) {
+      Logger.log("stageDeparture photo upload notice: " + photoErr.message);
+    }
+  }
+
+  var stagedData = {
+    nomorKPM: nomorKPM,
+    urlFoto: urlFoto,
+    latitude: params.latitude || params.lat || "",
+    longitude: params.longitude || params.lng || "",
+    driver: params.driver || params.namaDriver || "",
+    namaPIC: params.namaPIC || "",
+    lokasiWorkshop: params.lokasiWorkshop || "",
+    stagedAt: new Date().getTime()
+  };
+
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.remove("REJECTED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+    cache.put("STAGED_DEPARTURE_" + encodeURIComponent(nomorKPM), JSON.stringify(stagedData), 1800); // 30 minutes
+  } catch (cacheErr) {
+    Logger.log("stageDeparture cache notice: " + cacheErr.message);
+  }
+
+  return {
+    nomorKPM: nomorKPM,
+    urlFoto: urlFoto,
+    staged: true,
+    message: "Inisialisasi keberangkatan berhasil. Menunggu verifikasi Checker di pos gerbang asal."
+  };
+}
+
+/**
+ * Confirms departure approval by the Security / Checker at origin gate.
+ * Updates KPM status to 'Jalan' (BERANGKAT), records departure timestamp & photo (if any).
+ */
+function confirmDepartureSecurity(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
+  var namaChecker = (params.namaChecker || params.checker || params.securityName || "Checker Pos Gerbang").trim();
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
+  }
+
+  var staged = null;
+  try {
+    var cache = CacheService.getScriptCache();
+    var stagedJson = cache.get("STAGED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+    if (stagedJson) {
+      staged = JSON.parse(stagedJson);
+    }
+  } catch (e) {
+    Logger.log("confirmDepartureSecurity cache get notice: " + e.message);
+  }
+
+  var isIT = (namaChecker === "IT" || namaChecker === "ST" || (staged && (staged.driver === "IT" || staged.driver === "ST" || staged.namaPIC === "IT" || staged.namaPIC === "ST")));
+
+  if (!staged && !isIT) {
+    throw {
+      code: "DEPARTURE_NOT_INITIALIZED",
+      message: "Driver belum melakukan inisialisasi keberangkatan di aplikasinya. Mohon minta driver untuk menekan tombol 'Minta Izin Checker' terlebih dahulu."
+    };
+  }
+
+  var updateParams = {
+    nomorKPM: nomorKPM,
+    statusKPM: KPM_STATUS.BERANGKAT,
+    driver: (staged && staged.driver) ? staged.driver : (params.driver || ""),
+    namaPIC: (staged && staged.namaPIC) ? staged.namaPIC : (params.namaPIC || ""),
+    lokasiWorkshop: (staged && staged.lokasiWorkshop) ? staged.lokasiWorkshop : (params.lokasiWorkshop || ""),
+    latitude: (staged && staged.latitude) ? staged.latitude : (params.latitude || ""),
+    longitude: (staged && staged.longitude) ? staged.longitude : (params.longitude || ""),
+    stagedUrlFoto: (staged && staged.urlFoto) ? staged.urlFoto : (params.urlFoto || ""),
+    bypassPhoto: true,
+    isIT: isIT
+  };
+
+  var result = validateAndUpdateStatus(updateParams);
+
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.remove("STAGED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+    cache.remove("REJECTED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+    cache.put(
+      "CONFIRMED_DEPARTURE_" + encodeURIComponent(nomorKPM),
+      JSON.stringify({
+        status: KPM_STATUS.BERANGKAT,
+        checker: namaChecker,
+        catatan: params.catatan || "",
+        confirmedAt: new Date().toISOString()
+      }),
+      600 // 10 minutes
+    );
+  } catch (remErr) {}
+
+  result.namaChecker = namaChecker;
+  result.message = "Keberangkatan KPM " + nomorKPM + " berhasil diverifikasi dan diizinkan oleh " + namaChecker + ".";
+  return result;
+}
+
+/**
+ * Rejects departure approval by the Security / Checker at origin gate.
+ * Records rejection reason and resets staged state so driver can fix and re-initialize.
+ * KPM status remains 'Belum Berangkat'.
+ */
+function rejectDepartureSecurity(params) {
+  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
+  var namaChecker = (params.namaChecker || params.checker || params.securityName || "Checker Pos Gerbang").trim();
+  var alasanPenolakan = (params.alasanPenolakan || params.alasan || params.catatan || "").trim();
+
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
+  }
+  if (!alasanPenolakan) {
+    throw { code: "INVALID_INPUT", message: "Alasan penolakan wajib diisi oleh Checker." };
+  }
+
+  var timestampIso = new Date().toISOString();
+  var rejectionData = {
+    nomorKPM: nomorKPM,
+    status: KPM_STATUS.BELUM_BERANGKAT,
+    checker: namaChecker,
+    alasan: alasanPenolakan,
+    rejectedAt: timestampIso
+  };
+
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.remove("STAGED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+    cache.put(
+      "REJECTED_DEPARTURE_" + encodeURIComponent(nomorKPM),
+      JSON.stringify(rejectionData),
+      1800 // 30 minutes
+    );
+  } catch (cacheErr) {
+    Logger.log("rejectDepartureSecurity cache notice: " + cacheErr.message);
+  }
+
+  // Audit log to Firebase Realtime Database
+  try {
+    var fbConfig = (typeof getFirebaseConfig === 'function') ? getFirebaseConfig() : { firebaseDbUrl: WEB_CONFIG.DEFAULT_FIREBASE_DB_URL };
+    var fbUrl = fbConfig.firebaseDbUrl;
+    if (fbUrl) {
+      var endpoint = fbUrl.replace(/\/+$/, '') + "/rejections/" + encodeURIComponent(nomorKPM.replace(/[\.\#\$\[\]\/]/g, "_")) + ".json";
+      UrlFetchApp.fetch(endpoint, {
+        method: "put",
+        contentType: "application/json",
+        payload: JSON.stringify(rejectionData),
+        muteHttpExceptions: true
+      });
+    }
+  } catch (fbErr) {
+    Logger.log("Firebase rejection log notice: " + fbErr.message);
+  }
+
+  return {
+    success: true,
+    nomorKPM: nomorKPM,
+    checker: namaChecker,
+    alasan: alasanPenolakan,
+    message: "Keberangkatan KPM " + nomorKPM + " berhasil ditolak oleh " + namaChecker + ". Alasan: " + alasanPenolakan
+  };
+}
+
+/**
+ * Checks whether departure for a specific KPM has been verified, rejected, or staged.
+ */
+function checkDepartureStatus(params, isIT) {
+  var nomorKPM = (params && (params.nomorKPM || params.kpmId || params.kpm)) ? String(params.nomorKPM || params.kpmId || params.kpm).trim() : "";
+  if (!nomorKPM) {
+    throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
+  }
+
+  // 1. Fast path: check ScriptCache
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      // 1a. Confirmed (Jalan)
+      var cachedConfirm = cache.get("CONFIRMED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+      if (cachedConfirm) {
+        var dataConfirm = JSON.parse(cachedConfirm);
+        return {
+          nomorKPM: nomorKPM,
+          isConfirmed: true,
+          isRejected: false,
+          isStaged: false,
+          status: dataConfirm.status || KPM_STATUS.BERANGKAT,
+          checker: dataConfirm.checker || "",
+          confirmedAt: dataConfirm.confirmedAt || ""
+        };
+      }
+
+      // 1b. Rejected
+      var cachedReject = cache.get("REJECTED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+      if (cachedReject) {
+        var dataReject = JSON.parse(cachedReject);
+        return {
+          nomorKPM: nomorKPM,
+          isConfirmed: false,
+          isRejected: true,
+          isStaged: false,
+          status: KPM_STATUS.BELUM_BERANGKAT,
+          checker: dataReject.checker || "",
+          alasan: dataReject.alasan || "",
+          rejectedAt: dataReject.rejectedAt || ""
+        };
+      }
+
+      // 1c. Currently Staged
+      var cachedStaged = cache.get("STAGED_DEPARTURE_" + encodeURIComponent(nomorKPM));
+      if (cachedStaged) {
+        var dataStaged = JSON.parse(cachedStaged);
+        return {
+          nomorKPM: nomorKPM,
+          isConfirmed: false,
+          isRejected: false,
+          isStaged: true,
+          stagedData: dataStaged,
+          status: KPM_STATUS.BELUM_BERANGKAT
+        };
+      }
+    }
+  } catch (e) {
+    Logger.log("checkDepartureStatus cache notice: " + e.message);
+  }
+
+  // 2. Query spreadsheet row
+  var allKpm = getKpmMonitoringData(true, true, true);
+  for (var i = 0; i < allKpm.length; i++) {
+    var item = allKpm[i];
+    if (item.nomor === nomorKPM || item.kpmId === nomorKPM) {
+      var isJalan = (item.status === KPM_STATUS.BERANGKAT || item.status === KPM_STATUS.TIBA || item.status === KPM_STATUS.SELESAI);
+      return {
+        nomorKPM: nomorKPM,
+        isConfirmed: isJalan,
+        isRejected: false,
+        isStaged: false,
+        status: item.status,
+        driver: item.driver || ""
+      };
+    }
+  }
+
+  return {
+    nomorKPM: nomorKPM,
+    isConfirmed: false,
+    isRejected: false,
+    isStaged: false,
+    status: "Unknown"
   };
 }

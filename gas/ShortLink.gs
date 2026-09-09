@@ -69,6 +69,59 @@ function createShortRecipientLink(nomorKPM) {
 }
 
 /**
+ * Creates or retrieves a compact short URL for Security Gate inspection.
+ * Returns e.g. "https://lnfd.vercel.app/s/k001"
+ */
+function createShortSecurityLink(nomorKPM) {
+  if (!nomorKPM || String(nomorKPM).trim() === "") {
+    return WEB_APP_BASE_URL + "/kpm/gate";
+  }
+
+  var rawKpm = String(nomorKPM).trim();
+  var numMatch = rawKpm.match(/(\d+)/);
+  var seqPart = numMatch ? numMatch[1] : "";
+  var shortId = "";
+
+  if (seqPart) {
+    shortId = "s" + seqPart.toLowerCase();
+  } else {
+    var cleanStr = rawKpm.replace(/[^a-zA-Z0-9]/g, "");
+    shortId = "s" + (cleanStr.substring(0, 4) || "001").toLowerCase();
+  }
+
+  var recordPayload = {
+    nomorKPM: rawKpm,
+    shortId: shortId,
+    type: "security_gate",
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    var fbConfig = (typeof getFirebaseConfig === 'function') ? getFirebaseConfig() : { firebaseDbUrl: WEB_CONFIG.DEFAULT_FIREBASE_DB_URL };
+    var fbUrl = fbConfig.firebaseDbUrl;
+    if (fbUrl) {
+      var endpoint = fbUrl.replace(/\/+$/, '') + "/short_links/" + encodeURIComponent(shortId) + ".json";
+      UrlFetchApp.fetch(endpoint, {
+        method: "put",
+        contentType: "application/json",
+        payload: JSON.stringify(recordPayload),
+        muteHttpExceptions: true
+      });
+    }
+  } catch (fbErr) {
+    Logger.log("Firebase security short link write notice: " + fbErr.message);
+  }
+
+  try {
+    saveShortLinkToSheet(shortId, rawKpm);
+  } catch (sheetErr) {
+    Logger.log("Sheet security short link write notice: " + sheetErr.message);
+  }
+
+  return WEB_APP_BASE_URL + "/s/" + shortId;
+}
+
+/**
  * Resolves a short ID back to the full KPM number.
  * Checks Firebase RTDB first, then Google Sheets backup sheet.
  */

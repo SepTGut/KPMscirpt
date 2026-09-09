@@ -147,7 +147,7 @@
       }
     }
 
-    /* Header Layout Penyesuaian Kolom Logo 14% & Dual QR 26% */
+    /* Header Layout: Logo 18%, Info Perusahaan 54%, Info Tanggal & Halaman 28% */
     .header {
       width: 100%;
       border-collapse: collapse;
@@ -157,13 +157,13 @@
 
     .header td {
       border: 1px solid #000;
-      padding: 12px 6px;
+      padding: 10px 8px;
       vertical-align: middle;
       overflow: hidden;
     }
 
     .logo {
-      width: 16%;
+      width: 18%;
       text-align: center;
       padding: 6px 4px !important;
     }
@@ -171,7 +171,7 @@
     .logo img,
     .logo-image {
       max-width: 96%;
-      max-height: 92px;
+      max-height: 80px;
       width: auto;
       height: auto;
       display: block;
@@ -180,97 +180,36 @@
     }
 
     .company {
-      width: 38%;
+      width: 54%;
       text-align: center;
     }
 
     .company h1 {
-      font-size: 21px;
+      font-size: 20px;
       line-height: 24px;
       margin: 0;
       font-weight: bold;
+      letter-spacing: 0.5px;
     }
 
     .company h2 {
-      font-size: 15.5px;
+      font-size: 15px;
       margin: 3px 0;
       font-weight: bold;
     }
 
     .company p {
       margin: 0;
-      font-size: 11.5px;
+      font-size: 11px;
+      color: #3c4043;
     }
 
     .printDate {
-      width: 16%;
-      font-size: 11.5px;
+      width: 28%;
+      font-size: 11px;
       line-height: 19px;
-    }
-
-    .qrcode-cell {
-      width: 30%;
-      text-align: center;
-      vertical-align: middle;
-      padding: 3px 2px !important;
-    }
-
-    .dual-qr-container {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-evenly;
-      gap: 6px;
-      width: 100%;
-    }
-
-    .qrcode-box {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      flex: 1;
-    }
-
-    .qr-separator {
-      width: 1px;
-      height: 98px;
-      background: #c8c8c8;
-      margin: 0 4px;
-      flex-shrink: 0;
-      align-self: flex-start;
-    }
-
-    .qrcode-target {
-      display: inline-block;
-      margin: 0 auto;
-      width: 98px;
-      height: 98px;
-    }
-
-    .qrcode-target img,
-    .qrcode-target canvas {
-      width: 98px !important;
-      height: 98px !important;
-      display: block;
-      margin: 0 auto;
-    }
-
-    .qrcode-sublabel {
-      font-size: 8.5px;
-      color: #3c4043;
-      margin-top: 4px;
-      font-weight: 700;
-      text-align: center;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      width: 98px;
-      max-width: 98px;
-      line-height: 11px;
-      min-height: 22px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      padding-left: 14px !important;
+      text-align: left;
     }
 
     /* Tabel Informasi Dokumen */
@@ -343,18 +282,100 @@
       text-align: center;
     }
 
+    /* Tabel Tanda Tangan Terpadu dengan 3 QR Code */
     .sign {
       width: 100%;
-      margin-top: 12px;
+      margin-top: 8px;
       border-collapse: collapse;
+      table-layout: fixed;
     }
 
-    .sign td {
+    .sign-col {
+      width: 33.33%;
+      vertical-align: top;
+      padding: 2px 4px !important;
+    }
+
+    .sign-box {
+      border: 1px solid #000;
+      background: #ffffff;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 86px;
+      box-sizing: border-box;
+    }
+
+    .sign-qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
-      height: 45px;
-      vertical-align: bottom;
-      font-size: 10.5px;
-      padding-bottom: 2px;
+      flex-shrink: 0;
+      width: 72px;
+    }
+
+    .qrcode-target {
+      display: inline-block;
+      margin: 0 auto;
+      width: 68px;
+      height: 68px;
+    }
+
+    .qrcode-target img,
+    .qrcode-target canvas {
+      width: 68px !important;
+      height: 68px !important;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .sign-qr-sublabel {
+      font-size: 7.5px;
+      color: #202124;
+      margin-top: 2px;
+      font-weight: 700;
+      text-align: center;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 9.5px;
+      width: 72px;
+      max-width: 72px;
+    }
+
+    .sign-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 82px;
+      text-align: center;
+      padding-top: 2px;
+    }
+
+    .sign-role {
+      font-size: 11px;
+      font-weight: 700;
+      color: #000;
+      line-height: 13px;
+      text-align: center;
+    }
+
+    .sign-space {
+      flex: 1;
+      min-height: 38px;
+    }
+
+    .sign-line {
+      font-size: 10px;
+      color: #202124;
+      white-space: nowrap;
+      line-height: 12px;
+      text-align: center;
     }
 
     .doc-footer {
@@ -426,7 +447,7 @@ for(var g = 0; g < groups.length; g++){
 ?>
 
   <div class="page">
-    <!-- Repeated document header: logo, title, print metadata, and barcode. -->
+    <!-- Repeated document header: logo, title, and print metadata -->
     <table class="header">
       <tr>
         <td class="logo"><img src="<?!= data.logo ?>" class="logo-image" alt="Logo Rekaindo"></td>
@@ -436,27 +457,9 @@ for(var g = 0; g < groups.length; g++){
           <p>Dokumen Pengeluaran Material</p>
         </td>
         <td class="printDate">
-          Dicetak :
-          <?= data.tanggalCetak ?><br>
-          Halaman :
-          <?= pageNo ?> dari
-          <?= data.totalPage ?>
-        </td>
-        <td class="qrcode-cell">
-          <div class="dual-qr-container">
-            <!-- QR 1: Verifikasi Dokumen KPM -->
-            <div class="qrcode-box">
-              <div class="qrcode-target" data-val="<?= barcodeData ?>"></div>
-              <span class="qrcode-sublabel">ID: <?= barcodeData ?></span>
-            </div>
-            <!-- Separator Line -->
-            <div class="qr-separator"></div>
-            <!-- QR 2: Scan Penerima (Short Link) -->
-            <div class="qrcode-box">
-              <div class="qrcode-target" data-val="<?= data.shortRecipientUrl || ('https://lnfd.vercel.app/kpm/confirm?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
-              <span class="qrcode-sublabel">Recipients</span>
-            </div>
-          </div>
+          <strong>Dicetak :</strong> <?= data.tanggalCetak ?><br>
+          <strong>Halaman :</strong> <?= pageNo ?> dari <?= data.totalPage ?><br>
+          <strong>No. Dok :</strong> FORM-KPM-PPO-000
         </td>
       </tr>
     </table>
@@ -567,12 +570,53 @@ for(var g = 0; g < groups.length; g++){
       </tbody>
     </table>
 
-    <!-- Signature lines are part of every rendered page in the current layout. -->
+    <!-- Signature lines paired with 3 QR codes -->
     <table class="sign">
       <tr>
-        <td>Pengendalian Produksi<br><br><br><br>_________________________</td>
-        <td>Gudang<br><br><br><br>_________________________</td>
-        <td>Yang Menerima<br><br><br><br>_________________________</td>
+        <!-- 1. Pengendalian Produksi + QR 1 (No. LF) -->
+        <td class="sign-col">
+          <div class="sign-box">
+            <div class="sign-qr-wrap">
+              <div class="qrcode-target" data-val="<?= barcodeData ?>"></div>
+              <span class="sign-qr-sublabel">NO. LF: <?= barcodeData ?></span>
+            </div>
+            <div class="sign-field">
+              <div class="sign-role">Pengendalian Produksi</div>
+              <div class="sign-space"></div>
+              <div class="sign-line">_________________________</div>
+            </div>
+          </div>
+        </td>
+
+        <!-- 2. Checker + QR 2 (Security) -->
+        <td class="sign-col">
+          <div class="sign-box">
+            <div class="sign-qr-wrap">
+              <div class="qrcode-target" data-val="<?= data.securityUrl || ('https://lnfd.vercel.app/kpm/gate?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
+              <span class="sign-qr-sublabel">Scan Checker (Izin Jalan)</span>
+            </div>
+            <div class="sign-field">
+              <div class="sign-role">Checker</div>
+              <div class="sign-space"></div>
+              <div class="sign-line">_________________________</div>
+            </div>
+          </div>
+        </td>
+
+        <!-- 3. Yang Menerima + QR 3 (Penerima) -->
+        <td class="sign-col">
+          <div class="sign-box">
+            <div class="sign-qr-wrap">
+              <div class="qrcode-target" data-val="<?= data.shortRecipientUrl || ('https://lnfd.vercel.app/kpm/confirm?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
+              <span class="sign-qr-sublabel">Scan Penerima</span>
+            </div>
+            <div class="sign-field">
+              <div class="sign-role">Yang Menerima</div>
+              <div class="sign-space"></div>
+              <div class="sign-line">_________________________</div>
+            </div>
+          </div>
+        </td>
       </tr>
     </table>
 
@@ -595,8 +639,8 @@ for(var g = 0; g < groups.length; g++){
       var val = target.getAttribute('data-val') || "DUMMY-KPP-000";
       new QRCode(target, {
         text: val,
-        width: 98,
-        height: 98,
+        width: 68,
+        height: 68,
         colorDark: "#000000",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M

@@ -11,6 +11,7 @@ const testData = {
   totalPage: 1,
   pageSize: 15,
   shortRecipientUrl: "https://lnfd.vercel.app/r/k001",
+  securityUrl: "https://lnfd.vercel.app/s/k001",
   header: {
     noRefKpp: "001/PPO/LF/IX/2026",
     noLampiranKpm: "001/KPM/IX/2026",
@@ -56,7 +57,8 @@ evaluated = evaluated.replace(/<\?=\s*data\.tanggalCetak\s*\?>/g, testData.tangg
 evaluated = evaluated.replace(/<\?=\s*data\.totalPage\s*\?>/g, String(testData.totalPage));
 evaluated = evaluated.replace(/<\?=\s*data\.header\.noRefKpp\s*\?>/g, testData.header.noRefKpp);
 evaluated = evaluated.replace(/<\?=\s*data\.header\.noLampiranKpm\s*\?>/g, testData.header.noLampiranKpm);
-evaluated = evaluated.replace(/<\?=\s*data\.shortRecipientUrl[^?]*\?>/g, testData.shortRecipientUrl);
+evaluated = evaluated.replace(/<\?=\s*data\.shortRecipientUrl[\s\S]*?\?>/g, testData.shortRecipientUrl);
+evaluated = evaluated.replace(/<\?=\s*data\.securityUrl[\s\S]*?\?>/g, testData.securityUrl);
 
 // Execute the looping logic
 const group = testData.groups[0];

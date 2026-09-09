@@ -14,7 +14,7 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "checkDepartureStatus", "rejectDepartureSecurity"];
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -56,6 +56,14 @@ function doGet(e) {
       responseData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
       responseData = checkArrivalStatus(params, isIT);
+    } else if (action === "checkDepartureStatus") {
+      responseData = checkDepartureStatus(params, isIT);
+    } else if (action === "stageDeparture") {
+      responseData = stageDeparture(params);
+    } else if (action === "confirmDepartureSecurity") {
+      responseData = confirmDepartureSecurity(params);
+    } else if (action === "rejectDepartureSecurity") {
+      responseData = rejectDepartureSecurity(params);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -90,7 +98,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows"];
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "rejectDepartureSecurity", "checkDepartureStatus"];
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -144,6 +152,14 @@ function doPost(e) {
       resultData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
       resultData = checkArrivalStatus(params, isIT);
+    } else if (action === "stageDeparture") {
+      resultData = stageDeparture(params);
+    } else if (action === "confirmDepartureSecurity") {
+      resultData = confirmDepartureSecurity(params);
+    } else if (action === "rejectDepartureSecurity") {
+      resultData = rejectDepartureSecurity(params);
+    } else if (action === "checkDepartureStatus") {
+      resultData = checkDepartureStatus(params, isIT);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

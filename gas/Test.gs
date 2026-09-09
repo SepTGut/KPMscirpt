@@ -41,6 +41,9 @@ function generateTestData(itemCount) {
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
     shortRecipientUrl: "https://lnfd.vercel.app/r/k000",
+    securityUrl: "https://lnfd.vercel.app/s/k000",
+    cleanShortUrl: "lnfd.vercel.app/r/k000",
+    cleanSecurityUrl: "lnfd.vercel.app/s/k000",
     header: {
       noRefKpp: "TEST-KPM-000",
       noLampiranKpm: "TEST-LAMP-000",
@@ -387,7 +390,7 @@ function testWebStateMachineValidations() {
     var resBelum = JSON.parse(doPost(toBelumBerangkatParam).getContent());
     Logger.log("Step 3 (Baru Dibuat -> Belum Berangkat): success=" + resBelum.success + (resBelum.success ? "" : " error=" + JSON.stringify(resBelum.error)) + ", status=" + resBelum.data?.currentStatus);
 
-    // 4. Missing Photo on Jalan / Berangkat (Must be rejected)
+    // 4. Status Update without Photo on Jalan (Optional photo: must succeed)
     var missingPhotoParam = {
       parameter: {
         action: "updateStatus",
@@ -397,8 +400,8 @@ function testWebStateMachineValidations() {
       }
     };
     var resMissing = JSON.parse(doPost(missingPhotoParam).getContent());
-    var isMissingRejected = (!resMissing.success && resMissing.error?.code === "PHOTO_REQUIRED");
-    Logger.log("Step 4 (Missing Photo Rejection): " + (isMissingRejected ? "PASS" : "FAIL (got: " + JSON.stringify(resMissing) + ")"));
+    var isMissingAccepted = (resMissing.success && resMissing.data?.currentStatus === "Jalan");
+    Logger.log("Step 4 (Optional Photo on Jalan Accepted): " + (isMissingAccepted ? "PASS" : "FAIL (got: " + JSON.stringify(resMissing) + ")"));
 
     // 5. Valid Transition: 'Belum Berangkat' -> 'Jalan' (With real 1x1 JPEG)
     var validJalanParam = {

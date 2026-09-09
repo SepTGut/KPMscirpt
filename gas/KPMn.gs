@@ -834,12 +834,30 @@ function printKpmM() {
     shortRecipientUrl = "https://lnfd.vercel.app/kpm/confirm?kpm=" + encodeURIComponent(headerInfo.noRefKpp);
   }
 
+  var securityUrl = "";
+  try {
+    if (typeof createShortSecurityLink === "function") {
+      securityUrl = createShortSecurityLink(headerInfo.noRefKpp);
+    }
+  } catch (secErr) {
+    Logger.log("createShortSecurityLink notice: " + secErr.message);
+  }
+  if (!securityUrl) {
+    securityUrl = "https://lnfd.vercel.app/kpm/gate?kpm=" + encodeURIComponent(headerInfo.noRefKpp);
+  }
+
+  var cleanShortUrl = (typeof stripProtocol === "function") ? stripProtocol(shortRecipientUrl) : shortRecipientUrl.replace(/^https?:\/\//i, "");
+  var cleanSecurityUrl = (typeof stripProtocol === "function") ? stripProtocol(securityUrl) : securityUrl.replace(/^https?:\/\//i, "");
+
   var data = {
     logo: getLogoSafe(),
     tanggalCetak: today,
     totalPage: totalPage,
     pageSize: PAGE_SIZE,
     shortRecipientUrl: shortRecipientUrl,
+    securityUrl: securityUrl,
+    cleanShortUrl: cleanShortUrl,
+    cleanSecurityUrl: cleanSecurityUrl,
     header: {
       noRefKpp: headerInfo.noRefKpp,
       noLampiranKpm: headerInfo.noLampiranKpm,

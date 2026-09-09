@@ -268,18 +268,20 @@ export function useKpm() {
       error.value = 'Pilih KPM dan status terlebih dahulu.'
       return
     }
-    if (!payload.photoFile) {
-      error.value = 'Foto bukti wajib dilampirkan.'
-      return
-    }
     busy.value = true
     try {
       if (driverName.value) {
         localStorage.setItem('kpm_driver_name', driverName.value)
       }
-
       const coords = await getCurrentCoordinates().catch(() => null)
-      const fotoData = await compressImage(payload.photoFile)
+      let fotoData = ''
+      if (payload.photoFile) {
+        try {
+          fotoData = await compressImage(payload.photoFile)
+        } catch (err) {
+          console.warn('Gagal kompres foto:', err)
+        }
+      }
       const kpmNomor = selectedDelivery.value.nomor || selectedDelivery.value.kpmId
 
       await api('updateStatus', {
@@ -317,17 +319,20 @@ export function useKpm() {
       error.value = 'Pilih KPM terlebih dahulu.'
       return null
     }
-    if (!payload.photoFile) {
-      error.value = 'Foto bukti kedatangan wajib dilampirkan.'
-      return null
-    }
     busy.value = true
     try {
       if (driverName.value) {
         localStorage.setItem('kpm_driver_name', driverName.value)
       }
       const coords = await getCurrentCoordinates().catch(() => null)
-      const fotoData = await compressImage(payload.photoFile)
+      let fotoData = ''
+      if (payload.photoFile) {
+        try {
+          fotoData = await compressImage(payload.photoFile)
+        } catch (err) {
+          console.warn('Gagal kompres foto:', err)
+        }
+      }
       const res = await api('stageArrival', {
         body: {
           nomorKPM: payload.kpmNomor,
