@@ -29,8 +29,8 @@
 - [Fitur Utama](#fitur-utama)
 - [Alur State Machine Status KPM](#alur-state-machine-status-kpm)
 - [Modul Backend Google Apps Script](#modul-backend-google-apps-script)
-- [Struktur Database Spreadsheet (Kolom A-Z)](#struktur-database-spreadsheet-kolom-a-z)
-- [Hak Akses & Keamanan Sistem](#hak-akses--keamanan-sistem)
+- [Struktur Database Spreadsheet (Kolom A-AB)](#struktur-database-spreadsheet-kolom-a-ab)
+- [Hak Akses & Keamanan Sistem](#hak-akses--keamanan-sistem-4-tier-rbac)
 - [Panduan Instalasi & Deployment](#panduan-instalasi--deployment)
   - [1. Jalankan via Docker (Lokal)](#1-jalankan-via-docker-lokal)
   - [2. Deploy Web Portal (Vercel)](#2-deploy-web-portal-vercel)
@@ -217,7 +217,7 @@ stateDiagram-v2
 
 ---
 
-## Struktur Database Spreadsheet (Kolom A-Z)
+## Struktur Database Spreadsheet (Kolom A-AB)
 
 Setiap pengiriman dicatat pada sheet **`KPM Monitor 2026`** dengan format kolom terstandarisasi:
 
@@ -249,6 +249,8 @@ Setiap pengiriman dicatat pada sheet **`KPM Monitor 2026`** dengan format kolom 
 | **X** | `FOTO BERANGKAT` | Formula | Center | Hyperlink Google Drive bukti muat |
 | **Y** | `FOTO TIBA` | Formula | Center | Hyperlink Google Drive bukti tiba |
 | **Z** | `GPS TRACK` | Formula | Center | Hyperlink Google Maps Live Track / Selesai |
+| **AA** | `PENERIMA` | Text | Center | Nama personil penerima barang tervalidasi |
+| **AB** | `FOTO DITERIMA` | Formula | Center | Hyperlink Google Drive bukti foto serah terima |
 
 ---
 
