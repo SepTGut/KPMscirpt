@@ -6,12 +6,14 @@ import { requestApi } from '../composables/useApi'
 const api = (action, opts) => requestApi(action, opts)
 
 const props = defineProps({
-  kpmNomor: { type: String, default: '' }
+  kpmNomor: { type: String, default: '' },
+  isIT: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['verified', 'rejected', 'back-to-home'])
 
 const kpmId = ref(props.kpmNomor || '')
+const activeKpms = ref([])
 
 watch(() => props.kpmNomor, (newVal) => {
   if (newVal) {
@@ -46,8 +48,17 @@ const finalCheckerName = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return kpmId.value.trim().length > 0 && !submitting.value && !rejecting.value && isStagedByDriver.value
+  return kpmId.value.trim().length > 0 && !submitting.value && !rejecting.value && (isStagedByDriver.value || props.isIT)
 })
+
+async function loadAvailableKpms() {
+  try {
+    const list = await api('getMonitoring', { method: 'GET' })
+    if (Array.isArray(list)) {
+      activeKpms.value = list.filter(k => k.status === 'Baru Dibuat' || k.status === 'Belum Berangkat' || k.status === 'Jalan')
+    }
+  } catch {}
+}
 
 async function fetchKpmDetails() {
   if (!kpmId.value) return
@@ -105,7 +116,8 @@ async function handleVerifyGateOut() {
       body: {
         nomorKPM: kpmId.value.trim(),
         namaChecker: finalCheckerName.value,
-        catatan: catatan.value.trim()
+        catatan: catatan.value.trim(),
+        isIT: props.isIT ? 'true' : ''
       }
     })
 
@@ -165,6 +177,7 @@ async function handleConfirmReject() {
 }
 
 onMounted(() => {
+  loadAvailableKpms()
   if (kpmId.value) {
     fetchKpmDetails()
   }
@@ -262,9 +275,12 @@ onMounted(() => {
         <span class="font-mono text-emerald-700 text-[10.5px] font-bold">Inisialisasi OK</span>
       </div>
 
-      <!-- KPM Number Display -->
+      <!-- KPM Number Display & Quick Selector -->
       <div>
-        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Nomor KPM Fisik</label>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">Nomor KPM Fisik</label>
+          <span v-if="activeKpms.length > 0" class="text-[11px] text-slate-500 font-medium">atau pilih dari KPM aktif</span>
+        </div>
         <div class="flex gap-2">
           <input
             v-model="kpmId"
@@ -280,6 +296,19 @@ onMounted(() => {
           >
             {{ loadingDetail ? 'Memuat...' : 'Cek' }}
           </button>
+        </div>
+
+        <!-- Quick Selector Dropdown for IT / Operators -->
+        <div v-if="activeKpms.length > 0" class="mt-2">
+          <select
+            class="w-full text-xs font-semibold py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-google-blue-500 transition"
+            @change="if ($event.target.value) { kpmId = $event.target.value; fetchKpmDetails(); }"
+          >
+            <option value="">-- ⚡ Pilih KPM Aktif Langsung --</option>
+            <option v-for="k in activeKpms" :key="k.nomor" :value="k.nomor">
+              {{ k.nomor }} - [{{ k.status }}] ({{ k.lokasiBerangkat || k.wsAwal }} ➔ {{ k.lokasiTiba || k.wsTujuan }})
+            </option>
+          </select>
         </div>
       </div>
 

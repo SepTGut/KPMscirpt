@@ -12,7 +12,14 @@ export function useAuth() {
   const mode = ref(currentPath.endsWith('/kpm/personel') ? 'user' : 'admin')
 
   const isLoggedIn = computed(() => !!currentUser.value)
-  const isIT = computed(() => currentUser.value?.role === 'it' || !!currentUser.value?.isIT)
+  const isIT = computed(() => {
+    const u = currentUser.value
+    if (!u) return false
+    const r = String(u.role || '').toLowerCase()
+    const uname = String(u.username || '').toLowerCase()
+    const name = String(u.name || u.fullName || '').toLowerCase()
+    return r === 'it' || r === 'maker' || r === 'makers' || !!u.isIT || uname === 'st' || uname === 'it' || name === 'st' || name === 'it'
+  })
   const isSuperAdmin = computed(() => currentUser.value?.role === 'super_admin' || !!currentUser.value?.isSuperAdmin || isIT.value)
   const isAdmin = computed(() => currentUser.value?.role === 'admin' || !!currentUser.value?.isAdmin || isSuperAdmin.value)
   const isDriver = computed(() => currentUser.value?.role === 'driver' || (!isAdmin.value && !isSuperAdmin.value && !isIT.value))

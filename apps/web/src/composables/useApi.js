@@ -34,7 +34,15 @@ export async function requestApi(action, options = {}, authState = {}) {
         params.set('apiToken', authState.currentUser.token)
       }
 
-      if (authState.currentUser?.isIT || authState.currentUser?.role === 'it' || authState.currentUser?.username?.toUpperCase() === 'ST') {
+      const isItUser = Boolean(
+        authState.currentUser?.isIT ||
+        authState.currentUser?.role === 'it' ||
+        authState.currentUser?.username?.toUpperCase() === 'ST' ||
+        authState.currentUser?.username?.toUpperCase() === 'IT' ||
+        authState.currentUser?.name?.toUpperCase() === 'ST' ||
+        authState.currentUser?.name?.toUpperCase() === 'IT'
+      )
+      if (isItUser) {
         params.set('isIT', 'true')
       }
 

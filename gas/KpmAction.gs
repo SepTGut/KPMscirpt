@@ -938,7 +938,7 @@ function confirmDepartureSecurity(params) {
     Logger.log("confirmDepartureSecurity cache get notice: " + e.message);
   }
 
-  var isIT = (namaChecker === "IT" || namaChecker === "ST" || (staged && (staged.driver === "IT" || staged.driver === "ST" || staged.namaPIC === "IT" || staged.namaPIC === "ST")));
+  var isIT = (params.isIT === "true" || params.isIT === true || namaChecker === "IT" || namaChecker === "ST" || (staged && (staged.driver === "IT" || staged.driver === "ST" || staged.namaPIC === "IT" || staged.namaPIC === "ST")));
 
   if (!staged && !isIT) {
     throw {

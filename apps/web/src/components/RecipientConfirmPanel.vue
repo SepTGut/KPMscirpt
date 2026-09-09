@@ -8,12 +8,14 @@ const api = (action, opts) => requestApi(action, opts)
 
 const props = defineProps({
   kpmNomor: { type: String, default: '' },
-  initialRecipient: { type: String, default: '' }
+  initialRecipient: { type: String, default: '' },
+  isIT: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['confirmed', 'back-to-home'])
 
 const kpmId = ref(props.kpmNomor || '')
+const activeKpms = ref([])
 
 watch(() => props.kpmNomor, (newVal) => {
   if (newVal) kpmId.value = newVal
@@ -110,6 +112,15 @@ async function handleConfirm() {
   }
 }
 
+async function loadAvailableKpms() {
+  try {
+    const list = await api('getMonitoring', { method: 'GET' })
+    if (Array.isArray(list)) {
+      activeKpms.value = list.filter(k => k.status === 'Baru Dibuat' || k.status === 'Belum Berangkat' || k.status === 'Jalan' || k.status === 'Tiba')
+    }
+  } catch {}
+}
+
 onMounted(() => {
   // Read kpm from URL if not passed as prop
   if (!kpmId.value && typeof window !== 'undefined') {
@@ -117,6 +128,7 @@ onMounted(() => {
     kpmId.value = urlParams.get('kpm') || urlParams.get('nomor') || ''
   }
   fetchRecipients()
+  loadAvailableKpms()
 })
 </script>
 
@@ -184,15 +196,30 @@ onMounted(() => {
             <p class="text-xs text-google-surface-500 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
           </div>
 
-          <!-- KPM Info Badge -->
-          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 border border-google-blue-100 flex items-center justify-between gap-3">
-            <div>
-              <span class="text-[10px] font-bold text-google-blue-600 uppercase tracking-wider block">Surat Penugasan KPM</span>
-              <span class="text-sm font-mono font-black text-slate-900">{{ kpmId || 'Nomor Tidak Terdeteksi' }}</span>
+          <!-- KPM Info Badge & Quick Selector -->
+          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 border border-google-blue-100 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <span class="text-[10px] font-bold text-google-blue-600 uppercase tracking-wider block">Surat Penugasan KPM</span>
+                <span class="text-sm font-mono font-black text-slate-900">{{ kpmId || 'Belum Dipilih' }}</span>
+              </div>
+              <span class="chip !text-[11px] !font-bold bg-white text-google-blue-700 border border-google-blue-200 shadow-sm">
+                Serah Terima
+              </span>
             </div>
-            <span class="chip !text-[11px] !font-bold bg-white text-google-blue-700 border border-google-blue-200 shadow-sm">
-              Serah Terima
-            </span>
+
+            <!-- Active KPM Quick Selector Dropdown -->
+            <div v-if="activeKpms.length > 0" class="pt-1">
+              <select
+                class="w-full text-xs font-semibold py-2 px-3 bg-white border border-google-blue-200 rounded-xl text-slate-700 focus:outline-none focus:border-google-blue-500 transition"
+                @change="if ($event.target.value) { kpmId = $event.target.value; }"
+              >
+                <option value="">-- ⚡ Pilih KPM dari Daftar Monitoring --</option>
+                <option v-for="k in activeKpms" :key="k.nomor" :value="k.nomor">
+                  {{ k.nomor }} - [{{ k.status }}] ({{ k.lokasiBerangkat || k.wsAwal }} ➔ {{ k.lokasiTiba || k.wsTujuan }})
+                </option>
+              </select>
+            </div>
           </div>
 
           <!-- Error Alert -->
@@ -202,13 +229,13 @@ onMounted(() => {
           </div>
 
           <form @submit.prevent="handleConfirm" class="space-y-4">
-            <!-- If KPM not in URL, allow inputting -->
-            <label v-if="!kpmId" class="block">
-              <span class="label">Nomor KPM</span>
+            <!-- Nomor KPM Manual Input Field -->
+            <label class="block">
+              <span class="label">Nomor KPM Fisik</span>
               <input
                 v-model="kpmId"
                 type="text"
-                class="field bg-white uppercase font-mono"
+                class="field bg-white uppercase font-mono font-bold"
                 placeholder="Contoh: 001/PPO/LF/IX/2026"
                 required
               />

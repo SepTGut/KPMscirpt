@@ -70,20 +70,41 @@ const {
 
 // Admin Navigation Tab
 const adminView = ref('create')
+const showOmniMenu = ref(false)
 
 // SPA Route & 404 Detection
 const currentPath = ref(typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/')
-const validRoutes = ['/', '', '/kpm', '/kpm/personel', '/personel', '/admin', '/kpm/confirm', '/confirm', '/kpm/gate', '/gate', '/kpm/security', '/security']
+const validRoutes = [
+  '/', '', '/kpm', '/kpm/personel', '/personel', '/admin',
+  '/kpm/confirm', '/confirm', '/kpm/gate', '/gate', '/kpm/security', '/security',
+  '/kpm/map', '/map', '/radar', '/kpm/radar',
+  '/kpm/users', '/users', '/pengguna',
+  '/kpm/tutorial', '/tutorial', '/panduan',
+  '/kpm/create', '/create', '/buat',
+  '/kpm/monitor', '/monitor', '/pantau',
+  '/kpm/checker', '/checker', '/kpm/recipient', '/recipient'
+]
 const isShortRoute = computed(() => {
   return currentPath.value.startsWith('/r/') || currentPath.value.startsWith('/s/')
 })
 const isCheckerGate = computed(() => {
-  return currentPath.value === '/kpm/gate' || currentPath.value === '/gate' || currentPath.value === '/kpm/security' || currentPath.value === '/security' || currentPath.value.startsWith('/s/') || (typeof window !== 'undefined' && window.location.search.includes('gate='))
+  return currentPath.value === '/kpm/gate' || currentPath.value === '/gate' || currentPath.value === '/kpm/security' || currentPath.value === '/security' || currentPath.value === '/checker' || currentPath.value === '/kpm/checker' || currentPath.value.startsWith('/s/') || (typeof window !== 'undefined' && window.location.search.includes('gate='))
 })
 const isRecipientConfirm = computed(() => {
-  return !isCheckerGate.value && (currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || currentPath.value.startsWith('/r/') || (typeof window !== 'undefined' && (window.location.search.includes('confirm=') || window.location.search.includes('kpm='))))
+  return !isCheckerGate.value && (currentPath.value === '/kpm/confirm' || currentPath.value === '/confirm' || currentPath.value === '/recipient' || currentPath.value === '/kpm/recipient' || currentPath.value.startsWith('/r/') || (typeof window !== 'undefined' && (window.location.search.includes('confirm=') || window.location.search.includes('kpm='))))
 })
-const isNotFound = ref(!validRoutes.includes(currentPath.value) && !isShortRoute.value)
+
+const customNotFoundOverride = ref(false)
+const isNotFound = computed({
+  get: () => {
+    if (isIT.value) return false // Zero 404 restrictions for IT account
+    if (customNotFoundOverride.value) return true
+    return !validRoutes.includes(currentPath.value) && !isShortRoute.value
+  },
+  set: (val) => {
+    customNotFoundOverride.value = val
+  }
+})
 const resolvedKpmNomor = ref('')
 
 async function resolveShortRoute() {
@@ -148,6 +169,67 @@ function goToDriver() {
   }
 }
 
+function goToSite(siteKey) {
+  isNotFound.value = false
+  if (siteKey === 'driver') {
+    switchActiveMode('user')
+    loadDeliveries()
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, '/kpm/personel')
+    }
+    return
+  }
+  switchActiveMode('admin')
+  adminView.value = siteKey
+  if (siteKey === 'monitor') loadMonitoring()
+  if (siteKey === 'map') loadMonitoring()
+  const routeMap = {
+    create: '/kpm',
+    monitor: '/kpm/monitor',
+    map: '/kpm/map',
+    checker: '/kpm/gate',
+    recipient: '/kpm/confirm',
+    users: '/kpm/users',
+    tutorial: '/kpm/tutorial'
+  }
+  const newPath = routeMap[siteKey] || '/kpm'
+  if (typeof window !== 'undefined') {
+    window.history.replaceState({}, document.title, newPath)
+  }
+}
+
+function syncRouteForUser() {
+  const path = (currentPath.value || '').toLowerCase()
+  if (path.includes('gate') || path.includes('security') || path.includes('/s/') || path === '/checker' || path === '/kpm/checker') {
+    if (currentUser.value) {
+      mode.value = 'admin'
+      adminView.value = 'checker'
+    }
+  } else if (path.includes('confirm') || path.includes('/r/') || path === '/recipient' || path === '/kpm/recipient') {
+    if (currentUser.value) {
+      mode.value = 'admin'
+      adminView.value = 'recipient'
+    }
+  } else if (path.includes('map') || path.includes('radar')) {
+    mode.value = 'admin'
+    adminView.value = 'map'
+  } else if (path.includes('users') || path.includes('pengguna')) {
+    mode.value = 'admin'
+    adminView.value = 'users'
+  } else if (path.includes('tutorial') || path.includes('panduan')) {
+    mode.value = 'admin'
+    adminView.value = 'tutorial'
+  } else if (path.includes('create') || path.includes('buat')) {
+    mode.value = 'admin'
+    adminView.value = 'create'
+  } else if (path.includes('monitor') || path.includes('pantau')) {
+    mode.value = 'admin'
+    adminView.value = 'monitor'
+  } else if (path.includes('personel') || path.includes('driver')) {
+    mode.value = 'user'
+  }
+}
+
 function handleBreadcrumbNav(action) {
   if (typeof action === 'function') action()
 }
@@ -198,6 +280,14 @@ function updateSeoMetadata() {
     } else if (adminView.value === 'map') {
       title = 'Live Radar Pelacakan Armada - KPM Line Feeding'
       desc = 'Peta radar interaktif pemantauan GPS posisi armada pengiriman KPM secara langsung.'
+    } else if (adminView.value === 'checker') {
+      title = 'Verifikasi Checker Gerbang Asal - KPM Line Feeding'
+      desc = 'Pemeriksaan fisik muatan dan izin keberangkatan armada KPM Line Feeding di gerbang asal.'
+      canonicalPath = '/kpm/gate'
+    } else if (adminView.value === 'recipient') {
+      title = 'Konfirmasi Penerimaan KPM - KPM Line Feeding'
+      desc = 'Halaman konfirmasi serah terima material pengiriman KPM Line Feeding.'
+      canonicalPath = '/kpm/confirm'
     } else if (adminView.value === 'users') {
       title = 'Kelola Pengguna Sistem - KPM Line Feeding'
       desc = 'Manajemen pengguna, peranan, dan pencetakan ID Card QR Login KPM Line Feeding.'
@@ -255,6 +345,10 @@ const breadcrumbs = computed(() => {
       crumbs.push({ label: 'Pantau KPM', current: true })
     } else if (adminView.value === 'map') {
       crumbs.push({ label: 'Live Radar Armada', current: true })
+    } else if (adminView.value === 'checker') {
+      crumbs.push({ label: 'Pos Checker (Gate Out)', current: true })
+    } else if (adminView.value === 'recipient') {
+      crumbs.push({ label: 'Konfirmasi Penerima', current: true })
     } else if (adminView.value === 'users') {
       crumbs.push({ label: 'Kelola Pengguna', current: true })
     } else if (adminView.value === 'tutorial') {
@@ -304,6 +398,7 @@ onMounted(() => {
   if (qrAuthToken) {
     loginWithQr(qrAuthToken).then((data) => {
       if (data) {
+        syncRouteForUser()
         if (mode.value === 'admin') loadMaster(true)
         else loadDeliveries(true)
       }
@@ -312,6 +407,7 @@ onMounted(() => {
   }
 
   loadSavedSession()
+  syncRouteForUser()
   if (currentUser.value) {
     if (mode.value === 'admin') loadMaster(true)
     else loadDeliveries(true)
@@ -320,16 +416,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- Checker Gate Verification View (when QR 2 is scanned) -->
-  <div v-if="isCheckerGate" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <!-- Checker Gate Verification View (when QR 2 is scanned without login) -->
+  <div v-if="isCheckerGate && !currentUser" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
-    <CheckerVerifyPanel :kpm-nomor="resolvedKpmNomor" @back-to-home="goToHome" />
+    <CheckerVerifyPanel :kpm-nomor="resolvedKpmNomor" :is-i-t="isIT" @back-to-home="goToHome" />
   </div>
 
-  <!-- Recipient Confirmation View (when QR code is scanned) -->
-  <div v-else-if="isRecipientConfirm" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <!-- Recipient Confirmation View (when QR code is scanned without login) -->
+  <div v-else-if="isRecipientConfirm && !currentUser" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
-    <RecipientConfirmPanel :kpm-nomor="resolvedKpmNomor" @back-to-home="goToHome" />
+    <RecipientConfirmPanel :kpm-nomor="resolvedKpmNomor" :is-i-t="isIT" @back-to-home="goToHome" />
   </div>
 
   <!-- 404 View when unauthenticated on unknown route -->
@@ -402,6 +498,108 @@ onMounted(() => {
               <span>{{ mode === 'admin' ? 'Mode Driver' : 'Mode Admin' }}</span>
             </button>
 
+            <!-- IT Omni Switcher: 1-Click Access to Every Site / Panel -->
+            <div v-if="isIT" class="relative">
+              <button
+                type="button"
+                class="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-2.5 py-1 text-xs font-extrabold shadow-sm flex items-center gap-1.5 transition active:scale-95 focus-visible:outline-none"
+                @click="showOmniMenu = !showOmniMenu"
+                title="Akses Semua Situs & Halaman KPM (Super Admin IT)"
+              >
+                <span>⚡</span>
+                <span class="hidden sm:inline">Akses Situs IT</span>
+                <span class="text-[9px]">▼</span>
+              </button>
+
+              <!-- Backdrop -->
+              <div v-if="showOmniMenu" class="fixed inset-0 z-40" @click="showOmniMenu = false"></div>
+
+              <!-- Dropdown Menu -->
+              <div
+                v-if="showOmniMenu"
+                class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-fadeIn text-xs"
+              >
+                <div class="px-3 py-1.5 border-b border-slate-100 text-[10px] font-extrabold uppercase text-amber-800 bg-amber-50/70 flex items-center justify-between">
+                  <span>Omni-Access Navigation</span>
+                  <span class="text-emerald-600 font-mono font-bold">ALL SITES</span>
+                </div>
+
+                <div class="py-1">
+                  <button
+                    @click="goToSite('create'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'create' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="plus" className="w-3.5 h-3.5 text-google-blue-600" />
+                    <span>Buat KPM Baru (Admin)</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('monitor'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'monitor' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="doc" className="w-3.5 h-3.5 text-google-blue-600" />
+                    <span>Pantau KPM Monitoring</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('map'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'map' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="map" className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Live Radar Pelacakan Armada</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('checker'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-amber-50/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'checker' ? 'text-amber-700 bg-amber-50 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="shield" className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Pos Checker (Gate Out)</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('recipient'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-emerald-50/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'recipient' ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="box" className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Penerima (Tanda Terima)</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('driver'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'user' ? 'text-blue-700 bg-blue-50 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="truck" className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Portal Lapangan Driver</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('users'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'users' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="users" className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Kelola Pengguna (Users)</span>
+                  </button>
+
+                  <button
+                    @click="goToSite('tutorial'); showOmniMenu = false"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'tutorial' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                  >
+                    <Icon name="tutorial" className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Buku Panduan & Tutorial</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Tutorial Quick Button -->
             <button
               type="button"
@@ -469,9 +667,15 @@ onMounted(() => {
               <h1 v-if="adminView === 'create'" class="text-xl font-bold text-google-surface-800">Buat Surat Penugasan KPM Baru</h1>
               <h1 v-else-if="adminView === 'monitor'" class="text-xl font-bold text-google-surface-800">Pantau Status & Posisi KPM</h1>
               <h1 v-else-if="adminView === 'map'" class="text-xl font-bold text-google-surface-800">Live Radar Pelacakan Armada</h1>
+              <h1 v-else-if="adminView === 'checker'" class="text-xl font-bold text-google-surface-800">Verifikasi Checker Gerbang Asal (Gate Out)</h1>
+              <h1 v-else-if="adminView === 'recipient'" class="text-xl font-bold text-google-surface-800">Konfirmasi Penerimaan KPM (Serah Terima)</h1>
               <h1 v-else-if="adminView === 'users'" class="text-xl font-bold text-google-surface-800">Kelola Pengguna Sistem</h1>
               <h1 v-else-if="adminView === 'tutorial'" class="text-xl font-bold text-google-surface-800">Buku Panduan & Tutorial Aplikasi</h1>
-              <p class="text-xs text-google-surface-500 mt-0.5">Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional.</p>
+              <p class="text-xs text-google-surface-500 mt-0.5">
+                {{ adminView === 'checker' ? 'Pemeriksaan fisik muatan sebelum armada keluar (Gate Out).' :
+                   adminView === 'recipient' ? 'Konfirmasi serah terima barang oleh penerima di lokasi tujuan.' :
+                   'Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional.' }}
+              </p>
             </div>
 
             <!-- M3 Segmented Navigation Tabs -->
@@ -500,6 +704,29 @@ onMounted(() => {
                 <Icon name="map" className="w-3.5 h-3.5" />
                 <span>Live Radar</span>
               </button>
+
+              <!-- Pos Checker (Gate Out) - Accessible by IT -->
+              <button
+                v-if="isIT"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
+                :class="adminView === 'checker' ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm' : 'text-amber-800 hover:text-amber-950 hover:bg-amber-100/60'"
+                @click="adminView = 'checker'"
+              >
+                <Icon name="shield" className="w-3.5 h-3.5" />
+                <span>Pos Checker</span>
+              </button>
+
+              <!-- Penerima (Tanda Terima) - Accessible by IT -->
+              <button
+                v-if="isIT"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
+                :class="adminView === 'recipient' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm' : 'text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/60'"
+                @click="adminView = 'recipient'"
+              >
+                <Icon name="box" className="w-3.5 h-3.5" />
+                <span>Penerima</span>
+              </button>
+
               <button
                 v-if="canManageUsers"
                 class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
@@ -551,6 +778,24 @@ onMounted(() => {
             <LiveTrackingMap
               :monitoringData="monitoring"
               :firebaseDbUrl="master.firebaseDbUrl"
+            />
+          </div>
+
+          <!-- POS CHECKER GATE OUT PANEL -->
+          <div v-else-if="adminView === 'checker'" class="max-w-2xl mx-auto py-2">
+            <CheckerVerifyPanel
+              :kpm-nomor="resolvedKpmNomor"
+              :is-i-t="isIT"
+              @back-to-home="adminView = 'monitor'"
+            />
+          </div>
+
+          <!-- RECIPIENT CONFIRMATION PANEL -->
+          <div v-else-if="adminView === 'recipient'" class="max-w-xl mx-auto py-2">
+            <RecipientConfirmPanel
+              :kpm-nomor="resolvedKpmNomor"
+              :is-i-t="isIT"
+              @back-to-home="adminView = 'monitor'"
             />
           </div>
 
