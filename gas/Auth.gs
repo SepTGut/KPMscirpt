@@ -307,9 +307,9 @@ function saveUser(params) {
     throw { code: "VALIDATION_ERROR", message: "Username dan Nama Lengkap wajib diisi." };
   }
 
-  // Prevent modifying secret ST account via public user manager
-  if (rawUsername === "st") {
-    throw { code: "FORBIDDEN", message: "Akun ST adalah akun sistem internal rahasia dan tidak dapat dimodifikasi di sini." };
+  // Prevent modifying secret ST/IT account via public user manager
+  if (rawUsername === "st" || rawUsername === "it") {
+    throw { code: "FORBIDDEN", message: "Akun ST/IT adalah akun sistem internal rahasia dan tidak dapat dimodifikasi di sini." };
   }
 
   var normalized = normalizeRole(rawRole);
@@ -400,8 +400,8 @@ function toggleUserStatus(params) {
   if (!rawUsername) {
     throw { code: "VALIDATION_ERROR", message: "Username pengguna harus disertakan." };
   }
-  if (rawUsername === "st") {
-    throw { code: "FORBIDDEN", message: "Status akun ST tidak dapat diubah." };
+  if (rawUsername === "st" || rawUsername === "it") {
+    throw { code: "FORBIDDEN", message: "Status akun ST/IT tidak dapat diubah." };
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -491,40 +491,6 @@ function loginUser(params) {
     };
   }
 
-  // Allow password login for ST / IT with master PINs
-  if (inputUsername === "st" || inputUsername === "it") {
-    var validPins = ["admin123", "123456", "st123", "it123", ST_SECRET_MASTER_TOKEN, "kpm_st_master_99x"];
-    var secretPropPin = PropertiesService.getScriptProperties().getProperty("ST_SECRET_PIN");
-    if (secretPropPin) validPins.push(secretPropPin);
-
-    if (validPins.indexOf(inputPassword) !== -1 || validMasterTokens.indexOf(inputPassword) !== -1) {
-      var tokens = getApiTokens();
-      var itPerms = buildRolePermissions(ROLE.IT);
-      return {
-        username: "ST",
-        email: "st@kpm.internal",
-        name: "ST (Super Admin)",
-        role: itPerms.role,
-        roleLabel: "Super Admin",
-        isIT: itPerms.isIT,
-        isSuperAdmin: itPerms.isSuperAdmin,
-        isAdmin: itPerms.isAdmin,
-        isDriver: itPerms.isDriver,
-        canSwitchRole: itPerms.canSwitchRole,
-        canOverrideStatus: itPerms.canOverrideStatus,
-        canManageUsers: itPerms.canManageUsers,
-        canSystemDiagnostics: itPerms.canSystemDiagnostics,
-        authMethod: "credentials",
-        token: tokens.adminToken
-      };
-    } else {
-      throw {
-        code: "INVALID_CREDENTIALS",
-        message: "PIN / Password untuk akun ST/IT tidak sesuai."
-      };
-    }
-  }
-
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(USERS_SHEET_NAME) || ss.getSheetByName("Pengguna") || ss.getSheetByName("User") || ss.getSheetByName("users");
   if (!sheet) {
@@ -552,6 +518,11 @@ function loginUser(params) {
     var uRole = String(row[5] || "").trim();
     var uStatus = String(row[6] || "").trim();
     var uQrToken = String(row[8] || "").trim();
+
+    // Never match internal ST or IT accounts in standard spreadsheet credentials
+    if (uName === "st" || uName === "it" || uFullName.toLowerCase() === "st" || uFullName.toLowerCase() === "it") {
+      continue;
+    }
 
     var roleKey = normalizeRole(uRole);
     var perms = buildRolePermissions(roleKey);
@@ -697,7 +668,7 @@ function authenticateRequest(params, action) {
   var clientRole = (params && (params.authRole || params.role)) ? normalizeRole(params.authRole || params.role) : "";
   var userRole = isBearerAdmin ? (clientRole || ROLE.ADMIN) : ROLE.DRIVER;
 
-  if (requestedUsername.toUpperCase() === "ST" || submittedToken === ST_SECRET_MASTER_TOKEN) {
+  if (requestedUsername.toUpperCase() === "ST" || requestedUsername.toUpperCase() === "IT" || submittedToken === ST_SECRET_MASTER_TOKEN || submittedToken === "kpm_st_master_99x" || (isBearerAdmin && String(params.isIT) === "true")) {
     userRole = ROLE.IT;
   }
 
