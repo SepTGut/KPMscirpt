@@ -479,8 +479,10 @@ for(var g = 0; g < groups.length; g++){
           <p>Dokumen Pengeluaran Material</p>
         </td>
         <td class="printDate">
+          <? if (!data.isBlank) { ?>
           <strong>Dicetak :</strong> <?= data.tanggalCetak ?><br>
           <strong>Halaman :</strong> <?= pageNo ?> dari <?= data.totalPage ?>
+          <? } ?>
         </td>
       </tr>
     </table>

@@ -922,7 +922,7 @@ function printKpmBlank() {
   var data = {
     isBlank: true,
     logo: getLogoSafe(),
-    tanggalCetak: today,
+    tanggalCetak: "",
     totalPage: 1,
     pageSize: BLANK_ROW_COUNT,
     header: {
