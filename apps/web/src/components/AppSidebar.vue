@@ -212,7 +212,8 @@ function handleNav(view) {
         <button
           type="button"
           @click="handleNav('driver')"
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all duration-150 bg-google-blue-600 text-white shadow-md shadow-google-blue-500/20"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all duration-150"
+          :class="adminView !== 'tutorial' ? 'bg-google-blue-600 text-white shadow-md shadow-google-blue-500/20' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'"
           :title="isCollapsed ? 'Daftar Tugas Pengiriman' : ''"
         >
           <div class="flex items-center gap-3 truncate">
@@ -221,7 +222,8 @@ function handleNav(view) {
           </div>
           <span
             v-if="!isCollapsed && activeDeliveryCount > 0"
-            class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/20 text-white"
+            class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full"
+            :class="adminView !== 'tutorial' ? 'bg-white/20 text-white' : 'bg-google-blue-50 text-google-blue-700 dark:bg-google-blue-950 dark:text-google-blue-300'"
           >
             {{ activeDeliveryCount }}
           </span>
@@ -230,7 +232,8 @@ function handleNav(view) {
         <button
           type="button"
           @click="handleNav('tutorial')"
-          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all duration-150"
+          :class="adminView === 'tutorial' ? 'bg-google-blue-600 text-white shadow-md shadow-google-blue-500/20' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'"
           :title="isCollapsed ? 'Panduan Driver' : ''"
         >
           <Icon name="tutorial" className="w-4 h-4 shrink-0" />

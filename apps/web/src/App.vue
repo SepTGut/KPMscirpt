@@ -186,6 +186,8 @@ function goToHome() {
 
 function goToDriver() {
   isNotFound.value = false
+  showDriverTutorial.value = false
+  adminView.value = 'driver'
   currentPath.value = '/kpm/personel'
   if (typeof window !== 'undefined') {
     window.history.replaceState({}, document.title, '/kpm/personel')
@@ -199,13 +201,23 @@ function goToDriver() {
 function goToSite(siteKey) {
   isNotFound.value = false
   if (siteKey === 'driver') {
-    switchActiveMode('user')
-    loadDeliveries()
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, document.title, '/kpm/personel')
-    }
+    goToDriver()
     return
   }
+
+  if (siteKey === 'tutorial') {
+    adminView.value = 'tutorial'
+    if (mode.value === 'user' || isDriver.value) {
+      showDriverTutorial.value = true
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, document.title, '/kpm/tutorial')
+      }
+      return
+    }
+  } else {
+    showDriverTutorial.value = false
+  }
+
   switchActiveMode('admin')
   adminView.value = siteKey
   if (siteKey === 'monitor') loadMonitoring()
@@ -244,8 +256,12 @@ function syncRouteForUser() {
     mode.value = 'admin'
     adminView.value = 'users'
   } else if (path.includes('tutorial') || path.includes('panduan')) {
-    mode.value = 'admin'
     adminView.value = 'tutorial'
+    if (mode.value === 'user' || isDriver.value) {
+      showDriverTutorial.value = true
+    } else {
+      mode.value = 'admin'
+    }
   } else if (path.includes('create') || path.includes('buat')) {
     mode.value = 'admin'
     adminView.value = 'create'
@@ -254,6 +270,8 @@ function syncRouteForUser() {
     adminView.value = 'monitor'
   } else if (path.includes('personel') || path.includes('driver')) {
     mode.value = 'user'
+    adminView.value = 'driver'
+    showDriverTutorial.value = false
   }
 }
 
@@ -322,6 +340,10 @@ function updateSeoMetadata() {
       title = 'Panduan & Tutorial Aplikasi - KPM Line Feeding'
       desc = 'Panduan lengkap penggunaan aplikasi KPM Line Feeding untuk Administrator, Driver, dan Super Admin.'
     }
+  } else if (showDriverTutorial.value || adminView.value === 'tutorial') {
+    title = 'Buku Panduan Driver - KPM Line Feeding'
+    desc = 'Panduan lengkap tata cara operasional penugasan, foto muatan, dan serah terima bagi driver armada.'
+    canonicalPath = '/kpm/tutorial'
   } else {
     title = 'Portal Penugasan Driver - KPM Line Feeding'
     desc = 'Portal pembaruan status keberangkatan, tiba, dan unggah foto bukti pengiriman bagi personel driver.'
@@ -338,7 +360,7 @@ function updateSeoMetadata() {
   }
 }
 
-watch([currentUser, adminView, isNotFound, currentPath, mode], () => {
+watch([currentUser, adminView, isNotFound, currentPath, mode, showDriverTutorial], () => {
   updateSeoMetadata()
 }, { immediate: true })
 
@@ -385,7 +407,8 @@ const breadcrumbs = computed(() => {
   }
   return [
     { label: 'Beranda', iconName: 'home', action: goToHome },
-    { label: 'Portal Driver', current: true }
+    { label: 'Portal Driver', action: goToDriver, current: !showDriverTutorial.value && adminView.value !== 'tutorial' },
+    ...(showDriverTutorial.value || adminView.value === 'tutorial' ? [{ label: 'Panduan Driver', current: true }] : [])
   ]
 })
 
@@ -851,12 +874,12 @@ onMounted(() => {
           <!-- PERSONEL / DRIVER SECTION -->
           <div v-else>
             <!-- Driver Tutorial View Toggle -->
-            <div v-if="showDriverTutorial" class="space-y-4">
+            <div v-if="showDriverTutorial || adminView === 'tutorial'" class="space-y-4">
               <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <button
                   type="button"
                   class="btn-primary !py-2 !px-4 !text-xs font-bold flex items-center gap-1.5"
-                  @click="showDriverTutorial = false"
+                  @click="goToDriver"
                 >
                   <span>←</span>
                   <span>Kembali ke Penugasan Driver</span>

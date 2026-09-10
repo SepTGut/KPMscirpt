@@ -163,7 +163,8 @@ function handleNav(view) {
         <button
           type="button"
           @click="handleNav('driver')"
-          class="relative flex flex-col items-center justify-center flex-1 py-1 text-[10px] font-extrabold text-google-blue-600 dark:text-google-blue-400"
+          class="relative flex flex-col items-center justify-center flex-1 py-1 text-[10px] transition-all duration-150"
+          :class="adminView !== 'tutorial' ? 'text-google-blue-600 dark:text-google-blue-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 font-medium'"
         >
           <Icon name="truck" className="w-5 h-5 mb-0.5" />
           <span>Tugas Kirim</span>
@@ -178,7 +179,8 @@ function handleNav(view) {
         <button
           type="button"
           @click="handleNav('tutorial')"
-          class="flex flex-col items-center justify-center flex-1 py-1 text-[10px] font-bold text-slate-500 dark:text-slate-400"
+          class="flex flex-col items-center justify-center flex-1 py-1 text-[10px] transition-all duration-150"
+          :class="adminView === 'tutorial' ? 'text-google-blue-600 dark:text-google-blue-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 font-medium'"
         >
           <Icon name="tutorial" className="w-5 h-5 mb-0.5" />
           <span>Panduan</span>
