@@ -274,6 +274,10 @@
       height: 24px;
     }
 
+    .blank-sheet .company {
+      width: 82%;
+    }
+
     .material thead {
       display: table-header-group;
     }
@@ -478,12 +482,12 @@ for(var g = 0; g < groups.length; g++){
           <h2>KANBAN PERMINTAAN MATERIAL (KPM)</h2>
           <p>Dokumen Pengeluaran Material</p>
         </td>
+        <? if (!data || !data.isBlank) { ?>
         <td class="printDate">
-          <? if (!data.isBlank) { ?>
           <strong>Dicetak :</strong> <?= data.tanggalCetak ?><br>
           <strong>Halaman :</strong> <?= pageNo ?> dari <?= data.totalPage ?>
-          <? } ?>
         </td>
+        <? } ?>
       </tr>
     </table>
 
