@@ -1,4 +1,5 @@
 # Panduan Alur Proses KPM Line Feeding (End-to-End Process Flow)
+
 Dokumen resmi standar operasional sistem **KPM Line Feeding**, mencakup alur lengkap dari pembuatan dokumen, pengiriman armada, verifikasi gerbang, hingga serah terima penerima untuk **Pengguna (User)** dan **Administrator (Admin)**.
 
 ---
@@ -63,6 +64,7 @@ flowchart TD
 ## 3. Rincian Fase demi Fase
 
 ### Fase 1: Pembuatan & Pencetakan KPM (Admin / Gudang)
+
 1. **Pembuatan KPM**:
    - Admin atau PPIC membuka menu **"Buat KPM Baru"**.
    - Mengisi rute asal (Workshop Asal) dan rute tujuan (Workshop Tujuan), PIC, nomor proyek, tanggal kebutuhan, dan daftar material (kode barang, nama/spesifikasi, kuantitas, UOM).
@@ -78,6 +80,7 @@ flowchart TD
 ---
 
 ### Fase 2: Persiapan & Inisialisasi Keberangkatan (Driver)
+
 1. **Pemeriksaan Tugas Pengiriman**:
    - Driver membuka portal **Driver Delivery**.
    - Seluruh KPM yang siap dikirim muncul pada daftar tugas.
@@ -95,6 +98,7 @@ flowchart TD
 ---
 
 ### Fase 3: Pemeriksaan Pos Gerbang Keluar (Checker / Satpam)
+
 1. **Pemeriksaan Fisik**:
    - Driver menghentikan kendaraan di pos gerbang keluar pabrik asal.
    - Petugas Checker memeriksa kesesuaian fisik muatan di bak truk dengan lembar dokumen KPM.
@@ -114,6 +118,7 @@ flowchart TD
 ---
 
 ### Fase 4: Perjalanan & Pelacakan GPS (Driver & Sistem)
+
 1. **Pembaruan Otomatis Layar Driver**:
    - Begitu Checker menyetujui di gerbang, modal tunggu driver otomatis tertutup dan KPM berstatus `Jalan`.
 2. **Navigasi Rute 1-Klik**:
@@ -125,6 +130,7 @@ flowchart TD
 ---
 
 ### Fase 5: Kedatangan & Serah Terima Material (Penerima)
+
 1. **Kedatangan di Tujuan**:
    - Saat tiba di bengkel/workshop tujuan, Driver membuka KPM tersebut dan memilih aksi **"Tiba"**.
    - Mengambil foto bukti kedatangan truk di workshop tujuan.
@@ -142,6 +148,7 @@ flowchart TD
 ---
 
 ### Fase 6: Penyelesaian, Audit, & Arsip Otomatis (Sistem & Admin)
+
 1. **Pencatatan Lengkap di Spreadsheet**:
    - Kolom R: Waktu Berangkat (Format: `DD/MM/YYYY HH:mm:ss`)
    - Kolom S: Nama Driver
@@ -160,7 +167,7 @@ flowchart TD
 
 ## 4. Matriks Transisi Status KPM (Status Lifecycle)
 
-```
+```text
 [Baru Dibuat] 
       │
       ▼
@@ -215,14 +222,18 @@ flowchart TD
 ## 6. Pertanyaan Umum & Panduan Solusi (FAQ & Troubleshooting)
 
 ### Q1: Apa yang harus dilakukan jika Checker menolak keberangkatan KPM?
+
 - **Penyebab**: Checker menemukan ketidaksesuaian barang di bak truk dengan surat KPM.
 - **Solusi**: Driver membaca alasan penolakan di layar HP, berkoordinasi kembali dengan tim gudang/PPIC untuk memperbaiki muatan, lalu driver menekan tombol **"Minta Izin Checker"** sekali lagi setelah muatan beres.
 
 ### Q2: Bagaimana jika driver membawa 5 KPM sekaligus dalam satu truk?
+
 - **Solusi**: Driver cukup memberi tanda centang pada kelima KPM tersebut (atau klik **"✓ Pilih Semua"**), ambil 1 foto bak truk, dan klik **"Minta Izin Checker untuk 5 KPM Sekaligus"**. Di pos gerbang, Checker cukup menekan **"✓ Izinkan Seluruh Batch (5 KPM Sekaligus)"** dengan 1 kali klik.
 
 ### Q3: Apakah Penerima Barang di workshop harus mempunyai akun login?
+
 - **Tidak perlu**. Penerima cukup men-scan **QR 3 (Kanan)** pada lembar kertas KPM atau mengklik link konfirmasi dari driver melalui peramban HP biasa tanpa perlu login akun khusus.
 
 ### Q4: Bagaimana jika koneksi internet di pos gerbang atau workshop penerima lambat?
+
 - Foto bukti otomatis dikompresi di browser (di bawah 300KB) sebelum dikirim, dan sistem menggunakan arsitektur *ScriptCache* untuk pengecekan status yang sangat cepat (< 1 detik).
