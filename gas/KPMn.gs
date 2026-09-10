@@ -893,7 +893,7 @@ function PrintKPM_M() {
 }
 
 /**
- * Opens a print-ready dialog for an empty 1-page KPM blank sheet (Letter Landscape, 10 rows),
+ * Opens a print-ready dialog for an empty 1-page KPM blank sheet (Letter Landscape, 15 rows),
  * formatted for manual wet-ink handwriting with clean full-width signature boxes (no QR codes).
  */
 function printKpmBlank() {
@@ -905,7 +905,7 @@ function printKpmBlank() {
   var today = Utilities.formatDate(new Date(), "Asia/Jakarta", "dd/MM/yyyy HH:mm");
 
   var materialList = [];
-  var BLANK_ROW_COUNT = 10;
+  var BLANK_ROW_COUNT = 15;
   for (var i = 0; i < BLANK_ROW_COUNT; i++) {
     materialList.push({
       kode: "",
