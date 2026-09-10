@@ -78,7 +78,6 @@ for (const act of frontEndActions) {
 // 3. Check for Deployment URLs & Tokens consistency
 const apiIndexFile = path.join(rootDir, 'apps/web/api/index.js');
 const serverMjsFile = path.join(rootDir, 'apps/web/server.mjs');
-const netlifyFile = path.join(rootDir, 'apps/web/netlify/functions/api.mjs');
 const mobileApiFile = path.join(rootDir, 'apps/mobile/src/services/api.js');
 
 const ACTIVE_DEPLOYMENT_ID = 'AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA';
@@ -86,7 +85,6 @@ const ACTIVE_DEPLOYMENT_ID = 'AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgY
 const endpointFiles = [
   { name: 'Vercel API', file: apiIndexFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
   { name: 'Docker Server', file: serverMjsFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
-  { name: 'Netlify API', file: netlifyFile, regex: /DEFAULT_SCRIPT_URL\s*=\s*['"]([^'"]+)['"]/ },
   { name: 'Mobile Direct API', file: mobileApiFile, regex: /DEFAULT_GAS_URL\s*=\s*['"]([^'"]+)['"]/ }
 ];
 
@@ -102,33 +100,30 @@ for (const ep of endpointFiles) {
   }
 }
 
-if (fs.existsSync(apiIndexFile) && fs.existsSync(serverMjsFile) && fs.existsSync(netlifyFile) && fs.existsSync(mobileApiFile)) {
+if (fs.existsSync(apiIndexFile) && fs.existsSync(serverMjsFile) && fs.existsSync(mobileApiFile)) {
   const apiIndex = fs.readFileSync(apiIndexFile, 'utf8');
   const serverMjs = fs.readFileSync(serverMjsFile, 'utf8');
-  const netlify = fs.readFileSync(netlifyFile, 'utf8');
   const mobileApi = fs.readFileSync(mobileApiFile, 'utf8');
 
   const adminTokens = [
     (apiIndex.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
-    (serverMjs.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
-    (netlify.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1]
+    (serverMjs.match(/DEFAULT_ADMIN_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1]
   ];
 
   if (adminTokens.every(t => t && t === adminTokens[0])) {
-    passed.push(`DEFAULT_ADMIN_TOKEN is consistent across Vercel API, Netlify, and Docker Server (${adminTokens[0].slice(0, 8)}...)`);
+    passed.push(`DEFAULT_ADMIN_TOKEN is consistent across Vercel API and Docker Server (${adminTokens[0].slice(0, 8)}...)`);
   } else {
-    issues.push('DEFAULT_ADMIN_TOKEN mismatch between Vercel API, Netlify, or Docker server.mjs');
+    issues.push('DEFAULT_ADMIN_TOKEN mismatch between Vercel API and Docker server.mjs');
   }
 
   const driverTokens = [
     (apiIndex.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
     (serverMjs.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
-    (netlify.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1],
     (mobileApi.match(/DEFAULT_DRIVER_TOKEN\s*=\s*['"]([^'"]+)['"]/) || [])[1]
   ];
 
   if (driverTokens.every(t => t && t === driverTokens[0])) {
-    passed.push(`DEFAULT_DRIVER_TOKEN is consistent across Vercel, Netlify, Docker, and Mobile App (${driverTokens[0].slice(0, 8)}...)`);
+    passed.push(`DEFAULT_DRIVER_TOKEN is consistent across Vercel, Docker, and Mobile App (${driverTokens[0].slice(0, 8)}...)`);
   } else {
     issues.push('DEFAULT_DRIVER_TOKEN mismatch across clients/proxies');
   }

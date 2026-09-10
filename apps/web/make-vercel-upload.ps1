@@ -20,8 +20,7 @@ $files = @(
   'vite.config.js',
   'tailwind.config.js',
   'postcss.config.js',
-  'vercel.json',
-  'netlify.toml'
+  'vercel.json'
 )
 
 foreach ($file in $files) {
@@ -31,7 +30,7 @@ foreach ($file in $files) {
   }
 }
 
-foreach ($directory in @('src', 'public', 'api', 'netlify')) {
+foreach ($directory in @('src', 'public', 'api')) {
   $source = Join-Path $projectRoot $directory
   if (Test-Path -LiteralPath $source) {
     Copy-Item -LiteralPath $source -Destination (Join-Path $staging $directory) -Recurse
