@@ -36,6 +36,11 @@ const isStagedByDriver = ref(false)
 const stagedDriverName = ref('')
 const stagedPhotoUrl = ref('')
 
+// Batch Departure State
+const batchItems = ref([])
+const batchId = ref('')
+const rejectEntireBatch = ref(false)
+
 // Rejection state
 const isRejected = ref(false)
 const rejectionReason = ref('')
@@ -80,11 +85,24 @@ async function fetchKpmDetails() {
       if (depStatus.stagedData) {
         stagedDriverName.value = depStatus.stagedData.driver || ''
         stagedPhotoUrl.value = depStatus.stagedData.urlFoto || ''
+        if (Array.isArray(depStatus.stagedData.batchItems) && depStatus.stagedData.batchItems.length > 1) {
+          batchItems.value = depStatus.stagedData.batchItems
+          batchId.value = depStatus.stagedData.batchId || ''
+        } else {
+          batchItems.value = []
+          batchId.value = ''
+        }
+      } else {
+        batchItems.value = []
+        batchId.value = ''
       }
       isRejected.value = Boolean(depStatus.isRejected)
       if (depStatus.isRejected) {
         rejectionReason.value = depStatus.alasan || ''
       }
+    } else {
+      batchItems.value = []
+      batchId.value = ''
     }
 
     // 2. Fetch KPM monitoring details (items, route, pic)
@@ -106,25 +124,35 @@ async function fetchKpmDetails() {
   }
 }
 
-async function handleVerifyGateOut() {
+async function handleVerifyGateOut(verifyBatch = false) {
   if (!canSubmit.value) return
   errorMessage.value = ''
   submitting.value = true
 
   try {
+    const isBatchAction = verifyBatch && batchItems.value.length > 1
+    const bodyPayload = {
+      namaChecker: finalCheckerName.value,
+      catatan: catatan.value.trim(),
+      isIT: props.isIT ? 'true' : ''
+    }
+
+    if (isBatchAction) {
+      bodyPayload.nomorKPMs = batchItems.value
+      bodyPayload.confirmBatch = 'true'
+    } else {
+      bodyPayload.nomorKPM = kpmId.value.trim()
+    }
+
     const res = await api('confirmDepartureSecurity', {
-      body: {
-        nomorKPM: kpmId.value.trim(),
-        namaChecker: finalCheckerName.value,
-        catatan: catatan.value.trim(),
-        isIT: props.isIT ? 'true' : ''
-      }
+      body: bodyPayload
     })
 
     isVerified.value = true
     verifiedAt.value = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
     emit('verified', {
       nomorKPM: kpmId.value.trim(),
+      batchItems: isBatchAction ? batchItems.value : null,
       checker: finalCheckerName.value,
       res
     })
@@ -138,6 +166,7 @@ async function handleVerifyGateOut() {
 function openRejectModal() {
   rejectReasonInput.value = ''
   errorMessage.value = ''
+  rejectEntireBatch.value = (batchItems.value.length > 1)
   showRejectModal.value = true
 }
 
@@ -153,12 +182,19 @@ async function handleConfirmReject() {
   rejecting.value = true
   errorMessage.value = ''
   try {
+    const isBatchReject = rejectEntireBatch.value && batchItems.value.length > 1
+    const bodyPayload = {
+      nomorKPM: kpmId.value.trim(),
+      namaChecker: finalCheckerName.value,
+      alasanPenolakan: rejectReasonInput.value.trim()
+    }
+    if (isBatchReject) {
+      bodyPayload.rejectBatch = 'true'
+      bodyPayload.nomorKPMs = batchItems.value
+    }
+
     await api('rejectDepartureSecurity', {
-      body: {
-        nomorKPM: kpmId.value.trim(),
-        namaChecker: finalCheckerName.value,
-        alasanPenolakan: rejectReasonInput.value.trim()
-      }
+      body: bodyPayload
     })
     isRejected.value = true
     rejectionReason.value = rejectReasonInput.value.trim()
@@ -166,6 +202,7 @@ async function handleConfirmReject() {
     showRejectModal.value = false
     emit('rejected', {
       nomorKPM: kpmId.value.trim(),
+      batchItems: isBatchReject ? batchItems.value : null,
       checker: finalCheckerName.value,
       alasan: rejectReasonInput.value.trim()
     })
@@ -267,12 +304,43 @@ onMounted(() => {
         </p>
       </div>
 
-      <div v-else-if="isStagedByDriver" class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs">
-        <div class="flex items-center gap-2 font-bold text-emerald-800">
-          <Icon name="check" className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span>Driver Siap Diperiksa ({{ stagedDriverName || kpmDetail?.driver || 'Driver' }})</span>
+      <div v-else-if="isStagedByDriver" class="space-y-2">
+        <div class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs">
+          <div class="flex items-center gap-2 font-bold text-emerald-800">
+            <Icon name="check" className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>Driver Siap Diperiksa ({{ stagedDriverName || kpmDetail?.driver || 'Driver' }})</span>
+          </div>
+          <span class="font-mono text-emerald-700 text-[10.5px] font-bold">Inisialisasi OK</span>
         </div>
-        <span class="font-mono text-emerald-700 text-[10.5px] font-bold">Inisialisasi OK</span>
+
+        <!-- Batch Truk Detected Banner -->
+        <div v-if="batchItems.length > 1" class="p-3.5 bg-google-blue-50 border border-google-blue-200 rounded-2xl text-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-bold text-google-blue-900">
+              <Icon name="truck" className="w-4 h-4 text-google-blue-600 flex-shrink-0" />
+              <span>Muatan Truk Batch Terdeteksi ({{ batchItems.length }} KPM)</span>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-google-blue-600 text-white">
+              1 Truk
+            </span>
+          </div>
+          <p class="text-[11px] text-google-blue-800 leading-relaxed">
+            Driver <strong>{{ stagedDriverName || kpmDetail?.driver }}</strong> membawa <strong>{{ batchItems.length }} KPM</strong> sekaligus dalam satu armada:
+          </p>
+          <div class="flex flex-wrap gap-1.5 pt-0.5">
+            <button
+              type="button"
+              v-for="bKpm in batchItems"
+              :key="bKpm"
+              class="px-2.5 py-1 rounded-lg font-mono text-xs font-bold border transition"
+              :class="bKpm === kpmId ? 'bg-google-blue-600 text-white border-google-blue-700 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:border-google-blue-400'"
+              @click="if (bKpm !== kpmId) { kpmId = bKpm; fetchKpmDetails(); }"
+              :title="bKpm === kpmId ? 'KPM yang sedang dilihat' : 'Klik untuk memeriksa KPM ' + bKpm"
+            >
+              {{ bKpm }} {{ bKpm === kpmId ? '★' : '' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- KPM Number Display & Quick Selector -->
@@ -388,8 +456,45 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Action Buttons: Reject & Verify -->
-      <div class="pt-2 flex flex-col sm:flex-row gap-2.5">
+      <!-- Action Buttons when Batch Detected -->
+      <div v-if="batchItems.length > 1" class="pt-2 space-y-2">
+        <button
+          type="button"
+          @click="handleVerifyGateOut(true)"
+          :disabled="!canSubmit"
+          class="w-full py-3.5 px-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-40"
+        >
+          <Icon v-if="submitting" name="refresh" className="w-4 h-4 animate-spin" />
+          <Icon v-else name="shield" className="w-4 h-4" />
+          <span>{{ submitting ? 'Memverifikasi Seluruh Batch...' : `✓ Izinkan Seluruh Batch (${batchItems.length} KPM Sekaligus)` }}</span>
+        </button>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            @click="openRejectModal"
+            :disabled="!kpmId || submitting || rejecting || !isStagedByDriver"
+            class="flex-1 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 flex items-center justify-center gap-1.5 transition active:scale-98 disabled:opacity-40"
+          >
+            <Icon name="close" className="w-3.5 h-3.5 text-rose-600" />
+            <span>Tolak Keberangkatan</span>
+          </button>
+
+          <button
+            type="button"
+            @click="handleVerifyGateOut(false)"
+            :disabled="!canSubmit"
+            class="flex-1 py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs rounded-xl border border-amber-300 flex items-center justify-center gap-1.5 transition active:scale-98 disabled:opacity-40"
+            title="Hanya izinkan nomor KPM ini saja"
+          >
+            <Icon name="check" className="w-3.5 h-3.5 text-amber-700" />
+            <span>Izinkan KPM Ini Saja</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Buttons: Standard Single KPM -->
+      <div v-else class="pt-2 flex flex-col sm:flex-row gap-2.5">
         <button
           type="button"
           @click="openRejectModal"
@@ -402,7 +507,7 @@ onMounted(() => {
 
         <button
           type="button"
-          @click="handleVerifyGateOut"
+          @click="handleVerifyGateOut(false)"
           :disabled="!canSubmit"
           class="sm:flex-2 py-3.5 px-5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-40"
         >
@@ -443,6 +548,11 @@ onMounted(() => {
           placeholder="Contoh: Jumlah barang kurang 5 pcs / driver tidak sesuai surat jalan"
           class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-rose-500 focus:outline-none transition resize-none"
         ></textarea>
+
+        <label v-if="batchItems.length > 1" class="flex items-center gap-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 cursor-pointer">
+          <input type="checkbox" v-model="rejectEntireBatch" class="w-4 h-4 rounded text-rose-600 border-rose-300 focus:ring-rose-500 cursor-pointer" />
+          <span>Tolak seluruh batch ({{ batchItems.length }} KPM dalam armada ini)</span>
+        </label>
 
         <div class="flex gap-2 pt-2">
           <button

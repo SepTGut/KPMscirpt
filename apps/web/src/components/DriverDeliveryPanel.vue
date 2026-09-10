@@ -45,6 +45,42 @@ const departureConfirmed = ref(false)
 const departureCheckerName = ref('')
 let departurePollTimer = null
 
+// Batch Departure State
+const selectedKpmNumbers = ref([])
+const stagedBatchKpmList = ref([])
+
+const readyToDepartDeliveries = computed(() => {
+  return props.deliveries.filter(d => d.nextAction === 'Jalan' || d.nextAction === 'Berangkat')
+})
+
+const isBatchMode = computed(() => {
+  return selectedKpmNumbers.value.length > 1
+})
+
+const selectedBatchDeliveries = computed(() => {
+  return props.deliveries.filter(d => selectedKpmNumbers.value.includes(d.nomor || d.kpmId))
+})
+
+function toggleKpmSelection(kpmNum) {
+  const num = String(kpmNum || '').trim()
+  if (!num) return
+  const idx = selectedKpmNumbers.value.indexOf(num)
+  if (idx === -1) {
+    selectedKpmNumbers.value.push(num)
+  } else {
+    selectedKpmNumbers.value.splice(idx, 1)
+  }
+}
+
+function selectAllReadyToDepart() {
+  const readyNums = readyToDepartDeliveries.value.map(d => d.nomor || d.kpmId).filter(Boolean)
+  selectedKpmNumbers.value = Array.from(new Set(readyNums))
+}
+
+function clearSelection() {
+  selectedKpmNumbers.value = []
+}
+
 const qrImageUrl = computed(() => {
   if (!qrTargetUrl.value) return ''
   return `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrTargetUrl.value)}`
@@ -58,6 +94,13 @@ function handleSelectDelivery(item) {
   emit('select-delivery', item)
   updateForm.value.statusKPM = item.nextAction || ''
   photoFile.value = null
+  if (selectedKpmNumbers.value.length <= 1) {
+    if (item.nextAction === 'Jalan' || item.nextAction === 'Berangkat') {
+      selectedKpmNumbers.value = [item.nomor || item.kpmId]
+    } else {
+      selectedKpmNumbers.value = []
+    }
+  }
 }
 
 function handleDriverNameInput(e) {
@@ -174,12 +217,16 @@ function startPollingDepartureConfirmation(nomorKPM) {
           departureCheckerName.value = res.checker || 'Checker Pos Gerbang'
           setTimeout(() => {
             closeDepartureModal()
+            selectedKpmNumbers.value = []
+            stagedBatchKpmList.value = []
             emit('refresh-deliveries')
           }, 2500)
         } else if (res.isRejected) {
           stopDeparturePolling()
           closeDepartureModal()
           alert(`⚠️ Keberangkatan Ditolak oleh Checker (${res.checker || 'Pos Gerbang'}).\n\nAlasan: ${res.alasan || 'Pemeriksaan fisik tidak sesuai'}.\n\nSilakan periksa kembali muatan Anda bersama tim gudang/produksi.`)
+          selectedKpmNumbers.value = []
+          stagedBatchKpmList.value = []
           emit('refresh-deliveries')
         }
       }
@@ -214,6 +261,7 @@ async function handleStageDepartureGate() {
       }
     })
 
+    stagedBatchKpmList.value = [kpmNomor]
     departureConfirmed.value = false
     departureCheckerName.value = ''
     showDepartureModal.value = true
@@ -227,7 +275,56 @@ async function handleStageDepartureGate() {
   }
 }
 
+async function handleStageDepartureGateBatch() {
+  if (!selectedKpmNumbers.value.length) return
+  departureStagingBusy.value = true
+  try {
+    const kpmList = [...selectedKpmNumbers.value]
+    const coords = await getCurrentCoordinates().catch(() => null)
+    let fotoData = ''
+    if (photoFile.value) {
+      try {
+        fotoData = await compressImage(photoFile.value)
+      } catch (err) {
+        console.warn('Gagal mengompres foto keberangkatan batch:', err)
+      }
+    }
+
+    const routes = selectedBatchDeliveries.value.map(d => d.lokasi || `${d.lokasiBerangkat || ''} ➔ ${d.lokasiTiba || ''}`).filter(Boolean)
+    const combinedRoute = Array.from(new Set(routes)).join(' | ')
+
+    await api('stageDeparture', {
+      body: {
+        nomorKPMs: kpmList,
+        fotoData: fotoData,
+        driver: props.driverName || '',
+        namaPIC: selectedBatchDeliveries.value[0]?.pic || '',
+        lokasiWorkshop: combinedRoute,
+        latitude: coords?.latitude || '',
+        longitude: coords?.longitude || '',
+      }
+    })
+
+    stagedBatchKpmList.value = kpmList
+    departureConfirmed.value = false
+    departureCheckerName.value = ''
+    showDepartureModal.value = true
+
+    // Start auto-poll using the first KPM in batch
+    startPollingDepartureConfirmation(kpmList[0])
+  } catch (err) {
+    alert('Gagal menginisialisasi keberangkatan batch: ' + (err.message || String(err)))
+  } finally {
+    departureStagingBusy.value = false
+  }
+}
+
 function handleSubmit() {
+  if (isBatchMode.value) {
+    handleStageDepartureGateBatch()
+    return
+  }
+
   if (!props.selectedDelivery) return
   const actionTarget = updateForm.value.statusKPM || props.selectedDelivery.nextAction
 
@@ -291,14 +388,49 @@ onUnmounted(() => {
       <!-- Deliveries List -->
       <div class="panel">
         <div class="flex items-center justify-between pb-3 border-b border-google-surface-200/90">
-          <h3 class="font-bold text-sm text-google-surface-800 flex items-center gap-1.5">
-            <Icon name="truck" className="w-4 h-4 text-google-blue-600" />
-            <span>Daftar KPM Tersedia</span>
-            <span class="text-xs text-google-surface-500 font-semibold">({{ deliveries.length }})</span>
-          </h3>
+          <div>
+            <h3 class="font-bold text-sm text-google-surface-800 flex items-center gap-1.5">
+              <Icon name="truck" className="w-4 h-4 text-google-blue-600" />
+              <span>Daftar KPM Tersedia</span>
+              <span class="text-xs text-google-surface-500 font-semibold">({{ deliveries.length }})</span>
+            </h3>
+            <p v-if="readyToDepartDeliveries.length > 1" class="text-[11px] text-google-surface-500 mt-0.5">
+              Centang beberapa KPM untuk inisialisasi sekaligus (1 armada truk).
+            </p>
+          </div>
           <button class="btn-secondary !py-1.5 !px-3 !text-xs !font-bold" :disabled="busy" @click="$emit('refresh-deliveries')">
             <Icon name="refresh" :className="busy ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'" />
           </button>
+        </div>
+
+        <!-- Batch Toolbar for Ready Deliveries -->
+        <div v-if="readyToDepartDeliveries.length > 1" class="mt-3 p-2.5 bg-google-blue-50/80 border border-google-blue-200/80 rounded-2xl flex items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-google-blue-900">Mode Batch:</span>
+            <span
+              class="px-2 py-0.5 rounded-full font-mono font-extrabold text-[11px]"
+              :class="selectedKpmNumbers.length > 0 ? 'bg-google-blue-600 text-white' : 'bg-slate-200 text-slate-700'"
+            >
+              {{ selectedKpmNumbers.length }} dipilih
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white hover:bg-google-blue-100 text-google-blue-700 border border-google-blue-300 shadow-xs transition"
+              @click="selectAllReadyToDepart"
+            >
+              ✓ Pilih Semua ({{ readyToDepartDeliveries.length }})
+            </button>
+            <button
+              v-if="selectedKpmNumbers.length > 0"
+              type="button"
+              class="text-[11px] font-bold px-2 py-1 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 shadow-xs transition"
+              @click="clearSelection"
+            >
+              ✕ Batal
+            </button>
+          </div>
         </div>
 
         <div v-if="!deliveries.length" class="py-14 text-center text-xs text-google-surface-500">
@@ -310,35 +442,143 @@ onUnmounted(() => {
         </div>
 
         <div class="mt-3 space-y-2.5">
-          <button
+          <div
             v-for="item in deliveries"
             :key="item.nomor"
-            class="w-full rounded-2xl border p-4 text-left transition-all hover:border-google-blue-400 hover:bg-google-blue-50/50 shadow-sm focus-visible:outline-none"
-            :class="selectedDelivery?.nomor === item.nomor ? 'border-google-blue-600 bg-google-blue-50/70 ring-2 ring-google-blue-600/20' : 'border-google-surface-300 bg-white'"
+            class="w-full rounded-2xl border p-4 text-left transition-all hover:border-google-blue-400 hover:bg-google-blue-50/50 shadow-sm cursor-pointer"
+            :class="(selectedDelivery?.nomor === item.nomor && !isBatchMode) || selectedKpmNumbers.includes(item.nomor) ? 'border-google-blue-600 bg-google-blue-50/70 ring-2 ring-google-blue-600/20' : 'border-google-surface-300 bg-white'"
             @click="handleSelectDelivery(item)"
           >
-            <div class="flex justify-between items-start gap-2">
-              <div>
-                <span class="text-xs font-mono font-bold text-google-blue-700 uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
-                  {{ item.nomor }}
-                </span>
-                <p class="text-xs font-bold text-google-surface-800 mt-1.5">{{ item.proyek || 'Line Feeding' }}</p>
-                <p class="text-[11px] text-google-surface-500 flex items-center gap-1 mt-0.5">
-                  <Icon name="location" className="w-3 h-3 text-google-surface-400" />
-                  <span>{{ item.lokasi || `${item.lokasiBerangkat || '-'} ➔ ${item.lokasiTiba || '-'}` }}</span>
-                </p>
+            <div class="flex items-start gap-3">
+              <!-- Checkbox for batch departure -->
+              <div v-if="item.nextAction === 'Jalan' || item.nextAction === 'Berangkat'" class="pt-0.5" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selectedKpmNumbers.includes(item.nomor)"
+                  @change="toggleKpmSelection(item.nomor)"
+                  class="w-4 h-4 rounded text-google-blue-600 border-google-surface-400 focus:ring-google-blue-500 cursor-pointer"
+                  :title="'Centang KPM ' + item.nomor + ' untuk inisialisasi keberangkatan batch'"
+                />
               </div>
-              <span class="chip !text-[10px] !font-bold bg-google-blue-100 text-google-blue-800 border border-google-blue-200 flex items-center gap-1">
-                <Icon name="chevron-right" className="w-3 h-3" />
-                <span>{{ item.nextAction }}</span>
-              </span>
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start gap-2">
+                  <div>
+                    <span class="text-xs font-mono font-bold text-google-blue-700 uppercase bg-google-blue-50 px-2 py-0.5 rounded-md border border-google-blue-200">
+                      {{ item.nomor }}
+                    </span>
+                    <p class="text-xs font-bold text-google-surface-800 mt-1.5 truncate">{{ item.proyek || 'Line Feeding' }}</p>
+                    <p class="text-[11px] text-google-surface-500 flex items-center gap-1 mt-0.5 truncate">
+                      <Icon name="location" className="w-3 h-3 text-google-surface-400 flex-shrink-0" />
+                      <span class="truncate">{{ item.lokasi || `${item.lokasiBerangkat || '-'} ➔ ${item.lokasiTiba || '-'}` }}</span>
+                    </p>
+                  </div>
+                  <span class="chip !text-[10px] !font-bold bg-google-blue-100 text-google-blue-800 border border-google-blue-200 flex items-center gap-1 flex-shrink-0">
+                    <Icon name="chevron-right" className="w-3 h-3" />
+                    <span>{{ item.nextAction }}</span>
+                  </span>
+                </div>
+              </div>
             </div>
-          </button>
+          </div>
         </div>
       </div>
 
-      <!-- Update Form -->
-      <form class="panel space-y-5" @submit.prevent="handleSubmit">
+      <!-- Update Form Area (Dedicated Batch Form when isBatchMode, else Single Item Form) -->
+      <form v-if="isBatchMode" class="panel space-y-5" @submit.prevent="handleStageDepartureGateBatch">
+        <div class="border-b border-google-surface-200/90 pb-3 flex items-start justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono font-black text-white bg-google-blue-600 px-2.5 py-0.5 rounded-lg shadow-xs">
+                BATCH DEPARTURE
+              </span>
+              <span class="text-xs font-bold text-google-blue-700 bg-google-blue-50 border border-google-blue-200 px-2 py-0.5 rounded-lg">
+                {{ selectedKpmNumbers.length }} KPM Terpilih
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-google-surface-900 mt-1.5">Inisialisasi Keberangkatan Bersama (1 Truk)</h3>
+            <p class="text-xs text-google-surface-500 mt-0.5">
+              Seluruh KPM di bawah akan diberangkatkan sekaligus. Checker di gerbang asal dapat mengizinkan seluruh muatan dengan 1 klik.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-xl transition"
+            @click="clearSelection"
+          >
+            Batalkan
+          </button>
+        </div>
+
+        <!-- Selected KPMs list preview -->
+        <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
+          <div
+            v-for="bItem in selectedBatchDeliveries"
+            :key="bItem.nomor"
+            class="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs flex items-center justify-between gap-3"
+          >
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <strong class="font-mono text-google-blue-700 text-xs">{{ bItem.nomor }}</strong>
+                <span class="text-slate-400">&bull;</span>
+                <span class="font-bold text-slate-800 truncate">{{ bItem.proyek || 'Line Feeding' }}</span>
+              </div>
+              <div class="text-[11px] text-slate-500 truncate mt-0.5">
+                📍 {{ bItem.lokasi || `${bItem.lokasiBerangkat || '-'} ➔ ${bItem.lokasiTiba || '-'}` }}
+              </div>
+            </div>
+            <button
+              type="button"
+              class="w-6 h-6 rounded-full bg-slate-200/70 hover:bg-rose-100 hover:text-rose-700 text-slate-500 flex items-center justify-center font-bold text-xs transition flex-shrink-0"
+              @click.stop="toggleKpmSelection(bItem.nomor)"
+              title="Keluarkan dari batch"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Driver Name Field -->
+        <label class="block">
+          <span class="label">Nama Pengemudi / Driver Truk</span>
+          <input :value="driverName" @input="handleDriverNameInput" class="field bg-white" placeholder="Contoh: PAK BUDI" />
+          <div v-if="isIT" class="mt-1.5 flex items-center gap-1.5">
+            <span class="text-[10.5px] text-purple-700 font-semibold">Testing Quick-Fill:</span>
+            <button type="button" class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300" @click="$emit('update-driver-name', 'IT')">🧪 IT</button>
+            <button type="button" class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300" @click="$emit('update-driver-name', 'ST')">🧪 ST</button>
+          </div>
+        </label>
+
+        <!-- Cargo Photo for entire batch -->
+        <label class="block">
+          <span class="label flex items-center justify-between">
+            <span>Foto Bukti Muatan Truk (Kamera Langsung)</span>
+            <span class="text-[11px] font-normal text-slate-400">(Opsional - Berlaku untuk semua KPM)</span>
+          </span>
+          <input
+            class="field bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            @change="onPhoto"
+          />
+        </label>
+
+        <div class="pt-2">
+          <button
+            class="btn-success w-full min-h-[48px] !py-3.5 !text-sm !font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+            :disabled="busy || departureStagingBusy"
+          >
+            <Icon v-if="departureStagingBusy || busy" name="refresh" className="w-4 h-4 animate-spin" />
+            <template v-else>
+              <Icon name="truck" className="w-4 h-4" />
+              <span>Minta Izin Checker untuk {{ selectedKpmNumbers.length }} KPM Sekaligus (Gate Out)</span>
+            </template>
+          </button>
+        </div>
+      </form>
+
+      <!-- Single Item Update Form -->
+      <form v-else class="panel space-y-5" @submit.prevent="handleSubmit">
         <div v-if="!selectedDelivery" class="py-16 text-center text-xs text-google-surface-400">
           <div class="w-12 h-12 mx-auto mb-2.5 rounded-2xl bg-google-surface-100 flex items-center justify-center text-google-surface-400">
             <Icon name="doc" className="w-6 h-6" />
@@ -543,7 +783,12 @@ onUnmounted(() => {
             <Icon name="check" className="w-8 h-8" />
           </div>
           <h3 class="text-lg font-black text-slate-900">Izin Jalan Diberikan!</h3>
-          <p class="text-xs text-slate-500 mt-1">Diverifikasi oleh <strong class="text-slate-900">{{ departureCheckerName }}</strong> di Pos Gerbang.</p>
+          <p class="text-xs text-slate-500 mt-1">
+            Diverifikasi oleh <strong class="text-slate-900">{{ departureCheckerName }}</strong> di Pos Gerbang.
+          </p>
+          <p v-if="stagedBatchKpmList.length > 1" class="text-[11px] text-google-blue-700 font-bold mt-1">
+            ✓ Berhasil untuk {{ stagedBatchKpmList.length }} KPM sekaligus
+          </p>
           <p class="text-[11px] text-emerald-600 font-bold mt-3">Status KPM resmi 'Jalan'. Memperbarui daftar...</p>
         </div>
 
@@ -551,8 +796,15 @@ onUnmounted(() => {
         <div v-else>
           <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
             <div class="text-left">
-              <span class="text-[10.5px] font-bold uppercase tracking-wider text-google-blue-600 block">Pemeriksaan Gerbang Keluar</span>
-              <h3 class="text-sm font-black text-slate-900 font-mono">{{ selectedDelivery?.nomor }}</h3>
+              <span class="text-[10.5px] font-bold uppercase tracking-wider text-google-blue-600 block">
+                {{ stagedBatchKpmList.length > 1 ? `Pemeriksaan Gerbang (Batch ${stagedBatchKpmList.length} KPM)` : 'Pemeriksaan Gerbang Keluar' }}
+              </span>
+              <div v-if="stagedBatchKpmList.length > 1" class="flex flex-wrap gap-1 mt-1">
+                <span v-for="kpm in stagedBatchKpmList" :key="kpm" class="font-mono text-xs font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  {{ kpm }}
+                </span>
+              </div>
+              <h3 v-else class="text-sm font-black text-slate-900 font-mono">{{ selectedDelivery?.nomor }}</h3>
             </div>
             <button
               type="button"
@@ -572,7 +824,12 @@ onUnmounted(() => {
             Menunggu Verifikasi Petugas Checker
           </p>
           <p class="text-[11px] text-slate-500 mb-4 leading-relaxed">
-            Tunjukkan lembar fisik KPM kepada petugas Checker di pos gerbang asal. Petugas akan men-scan <strong>QR Checker (Tengah)</strong> untuk memeriksa muatan dan mengizinkan jalan.
+            <template v-if="stagedBatchKpmList.length > 1">
+              Tunjukkan nomor KPM atau lembar fisik salah satu KPM kepada petugas Checker di pos gerbang asal. Petugas akan men-scan <strong>QR Checker</strong> dan dapat mengizinkan seluruh <strong>{{ stagedBatchKpmList.length }} KPM</strong> dalam satu klik.
+            </template>
+            <template v-else>
+              Tunjukkan lembar fisik KPM kepada petugas Checker di pos gerbang asal. Petugas akan men-scan <strong>QR Checker (Tengah)</strong> untuk memeriksa muatan dan mengizinkan jalan.
+            </template>
           </p>
 
           <!-- Live Waiting Pulsing Indicator -->
