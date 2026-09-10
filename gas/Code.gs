@@ -58,6 +58,7 @@ function onOpen() {
 
   ui.createMenu('⚡ Menu KPM')
     .addItem('🖨️ Cetak Dokumen KPM', 'printKpmM')
+    .addItem('📄 Cetak Lembar KPM Kosong (Blank Sheet)', 'printKpmBlank')
     .addItem('📇 Cetak Kartu QR Pengguna (ID Card)', 'openPrintUserQrDialog')
     .addSeparator()
     .addSubMenu(masterMenu)
@@ -290,7 +291,11 @@ function openPrintView(data) {
     .setWidth(1200)
     .setHeight(820);
 
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Cetak Dokumen KPM - ' + data.header.noRefKpp);
+  var dialogTitle = (data && data.isBlank)
+    ? 'Cetak Lembar KPM Kosong (Blank Sheet)'
+    : ('Cetak Dokumen KPM - ' + ((data && data.header && data.header.noRefKpp) ? data.header.noRefKpp : ''));
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, dialogTitle);
   return true;
 }
 

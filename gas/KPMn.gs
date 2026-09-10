@@ -891,3 +891,70 @@ function printKpmM() {
 function PrintKPM_M() {
   printKpmM();
 }
+
+/**
+ * Opens a print-ready dialog for an empty 1-page KPM blank sheet (Letter Landscape, 8 rows),
+ * formatted for manual wet-ink handwriting with clean full-width signature boxes (no QR codes).
+ */
+function printKpmBlank() {
+  if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
+    SpreadsheetApp.getUi().alert("Integritas sistem gagal: Modul About.gs tidak ditemukan atau telah diubah.");
+    return;
+  }
+
+  var today = Utilities.formatDate(new Date(), "Asia/Jakarta", "dd/MM/yyyy HH:mm");
+
+  var materialList = [];
+  var BLANK_ROW_COUNT = 8;
+  for (var i = 0; i < BLANK_ROW_COUNT; i++) {
+    materialList.push({
+      kode: "",
+      deskripsiSpesifikasi: "",
+      qty: "",
+      qtyDiserahkan: "",
+      satuan: "",
+      keterangan: "",
+      wsAwal: "",
+      wsTujuan: ""
+    });
+  }
+
+  var data = {
+    isBlank: true,
+    logo: getLogoSafe(),
+    tanggalCetak: today,
+    totalPage: 1,
+    pageSize: BLANK_ROW_COUNT,
+    header: {
+      noRefKpp: "",
+      noLampiranKpm: "",
+      tanggal: "",
+      serial: "",
+      proyek: ""
+    },
+    groups: [
+      {
+        reservasi: "",
+        tanggal: "",
+        serial: "",
+        proyek: "",
+        noLampiranKpm: "",
+        isSplit: false,
+        batches: [
+          {
+            totalBatch: 1,
+            batchNo: 1,
+            material: materialList
+          }
+        ]
+      }
+    ]
+  };
+
+  openPrintView(data);
+}
+
+// Function alias for menu/trigger compatibility
+function PrintKPM_Blank() {
+  printKpmBlank();
+}

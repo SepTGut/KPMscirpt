@@ -78,57 +78,7 @@ function generateTestData(itemCount) {
 }
 
 function testPrintKPMBlank() {
-  var material = [];
-  for (var i = 1; i <= TEST_ITEM_COUNT; i++) {
-    material.push({
-      kode: "",
-      deskripsiSpesifikasi: "",
-      qty: "",
-      satuan: "",
-      wsAwal: "",
-      wsTujuan: "",
-      keterangan: ""
-    });
-  }
-
-  var totalPage = Math.max(1, Math.ceil(material.length / PAGE_SIZE));
-
-  var data = {
-    logo: getLogoSafe(),
-    tanggalCetak: "",
-    totalPage: totalPage,
-    pageSize: PAGE_SIZE,
-    header: {
-      noRefKpp: "",
-      noLampiranKpm: "",
-      tanggal: "",
-      serial: "",
-      proyek: "",
-      pic: "",
-      lot: ""
-    },
-    groups: [
-      {
-        reservasi: "",
-        tanggal: "",
-        serial: "",
-        proyek: "",
-        pic: "",
-        wbs: "",
-        lot: "",
-        isSplit: false,
-        batches: [
-          {
-            totalBatch: 1,
-            batchNo: 1,
-            material: material
-          }
-        ]
-      }
-    ]
-  };
-
-  openPrintView(data);
+  printKpmBlank();
 }
 
 // ============================================

@@ -12,7 +12,7 @@
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <title>Preview KPM</title>
+  <title><?= (data && data.isBlank) ? 'Lembar KPM Kosong' : 'Preview KPM' ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -270,6 +270,10 @@
       word-break: break-word;
     }
 
+    .blank-sheet .material td {
+      height: 28px;
+    }
+
     .material thead {
       display: table-header-group;
     }
@@ -430,8 +434,8 @@ var groups = data.groups || [];
 var pageCounter = 0;
 // Keep the row capacity in one place; the calibration script uses the same
 // value when estimating how many pages a generated document will need.
-var pageSize = 15; // Set kapasitas maksimum 15 baris per halaman
-var minimumBlankRows = 5; // Keep up to five writable blank rows on each page
+var pageSize = (data && data.pageSize) ? data.pageSize : 15; // Set kapasitas baris per halaman
+var minimumBlankRows = (data && data.isBlank) ? 0 : 5; // Keep up to five writable blank rows on each page
 var rawKpp = (data && data.header && data.header.noRefKpp) || "";
 // A non-empty fallback keeps barcode generation valid for blank-layout tests.
 var barcodeData = rawKpp.trim() !== "" ? rawKpp : "DUMMY-KPP-000";
@@ -464,7 +468,7 @@ for(var g = 0; g < groups.length; g++){
       var blankRows = Math.min(minimumBlankRows, Math.max(0, pageSize - pageMaterial.length));
 ?>
 
-  <div class="page">
+  <div class="page <?= (data && data.isBlank) ? 'blank-sheet' : '' ?>">
     <!-- Repeated document header: logo, title, and print metadata -->
     <table class="header">
       <tr>
@@ -486,7 +490,7 @@ for(var g = 0; g < groups.length; g++){
       <tr>
         <td class="label">No Ref. KPP</td>
         <td>
-          <?= data.header.noRefKpp ?>
+          <?= (data && data.header && data.header.noRefKpp) || "" ?>
         </td>
         <td class="label">No. Reservasi</td>
         <td>
@@ -546,28 +550,28 @@ for(var g = 0; g < groups.length; g++){
             <?= mulai + i + 1 ?>
           </td>
           <td>
-            <?= m.kode ?>
+            <?= m.kode || "&nbsp;" ?>
           </td>
           <td>
-            <?= m.deskripsiSpesifikasi ?>
+            <?= m.deskripsiSpesifikasi || "&nbsp;" ?>
           </td>
           <td class="center">
-            <?= m.qty ?>
+            <?= m.qty || "&nbsp;" ?>
           </td>
           <td class="center">
-            <?= m.qtyDiserahkan || "" ?>
+            <?= m.qtyDiserahkan || "&nbsp;" ?>
           </td>
           <td class="center">
-            <?= m.satuan ?>
+            <?= m.satuan || "&nbsp;" ?>
           </td>
           <td>
-            <?= m.keterangan || "" ?>
+            <?= m.keterangan || "&nbsp;" ?>
           </td>
           <td>
-            <?= m.wsAwal ?>
+            <?= m.wsAwal || "&nbsp;" ?>
           </td>
           <td>
-            <?= m.wsTujuan ?>
+            <?= m.wsTujuan || "&nbsp;" ?>
           </td>
         </tr>
         <? } ?>
@@ -598,9 +602,11 @@ for(var g = 0; g < groups.length; g++){
               <div class="sign-space"></div>
               <div class="sign-line">_________________________</div>
             </div>
+            <? if (!data.isBlank) { ?>
             <div class="sign-qr-wrap">
               <div class="qrcode-target" data-val="<?= barcodeData ?>"></div>
             </div>
+            <? } ?>
           </div>
         </td>
 
@@ -612,9 +618,11 @@ for(var g = 0; g < groups.length; g++){
               <div class="sign-space"></div>
               <div class="sign-line">_________________________</div>
             </div>
+            <? if (!data.isBlank) { ?>
             <div class="sign-qr-wrap">
               <div class="qrcode-target" data-val="<?= data.securityUrl || ('https://lnfd.vercel.app/kpm/gate?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
             </div>
+            <? } ?>
           </div>
         </td>
 
@@ -626,9 +634,11 @@ for(var g = 0; g < groups.length; g++){
               <div class="sign-space"></div>
               <div class="sign-line">_________________________</div>
             </div>
+            <? if (!data.isBlank) { ?>
             <div class="sign-qr-wrap">
               <div class="qrcode-target" data-val="<?= data.shortRecipientUrl || ('https://lnfd.vercel.app/kpm/confirm?kpm=' + encodeURIComponent(barcodeData)) ?>"></div>
             </div>
+            <? } ?>
           </div>
         </td>
       </tr>
