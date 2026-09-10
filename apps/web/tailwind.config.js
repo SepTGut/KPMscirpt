@@ -1,9 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{vue,js}'],
   theme: {
     extend: {
       colors: {
+        'dark-bg': '#090d16',
+        'dark-card': '#111827',
+        'dark-border': '#1f2937',
+        'dark-hover': '#1e293b',
+        'dark-muted': '#94a3b8',
         'google-blue': {
           50: '#e8f0fe',
           100: '#d2e3fc',
@@ -15,6 +21,7 @@ export default {
           700: '#1967d2',
           800: '#185abc',
           900: '#174ea6',
+          950: '#0c2d64',
         },
         'google-red': {
           50: '#fce8e6',

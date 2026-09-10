@@ -1,7 +1,8 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { requestApi } from './useApi'
 import { useAuth } from './useAuth'
 import { useGps } from './useGps'
+import { useToast } from './useToast'
 
 // Shared singleton reactive KPM state
 const master = ref({ workshops: [], pics: [], uoms: [] })
@@ -14,6 +15,23 @@ const busy = ref(false)
 const message = ref('')
 const error = ref('')
 
+// Smart Auto-Polling State
+const isPollingActive = ref(true)
+const pollingSecondsLeft = ref(25)
+let pollingTimer = null
+
+// Form Autosave Draft Key
+const DRAFT_KEY = 'kpm_create_draft_v1'
+
+// Formula Injection Defense
+export function sanitizeSpreadsheetInput(str) {
+  if (typeof str !== 'string') return str
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return "'" + str
+  }
+  return str
+}
+
 // Editing modal state
 const editingKpm = ref(null)
 const editItemsList = ref([])
@@ -21,6 +39,7 @@ const editItemsList = ref([])
 export function useKpm() {
   const { currentUser, mode, driverName } = useAuth()
   const { getCurrentCoordinates, startLiveTracking, removeActiveTrip, compressImage } = useGps()
+  const toast = useToast()
 
   const isITUser = computed(() => {
     const r = (currentUser.value?.role || '').toLowerCase()
@@ -51,6 +70,97 @@ export function useKpm() {
       return list.filter(item => item.status === 'Selesai')
     }
     return list.filter(item => item.status === filter.value)
+  })
+
+  // Real-time KPI Metric Summaries
+  const kpiStats = computed(() => {
+    const list = isITUser.value ? monitoring.value : (monitoring.value || []).filter(item => !isTestItem(item))
+    let totalActive = 0
+    let inTransit = 0
+    let pendingGate = 0
+    let completed = 0
+
+    for (const item of list) {
+      const s = String(item.status || '').trim()
+      if (s === 'Jalan') {
+        inTransit++
+      } else if (s === 'Baru Dibuat' || s === 'Belum Berangkat' || s === 'Menunggu Verifikasi Gerbang') {
+        pendingGate++
+      } else if (s === 'Tiba' || s === 'Selesai') {
+        completed++
+      }
+
+      if (s !== 'Selesai' && s !== 'ARCHIVED') {
+        totalActive++
+      }
+    }
+
+    return {
+      totalActive,
+      inTransit,
+      pendingGate,
+      completed
+    }
+  })
+
+  // Form Autosave Draft Guard
+  function saveDraft(formData) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(formData))
+      }
+    } catch {}
+  }
+
+  function loadDraft() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const data = localStorage.getItem(DRAFT_KEY)
+        return data ? JSON.parse(data) : null
+      }
+    } catch {}
+    return null
+  }
+
+  function clearDraft() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(DRAFT_KEY)
+      }
+    } catch {}
+  }
+
+  // Smart Auto-Polling Controller
+  function startPollingTimer() {
+    if (pollingTimer) clearInterval(pollingTimer)
+    pollingTimer = setInterval(() => {
+      if (!isPollingActive.value || busy.value) return
+      if (pollingSecondsLeft.value > 1) {
+        pollingSecondsLeft.value--
+      } else {
+        pollingSecondsLeft.value = 25
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          if (mode.value === 'admin') {
+            loadMonitoring(true)
+          } else {
+            loadDeliveries(true)
+          }
+        }
+      }
+    }, 1000)
+  }
+
+  function togglePolling() {
+    isPollingActive.value = !isPollingActive.value
+    if (isPollingActive.value) {
+      pollingSecondsLeft.value = 25
+    }
+  }
+
+  onMounted(() => {
+    if (!pollingTimer) {
+      startPollingTimer()
+    }
   })
 
   function clearNotice() {
@@ -150,18 +260,32 @@ export function useKpm() {
     clearNotice()
     busy.value = true
     try {
+      // Formula Injection Defense
+      const sanitizedItems = (formData.items || []).map(it => ({
+        kodeBarang: sanitizeSpreadsheetInput(String(it.kodeBarang || '')),
+        namaBarang: sanitizeSpreadsheetInput(String(it.namaBarang || '')),
+        qty: String(it.qty || ''),
+        uom: sanitizeSpreadsheetInput(String(it.uom || ''))
+      }))
+
       const data = await api('createKpm', {
         body: {
-          namaPIC: formData.namaPIC,
-          namaProyek: formData.namaProyek,
-          lokasiBerangkat: formData.lokasiBerangkat,
-          lokasiTiba: formData.lokasiTiba,
-          daftarBarang: JSON.stringify(formData.items),
+          namaPIC: sanitizeSpreadsheetInput(String(formData.namaPIC || '')),
+          namaProyek: sanitizeSpreadsheetInput(String(formData.namaProyek || '')),
+          lokasiBerangkat: sanitizeSpreadsheetInput(String(formData.lokasiBerangkat || '')),
+          lokasiTiba: sanitizeSpreadsheetInput(String(formData.lokasiTiba || '')),
+          daftarBarang: JSON.stringify(sanitizedItems),
         },
       })
-      message.value = `KPM ${data?.nomor || data?.kpmId || ''} berhasil dibuat.`
+      const noKpm = data?.nomor || data?.kpmId || ''
+      message.value = `KPM ${noKpm} berhasil dibuat.`
+      toast.success(`KPM ${noKpm} berhasil dibuat dan diterbitkan.`)
+      clearDraft()
+      return data
     } catch (e) {
       error.value = e.message
+      toast.error(e.message, 'Gagal Membuat KPM')
+      throw e
     } finally {
       busy.value = false
     }
@@ -173,10 +297,12 @@ export function useKpm() {
     busy.value = true
     try {
       await api('archiveKpm', { body: { nomorKPM: item.nomor, statusKPM: 'Selesai' } })
-      message.value = 'KPM berhasil diarsipkan.'
+      message.value = `KPM ${item.nomor} berhasil diarsipkan.`
+      toast.success(`KPM ${item.nomor} berhasil diarsipkan.`)
       await loadMonitoring(true, true)
     } catch (e) {
       error.value = e.message
+      toast.error(e.message, 'Gagal Mengarsipkan KPM')
     } finally {
       busy.value = false
     }
@@ -199,11 +325,13 @@ export function useKpm() {
         body: { nomorKPM: item.nomor, statusKPM: newStatus }
       })
       message.value = `Status KPM ${item.nomor} berhasil diubah menjadi '${newStatus}'.`
+      toast.success(`Status KPM ${item.nomor} diubah ke '${newStatus}'.`)
       await loadMonitoring(true)
     } catch (e) {
       item.status = prevStatus
       selectEl.value = prevStatus
       error.value = e.message
+      toast.error(e.message, 'Gagal Mengubah Status')
     } finally {
       busy.value = false
     }
@@ -404,6 +532,15 @@ export function useKpm() {
     handleDriverStatusUpdate,
     handleStageArrival,
     handleConfirmArrival,
-    cleanOrphanedAndTestRows
+    cleanOrphanedAndTestRows,
+    kpiStats,
+    saveDraft,
+    loadDraft,
+    clearDraft,
+    isPollingActive,
+    pollingSecondsLeft,
+    togglePolling,
+    startPollingTimer,
+    sanitizeSpreadsheetInput
   }
 }

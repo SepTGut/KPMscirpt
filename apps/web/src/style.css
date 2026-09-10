@@ -4,8 +4,12 @@
 
 @layer base {
   body {
-    @apply m-0 min-h-screen bg-google-surface-50 text-slate-800 antialiased selection:bg-google-blue-100 selection:text-google-blue-900;
+    @apply m-0 min-h-screen bg-google-surface-50 text-slate-800 antialiased selection:bg-google-blue-100 selection:text-google-blue-900 transition-colors duration-200;
     font-family: "Plus Jakarta Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  html.dark body {
+    @apply bg-dark-bg text-slate-100 selection:bg-google-blue-900 selection:text-google-blue-200;
   }
 
   /* Custom subtle scrollbar */
@@ -23,11 +27,17 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
 }
 
 @layer components {
   .field {
-    @apply mt-1.5 w-full rounded-xl border border-google-surface-300 bg-white px-3.5 py-2.5 text-sm text-google-surface-900 outline-none transition-all duration-150 focus:border-google-blue-600 focus:ring-4 focus:ring-google-blue-100 hover:border-google-surface-400 placeholder:text-google-surface-400 font-medium disabled:bg-google-surface-100 disabled:cursor-not-allowed;
+    @apply mt-1.5 w-full rounded-xl border border-google-surface-300 bg-white px-3.5 py-2.5 text-sm text-google-surface-900 outline-none transition-all duration-150 focus:border-google-blue-600 focus:ring-4 focus:ring-google-blue-100 hover:border-google-surface-400 placeholder:text-google-surface-400 font-medium disabled:bg-google-surface-100 disabled:cursor-not-allowed dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-google-blue-500 dark:focus:ring-google-blue-950/60 dark:hover:border-slate-600 dark:disabled:bg-slate-800/60;
   }
 
   .input-field {
@@ -39,11 +49,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-gradient-to-r from-google-blue-600 to-indigo-600 hover:from-google-blue-700 hover:to-indigo-700 text-white shadow-m3-1 hover:shadow-m3-2;
+    @apply btn bg-gradient-to-r from-google-blue-600 to-indigo-600 hover:from-google-blue-700 hover:to-indigo-700 text-white shadow-m3-1 hover:shadow-m3-2 dark:shadow-google-glow;
   }
 
   .btn-secondary {
-    @apply btn bg-white text-google-surface-700 hover:bg-google-surface-100 hover:text-google-surface-900 border border-google-surface-300/80 shadow-sm;
+    @apply btn bg-white text-google-surface-700 hover:bg-google-surface-100 hover:text-google-surface-900 border border-google-surface-300/80 shadow-sm dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700/80 dark:hover:text-white;
   }
 
   .btn-success {
@@ -51,15 +61,15 @@
   }
 
   .btn-danger {
-    @apply btn border border-google-red-200 bg-google-red-50 text-google-red-700 hover:bg-google-red-100;
+    @apply btn border border-google-red-200 bg-google-red-50 text-google-red-700 hover:bg-google-red-100 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-900/50;
   }
 
   .panel {
-    @apply rounded-3xl border border-google-surface-200/90 bg-white p-6 shadow-sm transition-shadow duration-200 hover:shadow-m3-1;
+    @apply rounded-3xl border border-google-surface-200/90 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-m3-1 dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-none dark:hover:border-slate-700/80;
   }
 
   .label {
-    @apply text-xs font-bold uppercase tracking-wider text-google-surface-600;
+    @apply text-xs font-bold uppercase tracking-wider text-google-surface-600 dark:text-slate-400;
   }
 
   .chip {

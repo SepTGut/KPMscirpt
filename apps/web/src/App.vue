@@ -12,11 +12,30 @@ import UserManagementPanel from './components/UserManagementPanel.vue'
 import TutorialPanel from './components/TutorialPanel.vue'
 import RecipientConfirmPanel from './components/RecipientConfirmPanel.vue'
 import CheckerVerifyPanel from './components/CheckerVerifyPanel.vue'
+import AppSidebar from './components/AppSidebar.vue'
+import MobileBottomNav from './components/MobileBottomNav.vue'
+import ToastContainer from './components/ToastContainer.vue'
 import { useAuth } from './composables/useAuth'
 import { useKpm } from './composables/useKpm'
+import { useTheme } from './composables/useTheme'
+import { useToast } from './composables/useToast'
 import { requestApi } from './composables/useApi'
 
 const showDriverTutorial = ref(false)
+const { isDark, toggleDark } = useTheme()
+const toast = useToast()
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    isOnline.value = true
+    toast.success('Koneksi internet kembali aktif.', 'Online')
+  })
+  window.addEventListener('offline', () => {
+    isOnline.value = false
+    toast.warning('Koneksi internet terputus. Menampilkan data tersimpan di browser.', 'Mode Offline')
+  })
+}
 
 // Composables
 const {
@@ -65,8 +84,16 @@ const {
   removeEditItem,
   saveLatestKpmItems,
   handleDriverStatusUpdate,
-  cleanOrphanedAndTestRows
+  cleanOrphanedAndTestRows,
+  kpiStats,
+  isPollingActive,
+  pollingSecondsLeft,
+  togglePolling
 } = useKpm()
+
+// Realtime active counts for sidebar and mobile nav badges
+const activeKpmCount = computed(() => (monitoring.value || []).filter(item => item.status !== 'Selesai').length)
+const activeDeliveryCount = computed(() => (deliveries.value || []).filter(item => item.status !== 'Selesai').length)
 
 // Admin Navigation Tab
 const adminView = ref('create')
@@ -417,19 +444,19 @@ onMounted(() => {
 
 <template>
   <!-- Checker Gate Verification View (when QR 2 is scanned without login) -->
-  <div v-if="isCheckerGate && !currentUser" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <div v-if="isCheckerGate && !currentUser" class="min-h-screen bg-google-surface-50 dark:bg-dark-bg text-slate-800 dark:text-slate-100 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
     <CheckerVerifyPanel :kpm-nomor="resolvedKpmNomor" :is-i-t="isIT" @back-to-home="goToHome" />
   </div>
 
   <!-- Recipient Confirmation View (when QR code is scanned without login) -->
-  <div v-else-if="isRecipientConfirm && !currentUser" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <div v-else-if="isRecipientConfirm && !currentUser" class="min-h-screen bg-google-surface-50 dark:bg-dark-bg text-slate-800 dark:text-slate-100 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
     <RecipientConfirmPanel :kpm-nomor="resolvedKpmNomor" :is-i-t="isIT" @back-to-home="goToHome" />
   </div>
 
   <!-- 404 View when unauthenticated on unknown route -->
-  <div v-else-if="isNotFound && !currentUser" class="min-h-screen bg-google-surface-50 flex flex-col justify-center items-center px-4 py-8">
+  <div v-else-if="isNotFound && !currentUser" class="min-h-screen bg-google-surface-50 dark:bg-dark-bg text-slate-800 dark:text-slate-100 flex flex-col justify-center items-center px-4 py-8">
     <div class="google-bar fixed top-0 left-0 right-0 z-30"></div>
     <NotFoundView
       :path="currentPath"
@@ -447,55 +474,87 @@ onMounted(() => {
     @login-google="onLoginGoogle"
   />
 
-  <!-- Authenticated App View -->
-  <div v-else class="min-h-screen bg-google-surface-50 font-sans">
-    <!-- Google 4-Color Accent Top Bar -->
-    <div class="google-bar"></div>
+  <!-- Authenticated App View: Responsive Dual-Layout (Sidebar on Desktop, Bottom Nav on Mobile) -->
+  <div v-else class="min-h-screen bg-google-surface-50 dark:bg-dark-bg text-slate-800 dark:text-slate-100 flex flex-col lg:flex-row font-sans">
+    <!-- Desktop Collapsible Sidebar (Visible on lg: screens) -->
+    <AppSidebar
+      :current-user="currentUser"
+      :mode="mode"
+      :admin-view="adminView"
+      :is-i-t="isIT"
+      :is-super-admin="isSuperAdmin"
+      :is-admin="isAdmin"
+      :is-driver="isDriver"
+      :can-switch-role="canSwitchRole"
+      :role-badge-class="roleBadgeClass"
+      :active-kpm-count="activeKpmCount"
+      :active-delivery-count="activeDeliveryCount"
+      @navigate="goToSite"
+      @toggle-mode="toggleMode"
+      @logout="onLogout"
+    />
 
-    <!-- Header (Google Workspace AppBar) -->
-    <header class="border-b border-google-surface-300/70 bg-white/90 backdrop-blur-md sticky top-0 z-20 shadow-sm">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-bold text-white shadow-md shadow-google-blue-500/20 ring-1 ring-white/30">
-            LF
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xl font-bold text-google-surface-800 leading-tight">KPM Line Feeding</span>
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+    <!-- Main Content Workspace -->
+    <div class="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
+      <!-- Google 4-Color Accent Top Bar -->
+      <div class="google-bar shrink-0"></div>
+
+      <!-- Top AppBar Header -->
+      <header class="border-b border-google-surface-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 shadow-2xs">
+        <div class="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <!-- Mobile Brand Logo / Desktop Section Title -->
+          <div class="flex items-center gap-3">
+            <!-- Mobile Brand Logo -->
+            <div class="lg:hidden flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+                LF
+              </div>
+              <span class="text-base font-bold text-slate-900 dark:text-white leading-tight">KPM Line Feeding</span>
+            </div>
+
+            <!-- Desktop Section Context -->
+            <div class="hidden lg:flex items-center gap-2.5">
+              <span class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">KPM Workspace</span>
+              <span class="text-slate-300 dark:text-slate-700">/</span>
+              <span class="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+                {{ mode === 'admin' ? 'Administrator Hub' : 'Portal Driver' }}
+              </span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 shadow-2xs ml-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 v1P • PROD
               </span>
             </div>
-            <p class="text-xs text-google-surface-500 font-medium">Operations &amp; Monitoring Platform &bull; Production Ready</p>
           </div>
-        </div>
 
-        <div class="flex items-center gap-2.5">
-          <!-- Active User Badge -->
-          <div class="flex items-center gap-2 rounded-full bg-google-surface-100 py-1 pl-3 pr-1.5 border border-google-surface-300/70 text-xs shadow-inner">
-            <span class="font-bold text-google-surface-800 flex items-center gap-1.5">
-              <Icon :name="(isSuperAdmin || isIT) ? 'crown' : (isAdmin ? 'shield' : 'truck')" className="w-3.5 h-3.5 text-google-surface-700" />
-              <span class="text-google-blue-700 font-semibold">{{ currentUser.name || currentUser.username }}</span>
-              <span
-                class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs"
-                :class="roleBadgeClass"
-              >
-                {{ isIT ? 'Super Admin' : (currentUser.roleLabel || currentUser.role) }}
-              </span>
-            </span>
+          <!-- Right Action Controls -->
+          <div class="flex items-center gap-2">
+            <!-- Network Offline Indicator -->
+            <div v-if="!isOnline" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-bold animate-pulse">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>Mode Offline</span>
+            </div>
 
-            <!-- Role Switcher Button for Super Admin -->
+            <!-- Dark / Light Mode Toggle Button -->
+            <button
+              type="button"
+              class="w-8 h-8 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition shadow-2xs focus-visible:outline-none"
+              @click="toggleDark"
+              :title="isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'"
+            >
+              <span class="text-sm leading-none">{{ isDark ? '☀️' : '🌙' }}</span>
+            </button>
+
+            <!-- Role Switcher for Super Admin (Mobile & Desktop) -->
             <button
               v-if="canSwitchRole"
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-bold transition shadow-sm border flex items-center gap-1.5 focus-visible:outline-none"
-              :class="mode === 'admin' ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200' : 'bg-blue-100 text-blue-900 border-blue-300 hover:bg-blue-200'"
+              class="rounded-full px-2.5 py-1 text-xs font-bold transition shadow-2xs border flex items-center gap-1.5 focus-visible:outline-none"
+              :class="mode === 'admin' ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'"
               @click="toggleMode"
               :title="mode === 'admin' ? 'Beralih ke Tampilan Driver' : 'Beralih ke Tampilan Admin'"
             >
               <Icon name="switch" className="w-3 h-3" />
-              <span>{{ mode === 'admin' ? 'Mode Driver' : 'Mode Admin' }}</span>
+              <span class="hidden sm:inline">{{ mode === 'admin' ? 'Mode Driver' : 'Mode Admin' }}</span>
             </button>
 
             <!-- IT Omni Switcher: 1-Click Access to Every Site / Panel -->
@@ -517,18 +576,18 @@ onMounted(() => {
               <!-- Dropdown Menu -->
               <div
                 v-if="showOmniMenu"
-                class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-fadeIn text-xs"
+                class="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 py-1.5 z-50 animate-fadeIn text-xs"
               >
-                <div class="px-3 py-1.5 border-b border-slate-100 text-[10px] font-extrabold uppercase text-amber-800 bg-amber-50/70 flex items-center justify-between">
+                <div class="px-3 py-1.5 border-b border-slate-100 dark:border-slate-700 text-[10px] font-extrabold uppercase text-amber-800 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40 flex items-center justify-between">
                   <span>Omni-Access Navigation</span>
-                  <span class="text-emerald-600 font-mono font-bold">ALL SITES</span>
+                  <span class="text-emerald-600 dark:text-emerald-400 font-mono font-bold">ALL SITES</span>
                 </div>
 
                 <div class="py-1">
                   <button
                     @click="goToSite('create'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'create' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'create' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="plus" className="w-3.5 h-3.5 text-google-blue-600" />
                     <span>Buat KPM Baru (Admin)</span>
@@ -536,8 +595,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('monitor'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'monitor' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'monitor' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="doc" className="w-3.5 h-3.5 text-google-blue-600" />
                     <span>Pantau KPM Monitoring</span>
@@ -545,8 +604,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('map'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'map' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'map' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="map" className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Live Radar Pelacakan Armada</span>
@@ -554,8 +613,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('checker'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-amber-50/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'checker' ? 'text-amber-700 bg-amber-50 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'checker' ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="shield" className="w-3.5 h-3.5 text-amber-600" />
                     <span>Pos Checker (Gate Out)</span>
@@ -563,8 +622,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('recipient'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-emerald-50/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'recipient' ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'recipient' ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="box" className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Penerima (Tanda Terima)</span>
@@ -572,8 +631,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('driver'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-blue-50/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'user' ? 'text-blue-700 bg-blue-50 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'user' ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="truck" className="w-3.5 h-3.5 text-blue-600" />
                     <span>Portal Lapangan Driver</span>
@@ -581,8 +640,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('users'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'users' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'users' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="users" className="w-3.5 h-3.5 text-slate-600" />
                     <span>Kelola Pengguna (Users)</span>
@@ -590,8 +649,8 @@ onMounted(() => {
 
                   <button
                     @click="goToSite('tutorial'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'tutorial' ? 'text-google-blue-700 bg-blue-50/60 font-bold' : 'text-slate-700'"
+                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
+                    :class="mode === 'admin' && adminView === 'tutorial' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
                   >
                     <Icon name="tutorial" className="w-3.5 h-3.5 text-slate-600" />
                     <span>Buku Panduan & Tutorial</span>
@@ -600,267 +659,251 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Tutorial Quick Button -->
-            <button
-              type="button"
-              class="rounded-full bg-white hover:bg-google-surface-100 text-slate-700 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm flex items-center gap-1.5 focus-visible:outline-none"
-              @click="mode === 'admin' ? (adminView = 'tutorial') : (showDriverTutorial = !showDriverTutorial)"
-              title="Buka Buku Panduan & Tutorial"
-            >
-              <Icon name="tutorial" className="w-3.5 h-3.5 text-slate-600" />
-              <span class="hidden sm:inline">Tutorial</span>
-            </button>
+            <!-- Active User Chip (Desktop) -->
+            <div class="hidden sm:flex items-center gap-2 rounded-full bg-google-surface-100 dark:bg-slate-800 py-1 pl-3 pr-2 border border-google-surface-300/70 dark:border-slate-700 text-xs shadow-inner">
+              <span class="font-bold text-google-surface-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Icon :name="(isSuperAdmin || isIT) ? 'crown' : (isAdmin ? 'shield' : 'truck')" className="w-3.5 h-3.5 text-google-surface-700 dark:text-slate-400" />
+                <span class="text-google-blue-700 dark:text-google-blue-400 font-semibold">{{ currentUser.name || currentUser.username }}</span>
+                <span
+                  class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs"
+                  :class="roleBadgeClass"
+                >
+                  {{ isIT ? 'Super Admin' : (currentUser.roleLabel || currentUser.role) }}
+                </span>
+              </span>
+            </div>
 
-            <!-- Logout Button -->
+            <!-- Logout Button (Mobile Header) -->
             <button
               type="button"
-              class="rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-2.5 py-1 text-xs font-bold border border-slate-200 transition shadow-sm flex items-center gap-1 focus-visible:outline-none"
+              class="lg:hidden rounded-full bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-2xs flex items-center gap-1 focus-visible:outline-none"
               @click="onLogout"
               title="Keluar / Ganti Akun"
             >
-              <span>Keluar</span>
-              <Icon name="logout" className="w-3 h-3" />
+              <Icon name="logout" className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      <!-- Breadcrumb Navigation -->
-      <BreadcrumbNav :items="breadcrumbs" @navigate="handleBreadcrumbNav" />
+      <!-- Main Responsive Content Container (Expanded to max-w-[1600px] widescreen) -->
+      <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Breadcrumb Navigation -->
+        <BreadcrumbNav :items="breadcrumbs" @navigate="handleBreadcrumbNav" />
 
-      <!-- 404 View if invalid route -->
-      <NotFoundView
-        v-if="isNotFound"
-        :path="currentPath"
-        @navigate-home="goToHome"
-        @navigate-driver="goToDriver"
-      />
+        <!-- 404 View if invalid route -->
+        <NotFoundView
+          v-if="isNotFound"
+          :path="currentPath"
+          @navigate-home="goToHome"
+          @navigate-driver="goToDriver"
+        />
 
-      <template v-else>
-        <!-- Notices -->
-        <div v-if="error" class="mb-5 rounded-2xl border border-google-red-200 bg-google-red-50 px-4 py-3.5 text-sm font-semibold text-google-red-700 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div class="flex items-center gap-2.5">
-            <Icon name="alert" className="w-4 h-4 text-google-red-600 flex-shrink-0" />
-            <span>{{ error }}</span>
+        <template v-else>
+          <!-- Notices -->
+          <div v-if="error" class="mb-5 rounded-2xl border border-google-red-200 dark:border-red-900/50 bg-google-red-50 dark:bg-red-950/40 px-4 py-3.5 text-sm font-semibold text-google-red-700 dark:text-red-300 shadow-sm flex items-center justify-between animate-fadeIn">
+            <div class="flex items-center gap-2.5">
+              <Icon name="alert" className="w-4 h-4 text-google-red-600 dark:text-red-400 flex-shrink-0" />
+              <span>{{ error }}</span>
+            </div>
+            <button @click="error = ''" class="text-google-red-700 dark:text-red-300 hover:opacity-70 font-bold p-1">
+              <Icon name="close" className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button @click="error = ''" class="text-google-red-700 hover:opacity-70 font-bold p-1">
-            <Icon name="close" className="w-3.5 h-3.5" />
-          </button>
-        </div>
 
-        <div v-if="message" class="mb-5 rounded-2xl border border-google-green-200 bg-google-green-50 px-4 py-3.5 text-sm font-semibold text-google-green-700 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div class="flex items-center gap-2.5">
-            <Icon name="check" className="w-4 h-4 text-google-green-600 flex-shrink-0" />
-            <span>{{ message }}</span>
+          <div v-if="message" class="mb-5 rounded-2xl border border-google-green-200 dark:border-emerald-900/50 bg-google-green-50 dark:bg-emerald-950/40 px-4 py-3.5 text-sm font-semibold text-google-green-700 dark:text-emerald-300 shadow-sm flex items-center justify-between animate-fadeIn">
+            <div class="flex items-center gap-2.5">
+              <Icon name="check" className="w-4 h-4 text-google-green-600 dark:text-emerald-400 flex-shrink-0" />
+              <span>{{ message }}</span>
+            </div>
+            <button @click="message = ''" class="text-google-green-700 dark:text-emerald-300 hover:opacity-70 font-bold p-1">
+              <Icon name="close" className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button @click="message = ''" class="text-google-green-700 hover:opacity-70 font-bold p-1">
-            <Icon name="close" className="w-3.5 h-3.5" />
-          </button>
-        </div>
 
-        <!-- ADMIN / SUPER ADMIN / IT SECTION -->
-        <section v-if="mode === 'admin'">
-          <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 v-if="adminView === 'create'" class="text-xl font-bold text-google-surface-800">Buat Surat Penugasan KPM Baru</h1>
-              <h1 v-else-if="adminView === 'monitor'" class="text-xl font-bold text-google-surface-800">Pantau Status & Posisi KPM</h1>
-              <h1 v-else-if="adminView === 'map'" class="text-xl font-bold text-google-surface-800">Live Radar Pelacakan Armada</h1>
-              <h1 v-else-if="adminView === 'checker'" class="text-xl font-bold text-google-surface-800">Verifikasi Checker Gerbang Asal (Gate Out)</h1>
-              <h1 v-else-if="adminView === 'recipient'" class="text-xl font-bold text-google-surface-800">Konfirmasi Penerimaan KPM (Serah Terima)</h1>
-              <h1 v-else-if="adminView === 'users'" class="text-xl font-bold text-google-surface-800">Kelola Pengguna Sistem</h1>
-              <h1 v-else-if="adminView === 'tutorial'" class="text-xl font-bold text-google-surface-800">Buku Panduan & Tutorial Aplikasi</h1>
-              <p class="text-xs text-google-surface-500 mt-0.5">
-                {{ adminView === 'checker' ? 'Pemeriksaan fisik muatan sebelum armada keluar (Gate Out).' :
-                   adminView === 'recipient' ? 'Konfirmasi serah terima barang oleh penerima di lokasi tujuan.' :
-                   'Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional.' }}
-              </p>
+          <!-- ADMIN / SUPER ADMIN / IT SECTION -->
+          <section v-if="mode === 'admin'">
+            <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 v-if="adminView === 'create'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buat Surat Penugasan KPM Baru</h1>
+                <h1 v-else-if="adminView === 'monitor'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Pantau Status & Posisi KPM</h1>
+                <h1 v-else-if="adminView === 'map'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Live Radar Pelacakan Armada</h1>
+                <h1 v-else-if="adminView === 'checker'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Verifikasi Checker Gerbang Asal (Gate Out)</h1>
+                <h1 v-else-if="adminView === 'recipient'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Konfirmasi Penerimaan KPM (Serah Terima)</h1>
+                <h1 v-else-if="adminView === 'users'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Kelola Pengguna Sistem</h1>
+                <h1 v-else-if="adminView === 'tutorial'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buku Panduan & Tutorial Aplikasi</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {{ adminView === 'checker' ? 'Pemeriksaan fisik muatan sebelum armada keluar (Gate Out).' :
+                     adminView === 'recipient' ? 'Konfirmasi serah terima barang oleh penerima di lokasi tujuan.' :
+                     'Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional logistik secara real-time.' }}
+                </p>
+              </div>
+
+              <!-- Quick Segmented Navigation on Desktop Top -->
+              <div class="hidden xl:flex bg-google-surface-100 dark:bg-slate-800 p-1 rounded-full border border-google-surface-300/70 dark:border-slate-700 shadow-2xs gap-1">
+                <button
+                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
+                  :class="adminView === 'create' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
+                  @click="adminView = 'create'"
+                >
+                  <Icon name="plus" className="w-3.5 h-3.5" />
+                  <span>Buat KPM Baru</span>
+                </button>
+                <button
+                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
+                  :class="adminView === 'monitor' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
+                  @click="adminView = 'monitor'; loadMonitoring()"
+                >
+                  <Icon name="doc" className="w-3.5 h-3.5" />
+                  <span>Pantau ({{ monitoring.length }})</span>
+                </button>
+                <button
+                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
+                  :class="adminView === 'map' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
+                  @click="adminView = 'map'; loadMonitoring()"
+                >
+                  <Icon name="map" className="w-3.5 h-3.5" />
+                  <span>Radar GPS</span>
+                </button>
+              </div>
             </div>
 
-            <!-- M3 Segmented Navigation Tabs -->
-            <div class="flex bg-google-surface-100 p-1 rounded-full border border-google-surface-300/70 shadow-sm flex-wrap gap-1">
-              <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'create' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
-                @click="adminView = 'create'"
-              >
-                <Icon name="plus" className="w-3.5 h-3.5" />
-                <span>Buat KPM Baru</span>
-              </button>
-              <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'monitor' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
-                @click="adminView = 'monitor'; loadMonitoring()"
-              >
-                <Icon name="doc" className="w-3.5 h-3.5" />
-                <span>Pantau KPM ({{ monitoring.length }})</span>
-              </button>
-              <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'map' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
-                @click="adminView = 'map'; loadMonitoring()"
-              >
-                <Icon name="map" className="w-3.5 h-3.5" />
-                <span>Live Radar</span>
-              </button>
-
-              <!-- Pos Checker (Gate Out) - Accessible by IT -->
-              <button
-                v-if="isIT"
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'checker' ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm' : 'text-amber-800 hover:text-amber-950 hover:bg-amber-100/60'"
-                @click="adminView = 'checker'"
-              >
-                <Icon name="shield" className="w-3.5 h-3.5" />
-                <span>Pos Checker</span>
-              </button>
-
-              <!-- Penerima (Tanda Terima) - Accessible by IT -->
-              <button
-                v-if="isIT"
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'recipient' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm' : 'text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/60'"
-                @click="adminView = 'recipient'"
-              >
-                <Icon name="box" className="w-3.5 h-3.5" />
-                <span>Penerima</span>
-              </button>
-
-              <button
-                v-if="canManageUsers"
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'users' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
-                @click="adminView = 'users'"
-              >
-                <Icon name="users" className="w-3.5 h-3.5" />
-                <span>Kelola Pengguna</span>
-              </button>
-              <button
-                class="rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                :class="adminView === 'tutorial' ? 'bg-gradient-to-r from-google-blue-600 to-indigo-600 text-white shadow-sm' : 'text-google-surface-600 hover:text-google-surface-900'"
-                @click="adminView = 'tutorial'"
-              >
-                <Icon name="tutorial" className="w-3.5 h-3.5" />
-                <span>Tutorial</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- CREATE KPM PANEL -->
-          <AdminCreatePanel
-            v-if="adminView === 'create'"
-            :master="master"
-            :busy="busy"
-            :is-i-t="isIT"
-            @create="handleCreateKpm"
-          />
-
-          <!-- MONITORING PANEL -->
-          <AdminMonitoringPanel
-            v-else-if="adminView === 'monitor'"
-            :monitoring="filteredMonitoring"
-            :master="master"
-            :busy="busy"
-            :filter="filter"
-            :can-override-status="canOverrideStatus"
-            :is-i-t="isIT"
-            @update:filter="filter = $event"
-            @refresh="loadMonitoring(true)"
-            @change-status="handleAdminChangeStatus"
-            @archive="handleArchiveKpm"
-            @edit-material="startEditLatestKpm"
-            @clean-test="cleanOrphanedAndTestRows"
-          />
-
-          <!-- LIVE RADAR FLEET MAP VIEW -->
-          <div v-else-if="adminView === 'map'">
-            <LiveTrackingMap
-              :monitoringData="monitoring"
-              :firebaseDbUrl="master.firebaseDbUrl"
-            />
-          </div>
-
-          <!-- POS CHECKER GATE OUT PANEL -->
-          <div v-else-if="adminView === 'checker'" class="max-w-2xl mx-auto py-2">
-            <CheckerVerifyPanel
-              :kpm-nomor="resolvedKpmNomor"
+            <!-- CREATE KPM PANEL -->
+            <AdminCreatePanel
+              v-if="adminView === 'create'"
+              :master="master"
+              :busy="busy"
               :is-i-t="isIT"
-              @back-to-home="adminView = 'monitor'"
+              @create="handleCreateKpm"
             />
-          </div>
 
-          <!-- RECIPIENT CONFIRMATION PANEL -->
-          <div v-else-if="adminView === 'recipient'" class="max-w-xl mx-auto py-2">
-            <RecipientConfirmPanel
-              :kpm-nomor="resolvedKpmNomor"
+            <!-- MONITORING PANEL (With KPI stats and smart auto-polling) -->
+            <AdminMonitoringPanel
+              v-else-if="adminView === 'monitor'"
+              :monitoring="filteredMonitoring"
+              :master="master"
+              :busy="busy"
+              :filter="filter"
+              :can-override-status="canOverrideStatus"
               :is-i-t="isIT"
-              @back-to-home="adminView = 'monitor'"
+              :kpi-stats="kpiStats"
+              :is-polling-active="isPollingActive"
+              :polling-seconds-left="pollingSecondsLeft"
+              @update:filter="filter = $event"
+              @refresh="loadMonitoring(true)"
+              @change-status="handleAdminChangeStatus"
+              @archive="handleArchiveKpm"
+              @edit-material="startEditLatestKpm"
+              @clean-test="cleanOrphanedAndTestRows"
+              @toggle-polling="togglePolling"
+            />
+
+            <!-- LIVE RADAR FLEET MAP VIEW -->
+            <div v-else-if="adminView === 'map'">
+              <LiveTrackingMap
+                :monitoringData="monitoring"
+                :firebaseDbUrl="master.firebaseDbUrl"
+              />
+            </div>
+
+            <!-- POS CHECKER GATE OUT PANEL -->
+            <div v-else-if="adminView === 'checker'" class="max-w-2xl mx-auto py-2">
+              <CheckerVerifyPanel
+                :kpm-nomor="resolvedKpmNomor"
+                :is-i-t="isIT"
+                @back-to-home="adminView = 'monitor'"
+              />
+            </div>
+
+            <!-- RECIPIENT CONFIRMATION PANEL -->
+            <div v-else-if="adminView === 'recipient'" class="max-w-xl mx-auto py-2">
+              <RecipientConfirmPanel
+                :kpm-nomor="resolvedKpmNomor"
+                :is-i-t="isIT"
+                @back-to-home="adminView = 'monitor'"
+              />
+            </div>
+
+            <!-- USER MANAGEMENT PANEL (IT & Super Admin) -->
+            <UserManagementPanel
+              v-else-if="adminView === 'users' && canManageUsers"
+              :is-i-t="isIT"
+            />
+
+            <!-- TUTORIAL PANEL -->
+            <TutorialPanel
+              v-else-if="adminView === 'tutorial'"
+            />
+
+            <!-- MODAL: KELOLA MATERIAL KPM TERBARU -->
+            <MaterialEditorModal
+              :editingKpm="editingKpm"
+              :editItemsList="editItemsList"
+              :master="master"
+              :busy="busy"
+              @close="editingKpm = null"
+              @add-item="addEditItem"
+              @remove-item="removeEditItem"
+              @save="saveLatestKpmItems"
+            />
+          </section>
+
+          <!-- PERSONEL / DRIVER SECTION -->
+          <div v-else>
+            <!-- Driver Tutorial View Toggle -->
+            <div v-if="showDriverTutorial" class="space-y-4">
+              <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <button
+                  type="button"
+                  class="btn-primary !py-2 !px-4 !text-xs font-bold flex items-center gap-1.5"
+                  @click="showDriverTutorial = false"
+                >
+                  <span>←</span>
+                  <span>Kembali ke Penugasan Driver</span>
+                </button>
+                <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Mode Panduan Operasional Driver</span>
+              </div>
+              <TutorialPanel />
+            </div>
+
+            <DriverDeliveryPanel
+              v-else
+              :deliveries="deliveries"
+              :selectedDelivery="selectedDelivery"
+              :driverName="driverName"
+              :busy="busy"
+              :is-i-t="isIT"
+              @select-delivery="selectedDelivery = $event"
+              @refresh-deliveries="loadDeliveries(true)"
+              @update-driver-name="driverName = $event"
+              @submit-status-update="handleDriverStatusUpdate"
             />
           </div>
+        </template>
+      </main>
 
-          <!-- USER MANAGEMENT PANEL (IT & Super Admin) -->
-          <UserManagementPanel
-            v-else-if="adminView === 'users' && canManageUsers"
-            :is-i-t="isIT"
-          />
+      <!-- App Global Footer -->
+      <footer class="mt-auto py-6 border-t border-google-surface-200/90 dark:border-slate-800 text-center text-xs text-google-surface-500 dark:text-slate-500 font-medium space-y-1">
+        <p>&copy; 2026 KPM Line Feeding &bull; Unified Operations Platform &bull; <span class="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">v1P (Production Ready)</span></p>
+        <p class="text-[11px] text-google-surface-400 dark:text-slate-600">Dikembangkan oleh Setyo Guntur Samudro &bull; SMK Negeri 1 Madiun (T.I.T.L)</p>
+      </footer>
+    </div>
 
-          <!-- TUTORIAL PANEL -->
-          <TutorialPanel
-            v-else-if="adminView === 'tutorial'"
-          />
-
-          <!-- MODAL: KELOLA MATERIAL KPM TERBARU -->
-          <MaterialEditorModal
-            :editingKpm="editingKpm"
-            :editItemsList="editItemsList"
-            :master="master"
-            :busy="busy"
-            @close="editingKpm = null"
-            @add-item="addEditItem"
-            @remove-item="removeEditItem"
-            @save="saveLatestKpmItems"
-          />
-        </section>
-
-        <!-- PERSONEL / DRIVER SECTION -->
-        <div v-else>
-          <!-- Driver Tutorial View Toggle -->
-          <div v-if="showDriverTutorial" class="space-y-4">
-            <div class="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-              <button
-                type="button"
-                class="btn-primary !py-2 !px-4 !text-xs font-bold flex items-center gap-1.5"
-                @click="showDriverTutorial = false"
-              >
-                <span>←</span>
-                <span>Kembali ke Penugasan Driver</span>
-              </button>
-              <span class="text-xs text-slate-500 font-semibold">Mode Panduan Operasional Driver</span>
-            </div>
-            <TutorialPanel />
-          </div>
-
-          <DriverDeliveryPanel
-            v-else
-            :deliveries="deliveries"
-            :selectedDelivery="selectedDelivery"
-            :driverName="driverName"
-            :busy="busy"
-            :is-i-t="isIT"
-            @select-delivery="selectedDelivery = $event"
-            @refresh-deliveries="loadDeliveries(true)"
-            @update-driver-name="driverName = $event"
-            @submit-status-update="handleDriverStatusUpdate"
-          />
-        </div>
-      </template>
-    </main>
-
-    <!-- App Global Footer -->
-    <footer class="mt-12 py-6 border-t border-google-surface-200/90 text-center text-xs text-google-surface-500 font-medium space-y-1">
-      <p>&copy; 2026 KPM Line Feeding &bull; Unified Operations Platform &bull; <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">v1P (Production Ready)</span></p>
-      <p class="text-[11px] text-google-surface-400">Dikembangkan oleh Setyo Guntur Samudro &bull; SMK Negeri 1 Madiun (T.I.T.L)</p>
-    </footer>
+    <!-- Mobile Touch Bottom Navigation (Visible on mobile/tablet < 1024px) -->
+    <MobileBottomNav
+      v-if="currentUser"
+      :mode="mode"
+      :admin-view="adminView"
+      :is-i-t="isIT"
+      :can-switch-role="canSwitchRole"
+      :active-kpm-count="activeKpmCount"
+      :active-delivery-count="activeDeliveryCount"
+      @navigate="goToSite"
+      @toggle-mode="toggleMode"
+      @logout="onLogout"
+    />
   </div>
+
+  <!-- Floating Toast Notifications System -->
+  <ToastContainer />
 </template>
