@@ -1,20 +1,20 @@
 <template>
-  <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col h-[700px] relative">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[700px] relative">
     <!-- Top Map Control Bar -->
-    <div class="px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 z-10">
+    <div class="px-5 py-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 z-10">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-google-blue-600 to-teal-500 flex items-center justify-center text-white text-lg shadow-sm">
           <Icon name="map" class-name="w-5 h-5 stroke-[2.2]" />
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-extrabold text-slate-900 leading-tight">Live Fleet Radar</h2>
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5 shadow-sm">
+            <h2 class="text-base font-extrabold text-slate-900 dark:text-white leading-tight">Live Fleet Radar</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-sm">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
               <span>{{ activeVehicles.length }} Armada Live</span>
             </span>
           </div>
-          <span class="text-xs text-slate-500">Pelacakan Real-Time dengan Interpolasi Halus (Smooth Motion)</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Pelacakan Real-Time dengan Interpolasi Halus (Smooth Motion)</span>
         </div>
       </div>
 
@@ -22,16 +22,16 @@
       <div class="flex items-center gap-2">
         <button
           @click="fitAllMarkers"
-          class="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 shadow-sm"
+          class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-sm"
           title="Fokuskan Semua Titik"
         >
-          <Icon name="target" class-name="w-3.5 h-3.5 text-slate-600" />
+          <Icon name="target" class-name="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
           <span>Semua Titik</span>
         </button>
         <button
           @click="refreshTrackingData"
           :disabled="isRefreshing"
-          class="px-3.5 py-1.5 rounded-full bg-google-blue-50 hover:bg-google-blue-100 text-google-blue-700 text-xs font-bold transition flex items-center gap-1.5 border border-google-blue-200 shadow-sm disabled:opacity-50"
+          class="px-3.5 py-1.5 rounded-full bg-google-blue-50 dark:bg-blue-950/60 hover:bg-google-blue-100 dark:hover:bg-blue-900/50 text-google-blue-700 dark:text-blue-300 text-xs font-bold transition flex items-center gap-1.5 border border-google-blue-200 dark:border-blue-800/60 shadow-sm disabled:opacity-50"
         >
           <Icon name="refresh" class-name="w-3.5 h-3.5" :class="{ 'animate-spin': isRefreshing }" />
           <span>{{ isRefreshing ? 'Menyinkronkan...' : 'Sinkronkan' }}</span>
@@ -42,31 +42,31 @@
     <!-- Map Container & Floating Vehicle Panel -->
     <div class="flex-1 relative w-full h-full">
       <!-- Leaflet Canvas -->
-      <div ref="mapContainer" class="w-full h-full z-0 bg-slate-100"></div>
+      <div ref="mapContainer" class="w-full h-full z-0 bg-slate-100 dark:bg-slate-950"></div>
 
       <!-- Floating Sidebar Vehicle List -->
       <div
         v-if="activeVehicles.length > 0"
-        class="absolute bottom-4 left-4 right-4 sm:right-auto sm:w-80 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3 shadow-xl z-[400] max-h-48 overflow-y-auto space-y-2"
+        class="absolute bottom-4 left-4 right-4 sm:right-auto sm:w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3 shadow-xl z-[400] max-h-48 overflow-y-auto space-y-2"
       >
-        <div class="text-xs font-extrabold text-slate-700 flex items-center justify-between pb-1 border-b border-slate-200">
+        <div class="text-xs font-extrabold text-slate-700 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
           <span class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Armada Aktif di Jalan
           </span>
-          <span class="font-mono text-google-blue-600 font-bold">{{ activeVehicles.length }} Truk</span>
+          <span class="font-mono text-google-blue-600 dark:text-blue-400 font-bold">{{ activeVehicles.length }} Truk</span>
         </div>
         <div
           v-for="v in activeVehicles"
           :key="v.kpmId"
           @click="focusVehicle(v)"
-          class="p-2.5 bg-slate-50 hover:bg-google-blue-50/70 border border-slate-200 rounded-xl cursor-pointer transition flex items-center justify-between gap-2 text-xs hover:border-google-blue-300"
+          class="p-2.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-google-blue-50/70 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer transition flex items-center justify-between gap-2 text-xs hover:border-google-blue-300 dark:hover:border-blue-600"
         >
           <div class="min-w-0 flex-1">
-            <div class="font-bold text-slate-900 truncate">{{ v.nomor || v.kpmId }}</div>
-            <div class="text-[11px] text-slate-500 truncate">{{ v.driverName || v.driver || 'Driver' }} ({{ v.origin || v.lokasiBerangkat }} ➔ {{ v.destination || v.lokasiTiba }})</div>
+            <div class="font-bold text-slate-900 dark:text-white truncate">{{ v.nomor || v.kpmId }}</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ v.driverName || v.driver || 'Driver' }} ({{ v.origin || v.lokasiBerangkat }} ➔ {{ v.destination || v.lokasiTiba }})</div>
           </div>
-          <span class="shrink-0 font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 text-[10px]">
+          <span class="shrink-0 font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 text-[10px]">
             {{ v.speedKmh || 0 }} km/h
           </span>
         </div>
@@ -75,9 +75,9 @@
       <!-- Empty Overlay if No Active Trips -->
       <div
         v-else-if="!isRefreshing"
-        class="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl px-4 py-2.5 shadow-lg z-[400] text-xs text-slate-600 flex items-center gap-2"
+        class="absolute bottom-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 shadow-lg z-[400] text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2"
       >
-        <Icon name="info" class-name="w-4 h-4 text-google-blue-600 shrink-0" />
+        <Icon name="info" class-name="w-4 h-4 text-google-blue-600 dark:text-blue-400 shrink-0" />
         <span>Saat ini belum ada armada yang berstatus <b>"Jalan"</b>. Peta menampilkan titik workshop tetap.</span>
       </div>
     </div>

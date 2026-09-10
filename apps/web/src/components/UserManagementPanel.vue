@@ -185,13 +185,13 @@ onMounted(() => {
 <template>
   <section class="space-y-6 animate-fadeIn">
     <!-- Header Summary Bar -->
-    <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-google-surface-300/70 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-google-surface-300/70 dark:border-slate-800 shadow-sm transition-colors">
       <div>
-        <h1 class="text-xl font-bold text-google-surface-900 tracking-tight flex items-center gap-2">
+        <h1 class="text-xl font-bold text-google-surface-900 dark:text-white tracking-tight flex items-center gap-2">
           <span>👥</span>
-          <span>Kelola Pengguna & Peran</span>
+          <span>Kelola Pengguna &amp; Peran</span>
         </h1>
-        <p class="text-xs text-google-surface-500 mt-0.5 font-medium">
+        <p class="text-xs text-google-surface-500 dark:text-slate-400 mt-0.5 font-medium">
           Daftar akun, pembagian hak akses (Super Admin, Admin, Driver), dan ID Card QR login.
         </p>
       </div>
@@ -228,7 +228,7 @@ onMounted(() => {
     </div>
 
     <!-- Search & Role Filter Chips -->
-    <div class="bg-white p-4 rounded-2xl border border-google-surface-300/70 shadow-sm space-y-3">
+    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-google-surface-300/70 dark:border-slate-800 shadow-sm space-y-3 transition-colors">
       <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div class="relative w-full sm:w-80">
           <input
@@ -237,7 +237,7 @@ onMounted(() => {
             placeholder="Cari nama, username, atau email..."
             class="field pl-9 !py-2 !text-xs mt-0"
           />
-          <span class="absolute left-3 top-2.5 text-xs text-slate-400">
+          <span class="absolute left-3 top-2.5 text-xs text-slate-400 dark:text-slate-500">
             <Icon name="search" className="w-3.5 h-3.5" />
           </span>
         </div>
@@ -248,7 +248,7 @@ onMounted(() => {
             :key="roleOpt"
             type="button"
             class="chip border text-xs"
-            :class="roleFilter === roleOpt ? 'bg-google-blue-600 text-white border-google-blue-600 shadow-sm' : 'bg-google-surface-100 text-google-surface-700 border-google-surface-300/60 hover:bg-google-surface-200'"
+            :class="roleFilter === roleOpt ? 'bg-google-blue-600 text-white border-google-blue-600 shadow-sm' : 'bg-google-surface-100 dark:bg-slate-800 text-google-surface-700 dark:text-slate-300 border-google-surface-300/60 dark:border-slate-700 hover:bg-google-surface-200 dark:hover:bg-slate-700'"
             @click="roleFilter = roleOpt"
           >
             {{ roleOpt }}
@@ -269,19 +269,19 @@ onMounted(() => {
       <article
         v-for="u in filteredUsers"
         :key="u.username"
-        class="panel relative flex flex-col justify-between hover:shadow-m3-2 transition-all group border border-google-surface-200"
+        class="panel relative flex flex-col justify-between hover:shadow-m3-2 transition-all group border border-google-surface-200 dark:border-slate-800"
       >
         <div>
-          <div class="flex items-start justify-between gap-2 pb-3 border-b border-google-surface-100">
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-google-surface-100 dark:border-slate-800">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-google-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
                 {{ (u.fullName || u.username).substring(0, 2).toUpperCase() }}
               </div>
               <div>
-                <h2 class="text-sm font-bold text-google-surface-900 group-hover:text-google-blue-600 transition-colors">
+                <h2 class="text-sm font-bold text-google-surface-900 dark:text-white group-hover:text-google-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {{ u.fullName }}
                 </h2>
-                <p class="text-xs text-google-surface-500 font-mono">@{{ u.username }}</p>
+                <p class="text-xs text-google-surface-500 dark:text-slate-400 font-mono">@{{ u.username }}</p>
               </div>
             </div>
 
@@ -294,25 +294,25 @@ onMounted(() => {
             </span>
           </div>
 
-          <div class="py-3 space-y-1.5 text-xs text-google-surface-600">
+          <div class="py-3 space-y-1.5 text-xs text-google-surface-600 dark:text-slate-300">
             <p v-if="u.email" class="flex items-center gap-1.5 truncate">
-              <span class="text-slate-400 font-mono">@</span>
+              <span class="text-slate-400 dark:text-slate-500 font-mono">@</span>
               <span>{{ u.email }}</span>
             </p>
-            <p v-if="u.keterangan" class="flex items-center gap-1.5 text-google-surface-500 text-[11px] italic">
-              <Icon name="doc" className="w-3 h-3 text-slate-400" />
+            <p v-if="u.keterangan" class="flex items-center gap-1.5 text-google-surface-500 dark:text-slate-400 text-[11px] italic">
+              <Icon name="doc" className="w-3 h-3 text-slate-400 dark:text-slate-500" />
               <span>{{ u.keterangan }}</span>
             </p>
           </div>
         </div>
 
         <!-- Footer Actions -->
-        <div class="pt-3 border-t border-google-surface-100 flex items-center justify-between gap-2">
+        <div class="pt-3 border-t border-google-surface-100 dark:border-slate-800 flex items-center justify-between gap-2">
           <!-- Status Toggle Button -->
           <button
             type="button"
             class="text-[11px] font-bold px-2.5 py-1 rounded-full border transition"
-            :class="u.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'"
+            :class="u.status === 'Aktif' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'"
             :disabled="busy || u.username === 'ST'"
             @click="handleToggleStatus(u)"
             :title="u.username === 'ST' ? 'Akun ST dilindungi' : 'Ubah Status Aktif/Nonaktif'"
@@ -324,7 +324,7 @@ onMounted(() => {
           <div class="flex items-center gap-1.5">
             <button
               type="button"
-              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center gap-1"
+              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 transition"
               title="Lihat QR Code Login"
               @click="openQrModal(u)"
             >
@@ -333,7 +333,7 @@ onMounted(() => {
             </button>
             <button
               type="button"
-              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 text-google-blue-600 font-bold flex items-center gap-1"
+              class="p-1.5 text-xs rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-google-blue-600 dark:text-blue-400 font-bold flex items-center gap-1 transition"
               title="Edit Akun"
               :disabled="u.username === 'ST'"
               @click="openEditModal(u)"
@@ -347,20 +347,20 @@ onMounted(() => {
     </div>
 
     <!-- Modal: Add / Edit User -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
-      <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-google-surface-200 space-y-4">
-        <div class="flex items-center justify-between border-b border-google-surface-100 pb-3">
-          <h2 class="text-base font-bold text-google-surface-900">
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
+        <div class="flex items-center justify-between border-b border-google-surface-100 dark:border-slate-800 pb-3">
+          <h2 class="text-base font-bold text-google-surface-900 dark:text-white">
             {{ isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru' }}
           </h2>
-          <button type="button" class="text-slate-400 hover:text-slate-600 font-bold text-lg" @click="showModal = false">
+          <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg" @click="showModal = false">
             ✕
           </button>
         </div>
 
         <form @submit.prevent="handleSaveUser" class="space-y-3 text-xs">
           <div>
-            <label class="block font-bold text-google-surface-700 mb-1">Username (ID Login):</label>
+            <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Username (ID Login):</label>
             <input
               v-model="form.username"
               type="text"
@@ -442,22 +442,22 @@ onMounted(() => {
     </div>
 
     <!-- Modal: QR Code ID Card Preview -->
-    <div v-if="showQrModal && selectedUserForQr" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
-      <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-google-surface-200 text-center space-y-4">
-        <div class="flex items-center justify-between pb-2 border-b border-google-surface-100">
-          <span class="text-xs font-bold text-google-surface-500 uppercase tracking-wider">ID Card Digital</span>
-          <button type="button" class="text-slate-400 hover:text-slate-600 font-bold text-base" @click="showQrModal = false">
+    <div v-if="showQrModal && selectedUserForQr" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 text-center space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
+        <div class="flex items-center justify-between pb-2 border-b border-google-surface-100 dark:border-slate-800">
+          <span class="text-xs font-bold text-google-surface-500 dark:text-slate-400 uppercase tracking-wider">ID Card Digital</span>
+          <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base" @click="showQrModal = false">
             ✕
           </button>
         </div>
 
-        <div class="p-4 bg-google-surface-50 rounded-2xl border border-google-surface-200 space-y-3">
+        <div class="p-4 bg-google-surface-50 dark:bg-slate-800/60 rounded-2xl border border-google-surface-200 dark:border-slate-700/80 space-y-3">
           <div class="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-google-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
             {{ selectedUserForQr.fullName.substring(0, 2).toUpperCase() }}
           </div>
           <div>
-            <h3 class="text-base font-extrabold text-google-surface-900">{{ selectedUserForQr.fullName }}</h3>
-            <p class="text-xs font-mono text-google-surface-500">@{{ selectedUserForQr.username }}</p>
+            <h3 class="text-base font-extrabold text-google-surface-900 dark:text-white">{{ selectedUserForQr.fullName }}</h3>
+            <p class="text-xs font-mono text-google-surface-500 dark:text-slate-400">@{{ selectedUserForQr.username }}</p>
             <span
               class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border"
               :class="roleBadgeClass(selectedUserForQr.role)"
@@ -475,7 +475,7 @@ onMounted(() => {
             />
           </div>
 
-          <p class="text-[11px] text-google-surface-500 leading-snug">
+          <p class="text-[11px] text-google-surface-500 dark:text-slate-400 leading-snug">
             Arahkan kamera smartphone ke kode QR di atas untuk login instan tanpa mengetik PIN.
           </p>
         </div>

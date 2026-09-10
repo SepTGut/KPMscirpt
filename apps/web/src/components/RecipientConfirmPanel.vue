@@ -135,41 +135,41 @@ onMounted(() => {
 <template>
   <div class="max-w-md mx-auto py-6 px-4">
     <!-- Card Container -->
-    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden animate-fadeIn">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl overflow-hidden animate-fadeIn text-slate-800 dark:text-slate-100 transition-colors">
       <!-- Top Google Accent Bar -->
       <div class="google-bar"></div>
 
       <div class="p-6 sm:p-8">
         <!-- Success State -->
         <div v-if="isConfirmed" class="text-center py-6 animate-fadeIn">
-          <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center shadow-inner mb-4">
-            <Icon name="check" className="w-10 h-10 text-emerald-600" />
+          <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-400 flex items-center justify-center shadow-inner mb-4">
+            <Icon name="check" className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 mb-2">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 mb-2">
             Status: Telah Tiba & Diterima
           </span>
-          <h2 class="text-2xl font-black text-slate-900 tracking-tight">Barang Berhasil Diterima!</h2>
-          <p class="text-xs text-slate-500 mt-1">Konfirmasi serah terima telah tersimpan di sistem monitoring dan arsip T.Log.</p>
+          <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Barang Berhasil Diterima!</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Konfirmasi serah terima telah tersimpan di sistem monitoring dan arsip T.Log.</p>
 
-          <div class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-2.5 text-xs">
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
-              <span class="text-slate-500">Nomor KPM:</span>
-              <strong class="font-mono font-bold text-google-blue-700 uppercase">{{ kpmId }}</strong>
+          <div class="mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-left space-y-2.5 text-xs">
+            <div class="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+              <span class="text-slate-500 dark:text-slate-400">Nomor KPM:</span>
+              <strong class="font-mono font-bold text-google-blue-700 dark:text-blue-400 uppercase">{{ kpmId }}</strong>
             </div>
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
-              <span class="text-slate-500">Penerima Barang:</span>
-              <strong class="font-bold text-slate-900">{{ confirmedRecipient }}</strong>
+            <div class="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+              <span class="text-slate-500 dark:text-slate-400">Penerima Barang:</span>
+              <strong class="font-bold text-slate-900 dark:text-white">{{ confirmedRecipient }}</strong>
             </div>
             <div class="flex justify-between items-center py-1">
-              <span class="text-slate-500">Waktu Konfirmasi:</span>
-              <span class="font-mono text-slate-700">{{ confirmedAt }} WIB</span>
+              <span class="text-slate-500 dark:text-slate-400">Waktu Konfirmasi:</span>
+              <span class="font-mono text-slate-700 dark:text-slate-300">{{ confirmedAt }} WIB</span>
             </div>
           </div>
 
           <!-- Photo Preview in Confirmation State if Attached -->
-          <div v-if="photoPreview" class="mt-4 rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm max-w-[220px] mx-auto animate-fadeIn">
+          <div v-if="photoPreview" class="mt-4 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-700 shadow-sm max-w-[220px] mx-auto animate-fadeIn">
             <img :src="photoPreview" alt="Foto Serah Terima" class="w-full h-28 object-cover" />
-            <div class="py-1 px-2 bg-slate-50 text-[10.5px] text-emerald-700 font-bold text-center border-t border-slate-200 flex items-center justify-center gap-1">
+            <div class="py-1 px-2 bg-slate-50 dark:bg-slate-800 text-[10.5px] text-emerald-700 dark:text-emerald-400 font-bold text-center border-t border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
               <Icon name="check" className="w-3 h-3" />
               <span>Foto Serah Terima Terlampir</span>
             </div>
@@ -189,21 +189,21 @@ onMounted(() => {
         <!-- Form Confirmation State -->
         <div v-else>
           <div class="text-center mb-6">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 border border-google-blue-200 flex items-center justify-center text-google-blue-600 shadow-sm mb-3">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 dark:bg-blue-950/60 border border-google-blue-200 dark:border-blue-800 flex items-center justify-center text-google-blue-600 dark:text-blue-400 shadow-sm mb-3">
               <Icon name="box" className="w-7 h-7" />
             </div>
-            <h1 class="text-xl font-black text-slate-900 tracking-tight">Konfirmasi Penerimaan KPM</h1>
-            <p class="text-xs text-google-surface-500 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
+            <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">Konfirmasi Penerimaan KPM</h1>
+            <p class="text-xs text-google-surface-500 dark:text-slate-400 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
           </div>
 
           <!-- KPM Info Badge & Quick Selector -->
-          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 border border-google-blue-100 space-y-2">
+          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 dark:bg-blue-950/40 border border-google-blue-100 dark:border-blue-900/60 space-y-2">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <span class="text-[10px] font-bold text-google-blue-600 uppercase tracking-wider block">Surat Penugasan KPM</span>
-                <span class="text-sm font-mono font-black text-slate-900">{{ kpmId || 'Belum Dipilih' }}</span>
+                <span class="text-[10px] font-bold text-google-blue-600 dark:text-blue-400 uppercase tracking-wider block">Surat Penugasan KPM</span>
+                <span class="text-sm font-mono font-black text-slate-900 dark:text-white">{{ kpmId || 'Belum Dipilih' }}</span>
               </div>
-              <span class="chip !text-[11px] !font-bold bg-white text-google-blue-700 border border-google-blue-200 shadow-sm">
+              <span class="chip !text-[11px] !font-bold bg-white dark:bg-slate-800 text-google-blue-700 dark:text-blue-300 border border-google-blue-200 dark:border-blue-800 shadow-sm">
                 Serah Terima
               </span>
             </div>
@@ -211,7 +211,7 @@ onMounted(() => {
             <!-- Active KPM Quick Selector Dropdown -->
             <div v-if="activeKpms.length > 0" class="pt-1">
               <select
-                class="w-full text-xs font-semibold py-2 px-3 bg-white border border-google-blue-200 rounded-xl text-slate-700 focus:outline-none focus:border-google-blue-500 transition"
+                class="w-full text-xs font-semibold py-2 px-3 bg-white dark:bg-slate-800 border border-google-blue-200 dark:border-blue-800 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:border-google-blue-500 transition"
                 @change="if ($event.target.value) { kpmId = $event.target.value; }"
               >
                 <option value="">-- ⚡ Pilih KPM dari Daftar Monitoring --</option>
@@ -223,8 +223,8 @@ onMounted(() => {
           </div>
 
           <!-- Error Alert -->
-          <div v-if="errorMessage" class="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-fadeIn">
-            <Icon name="alert" className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div v-if="errorMessage" class="mb-5 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2.5 animate-fadeIn">
+            <Icon name="alert" className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
             <div class="flex-1 font-semibold">{{ errorMessage }}</div>
           </div>
 
@@ -235,7 +235,7 @@ onMounted(() => {
               <input
                 v-model="kpmId"
                 type="text"
-                class="field bg-white uppercase font-mono font-bold"
+                class="field uppercase font-mono font-bold"
                 placeholder="Contoh: 001/PPO/LF/IX/2026"
                 required
               />
@@ -244,14 +244,14 @@ onMounted(() => {
             <!-- Recipient Selection (2 Options: From Sheet or Custom) -->
             <label class="block">
               <span class="label">Pilih Nama Penerima</span>
-              <div v-if="loadingList" class="field bg-slate-50 text-slate-400 flex items-center gap-2">
+              <div v-if="loadingList" class="field bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center gap-2">
                 <Icon name="refresh" className="w-3.5 h-3.5 animate-spin" />
                 <span>Memuat daftar penerima dari database...</span>
               </div>
               <select
                 v-else
                 v-model="selectedRecipient"
-                class="field bg-white font-bold text-slate-900"
+                class="field font-bold text-slate-900 dark:text-slate-100"
                 @change="isCustom = (selectedRecipient === '__CUSTOM__')"
               >
                 <option value="" disabled>-- Pilih Nama Anda --</option>

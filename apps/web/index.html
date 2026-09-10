@@ -2,6 +2,19 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('kpm_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (t === 'dark' || ((!t || t === 'system') && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a73e8" />
     <meta name="description" content="Sistem operasi dan pemantauan distribusi material KPM Line Feeding secara real-time, pelacakan GPS armada terpadu, dan bukti pengiriman digital." />

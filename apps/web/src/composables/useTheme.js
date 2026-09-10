@@ -1,23 +1,21 @@
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 
 const THEME_KEY = 'kpm_theme'
 
-// Shared state across components
+// Shared reactive state across components
 const theme = ref('system') // 'light' | 'dark' | 'system'
 const isDark = ref(false)
 
+function calculateEffectiveDark() {
+  if (typeof window === 'undefined') return false
+  if (theme.value === 'dark') return true
+  if (theme.value === 'light') return false
+  return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+}
+
 function applyTheme() {
   if (typeof window === 'undefined') return
-
-  let effectiveDark = false
-  if (theme.value === 'dark') {
-    effectiveDark = true
-  } else if (theme.value === 'light') {
-    effectiveDark = false
-  } else {
-    effectiveDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-
+  const effectiveDark = calculateEffectiveDark()
   isDark.value = effectiveDark
   if (effectiveDark) {
     document.documentElement.classList.add('dark')
@@ -26,33 +24,44 @@ function applyTheme() {
   }
 }
 
-export function useTheme() {
-  onMounted(() => {
-    try {
-      const saved = localStorage.getItem(THEME_KEY)
-      if (saved === 'light' || saved === 'dark' || saved === 'system') {
-        theme.value = saved
+// Immediate module initialization (runs before any component mounts)
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem(THEME_KEY)
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
+      theme.value = saved
+    }
+  } catch {}
+
+  applyTheme()
+
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (theme.value === 'system') {
+        applyTheme()
       }
-    } catch {}
+    })
+  }
 
-    applyTheme()
-
-    if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (theme.value === 'system') {
-          applyTheme()
-        }
-      })
+  // Cross-tab theme sync
+  window.addEventListener('storage', (e) => {
+    if (e.key === THEME_KEY && e.newValue) {
+      if (e.newValue === 'light' || e.newValue === 'dark' || e.newValue === 'system') {
+        theme.value = e.newValue
+      }
     }
   })
+}
 
-  watch(theme, (newVal) => {
-    try {
-      localStorage.setItem(THEME_KEY, newVal)
-    } catch {}
-    applyTheme()
-  })
+// Watch theme change and sync to localStorage and DOM
+watch(theme, (newVal) => {
+  try {
+    localStorage.setItem(THEME_KEY, newVal)
+  } catch {}
+  applyTheme()
+})
 
+export function useTheme() {
   function setTheme(newTheme) {
     theme.value = newTheme
   }
