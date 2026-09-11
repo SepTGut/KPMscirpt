@@ -347,148 +347,152 @@ onMounted(() => {
     </div>
 
     <!-- Modal: Add / Edit User -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
-        <div class="flex items-center justify-between border-b border-google-surface-100 dark:border-slate-800 pb-3">
-          <h2 class="text-base font-bold text-google-surface-900 dark:text-white">
-            {{ isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru' }}
-          </h2>
-          <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg" @click="showModal = false">
-            ✕
-          </button>
+    <Transition name="modal-fade">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm" @click.self="showModal = false">
+        <div class="animate-scaleIn bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
+          <div class="flex items-center justify-between border-b border-google-surface-100 dark:border-slate-800 pb-3">
+            <h2 class="text-base font-bold text-google-surface-900 dark:text-white">
+              {{ isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru' }}
+            </h2>
+            <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg transition-all active:scale-90" @click="showModal = false">
+              ✕
+            </button>
+          </div>
+
+          <form @submit.prevent="handleSaveUser" class="space-y-3 text-xs">
+            <div>
+              <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Username (ID Login):</label>
+              <input
+                v-model="form.username"
+                type="text"
+                required
+                :disabled="isEditing"
+                placeholder="contoh: budi_driver"
+                class="field mt-1"
+              />
+            </div>
+
+            <div>
+              <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Nama Lengkap:</label>
+              <input
+                v-model="form.fullName"
+                type="text"
+                required
+                placeholder="contoh: Budi Santoso"
+                class="field mt-1"
+              />
+            </div>
+
+            <div>
+              <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Email (Google Login):</label>
+              <input
+                v-model="form.email"
+                type="email"
+                placeholder="budi@kpm.com"
+                class="field mt-1"
+              />
+            </div>
+
+            <div>
+              <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">PIN / Password:</label>
+              <input
+                v-model="form.pin"
+                type="text"
+                :placeholder="isEditing ? 'Biarkan kosong jika tidak diubah' : 'Minimal 4 digit'"
+                class="field mt-1"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Peran (Role):</label>
+                <select v-model="form.role" class="field mt-1">
+                  <option v-for="r in roleOptions" :key="r" :value="r">{{ r }}</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Status:</label>
+                <select v-model="form.status" class="field mt-1">
+                  <option value="Aktif">Aktif</option>
+                  <option value="Nonaktif">Nonaktif</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Keterangan (Opsional):</label>
+              <input
+                v-model="form.keterangan"
+                type="text"
+                placeholder="contoh: Driver Truk Colt Diesel"
+                class="field mt-1"
+              />
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2">
+              <button type="button" class="btn-secondary !py-2 !px-4 !text-xs font-bold" @click="showModal = false">
+                Batal
+              </button>
+              <button type="submit" class="btn-primary !py-2 !px-5 !text-xs font-bold" :disabled="busy">
+                Simpan Pengguna
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form @submit.prevent="handleSaveUser" class="space-y-3 text-xs">
-          <div>
-            <label class="block font-bold text-google-surface-700 dark:text-slate-300 mb-1">Username (ID Login):</label>
-            <input
-              v-model="form.username"
-              type="text"
-              required
-              :disabled="isEditing"
-              placeholder="contoh: budi_driver"
-              class="field mt-1"
-            />
-          </div>
-
-          <div>
-            <label class="block font-bold text-google-surface-700 mb-1">Nama Lengkap:</label>
-            <input
-              v-model="form.fullName"
-              type="text"
-              required
-              placeholder="contoh: Budi Santoso"
-              class="field mt-1"
-            />
-          </div>
-
-          <div>
-            <label class="block font-bold text-google-surface-700 mb-1">Email (Google Login):</label>
-            <input
-              v-model="form.email"
-              type="email"
-              placeholder="budi@kpm.com"
-              class="field mt-1"
-            />
-          </div>
-
-          <div>
-            <label class="block font-bold text-google-surface-700 mb-1">PIN / Password:</label>
-            <input
-              v-model="form.pin"
-              type="text"
-              :placeholder="isEditing ? 'Biarkan kosong jika tidak diubah' : 'Minimal 4 digit'"
-              class="field mt-1"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold text-google-surface-700 mb-1">Peran (Role):</label>
-              <select v-model="form.role" class="field mt-1">
-                <option v-for="r in roleOptions" :key="r" :value="r">{{ r }}</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block font-bold text-google-surface-700 mb-1">Status:</label>
-              <select v-model="form.status" class="field mt-1">
-                <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label class="block font-bold text-google-surface-700 mb-1">Keterangan (Opsional):</label>
-            <input
-              v-model="form.keterangan"
-              type="text"
-              placeholder="contoh: Driver Truk Colt Diesel"
-              class="field mt-1"
-            />
-          </div>
-
-          <div class="pt-3 flex justify-end gap-2">
-            <button type="button" class="btn-secondary !py-2 !px-4 !text-xs font-bold" @click="showModal = false">
-              Batal
-            </button>
-            <button type="submit" class="btn-primary !py-2 !px-5 !text-xs font-bold" :disabled="busy">
-              Simpan Pengguna
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </Transition>
 
     <!-- Modal: QR Code ID Card Preview -->
-    <div v-if="showQrModal && selectedUserForQr" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 text-center space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
-        <div class="flex items-center justify-between pb-2 border-b border-google-surface-100 dark:border-slate-800">
-          <span class="text-xs font-bold text-google-surface-500 dark:text-slate-400 uppercase tracking-wider">ID Card Digital</span>
-          <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base" @click="showQrModal = false">
-            ✕
-          </button>
-        </div>
-
-        <div class="p-4 bg-google-surface-50 dark:bg-slate-800/60 rounded-2xl border border-google-surface-200 dark:border-slate-700/80 space-y-3">
-          <div class="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-google-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
-            {{ selectedUserForQr.fullName.substring(0, 2).toUpperCase() }}
-          </div>
-          <div>
-            <h3 class="text-base font-extrabold text-google-surface-900 dark:text-white">{{ selectedUserForQr.fullName }}</h3>
-            <p class="text-xs font-mono text-google-surface-500 dark:text-slate-400">@{{ selectedUserForQr.username }}</p>
-            <span
-              class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border"
-              :class="roleBadgeClass(selectedUserForQr.role)"
-            >
-              {{ selectedUserForQr.roleLabel || selectedUserForQr.role }}
-            </span>
+    <Transition name="modal-fade">
+      <div v-if="showQrModal && selectedUserForQr" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm" @click.self="showQrModal = false">
+        <div class="animate-scaleIn bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-google-surface-200 dark:border-slate-800 text-center space-y-4 text-slate-800 dark:text-slate-100 transition-colors">
+          <div class="flex items-center justify-between pb-2 border-b border-google-surface-100 dark:border-slate-800">
+            <span class="text-xs font-bold text-google-surface-500 dark:text-slate-400 uppercase tracking-wider">ID Card Digital</span>
+            <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base transition-all active:scale-90" @click="showQrModal = false">
+              ✕
+            </button>
           </div>
 
-          <div class="p-2 bg-white rounded-xl inline-block shadow-inner border border-slate-200">
-            <img
-              :src="selectedUserForQr.qrImageUrl"
-              :alt="`QR Login ${selectedUserForQr.fullName}`"
-              class="w-48 h-48 mx-auto"
-              loading="lazy"
-            />
+          <div class="p-4 bg-google-surface-50 dark:bg-slate-800/60 rounded-2xl border border-google-surface-200 dark:border-slate-700/80 space-y-3 shadow-2xs">
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-google-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+              {{ selectedUserForQr.fullName.substring(0, 2).toUpperCase() }}
+            </div>
+            <div>
+              <h3 class="text-base font-extrabold text-google-surface-900 dark:text-white">{{ selectedUserForQr.fullName }}</h3>
+              <p class="text-xs font-mono text-google-surface-500 dark:text-slate-400">@{{ selectedUserForQr.username }}</p>
+              <span
+                class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs"
+                :class="roleBadgeClass(selectedUserForQr.role)"
+              >
+                {{ selectedUserForQr.roleLabel || selectedUserForQr.role }}
+              </span>
+            </div>
+
+            <div class="p-2 bg-white rounded-xl inline-block shadow-inner border border-slate-200">
+              <img
+                :src="selectedUserForQr.qrImageUrl"
+                :alt="`QR Login ${selectedUserForQr.fullName}`"
+                class="w-48 h-48 mx-auto"
+                loading="lazy"
+              />
+            </div>
+
+            <p class="text-[11px] text-google-surface-500 dark:text-slate-400 leading-snug">
+              Arahkan kamera smartphone ke kode QR di atas untuk login instan tanpa mengetik PIN.
+            </p>
           </div>
 
-          <p class="text-[11px] text-google-surface-500 dark:text-slate-400 leading-snug">
-            Arahkan kamera smartphone ke kode QR di atas untuk login instan tanpa mengetik PIN.
-          </p>
-        </div>
-
-        <div class="flex gap-2 justify-center">
-          <button type="button" class="btn-primary !py-2 !px-4 !text-xs font-bold w-full" @click="printQrCard">
-            🖨️ Cetak Kartu
-          </button>
-          <button type="button" class="btn-secondary !py-2 !px-4 !text-xs font-bold" @click="showQrModal = false">
-            Tutup
-          </button>
+          <div class="flex gap-2 justify-center">
+            <button type="button" class="btn-primary !py-2 !px-4 !text-xs font-bold w-full" @click="printQrCard">
+              🖨️ Cetak Kartu
+            </button>
+            <button type="button" class="btn-secondary !py-2 !px-4 !text-xs font-bold" @click="showQrModal = false">
+              Tutup
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </section>
 </template>

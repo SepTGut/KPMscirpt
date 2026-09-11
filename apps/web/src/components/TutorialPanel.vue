@@ -37,13 +37,13 @@ const categories = [
     </div>
 
     <!-- Category Tabs Navigation -->
-    <div class="flex bg-white dark:bg-slate-900 p-2 rounded-2xl border border-google-surface-300/70 dark:border-slate-800 shadow-sm overflow-x-auto gap-1.5 scrollbar-none">
+    <div class="flex bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-x-auto gap-1 scrollbar-none">
       <button
         v-for="cat in categories"
         :key="cat.id"
         type="button"
-        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap focus-visible:outline-none"
-        :class="activeCategory === cat.id ? 'bg-google-blue-600 text-white shadow-sm' : 'text-google-surface-600 dark:text-slate-300 hover:bg-google-surface-100 dark:hover:bg-slate-800 hover:text-google-surface-900 dark:hover:text-white'"
+        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap active:scale-95 focus-visible:outline-none"
+        :class="activeCategory === cat.id ? 'bg-google-blue-600 text-white shadow-sm shadow-blue-500/25' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'"
         @click="activeCategory = cat.id"
       >
         <Icon :name="cat.iconName" className="w-4 h-4" />
@@ -51,16 +51,19 @@ const categories = [
       </button>
     </div>
 
-    <!-- TAB 1: OVERVIEW & 3-TIER ROLES -->
-    <div v-if="activeCategory === 'overview'" class="space-y-6 animate-fadeIn">
-      <div class="panel space-y-4">
-        <h2 class="text-lg font-bold text-google-surface-900 dark:text-white flex items-center gap-2">
-          <Icon name="doc" className="w-5 h-5 text-google-blue-600 dark:text-google-blue-400" />
-          <span>Pengenalan Sistem &amp; 3 Peran Pengguna (RBAC)</span>
-        </h2>
-        <p class="text-xs text-google-surface-600 dark:text-slate-300 leading-relaxed">
-          Sistem KPM Line Feeding menggunakan arsitektur keamanan berbasis 3 tingkat hak akses. Setiap peran memiliki tanggung jawab dan wewenang yang terpisah untuk menjaga integritas data logistik:
-        </p>
+    <!-- Active Tab Content Area with Smooth Transition -->
+    <Transition name="page-fade" mode="out-in">
+      <div :key="activeCategory" class="space-y-6">
+        <!-- TAB 1: OVERVIEW & 3-TIER ROLES -->
+        <div v-if="activeCategory === 'overview'" class="space-y-6">
+          <div class="panel space-y-4">
+            <h2 class="text-lg font-bold text-google-surface-900 dark:text-white flex items-center gap-2">
+              <Icon name="doc" className="w-5 h-5 text-google-blue-600 dark:text-google-blue-400" />
+              <span>Pengenalan Sistem &amp; 3 Peran Pengguna (RBAC)</span>
+            </h2>
+            <p class="text-xs text-google-surface-600 dark:text-slate-300 leading-relaxed">
+              Sistem KPM Line Feeding menggunakan arsitektur keamanan berbasis 3 tingkat hak akses. Setiap peran memiliki tanggung jawab dan wewenang yang terpisah untuk menjaga integritas data logistik:
+            </p>
 
         <div class="grid gap-4 sm:grid-cols-3">
           <!-- Super Admin -->
@@ -591,5 +594,7 @@ const categories = [
         </div>
       </div>
     </div>
+      </div>
+    </Transition>
   </section>
 </template>

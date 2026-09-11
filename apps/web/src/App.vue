@@ -540,26 +540,26 @@ onUnmounted(() => {
       <div class="google-bar shrink-0"></div>
 
       <!-- Top AppBar Header -->
-      <header class="border-b border-google-surface-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 shadow-2xs">
+      <header class="border-b border-google-surface-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl sticky top-0 z-20 shadow-2xs transition-colors duration-200">
         <div class="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <!-- Mobile Brand Logo / Desktop Section Title -->
           <div class="flex items-center gap-3">
             <!-- Mobile Brand Logo -->
             <div class="lg:hidden flex items-center gap-2">
-              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-google-blue-600 via-indigo-500 to-google-green-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-google-blue-500/20 transition-transform active:scale-95">
                 LF
               </div>
-              <span class="text-base font-bold text-slate-900 dark:text-white leading-tight">KPM Line Feeding</span>
+              <span class="text-base font-black text-slate-900 dark:text-white leading-tight">KPM Line Feeding</span>
             </div>
 
             <!-- Desktop Section Context -->
             <div class="hidden lg:flex items-center gap-2.5">
               <span class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">KPM Workspace</span>
               <span class="text-slate-300 dark:text-slate-700">/</span>
-              <span class="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+              <span class="text-sm font-black text-slate-800 dark:text-slate-200">
                 {{ mode === 'admin' ? 'Administrator Hub' : 'Portal Driver' }}
               </span>
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 shadow-2xs ml-1">
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-2xs ml-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 v1P • PROD
               </span>
@@ -569,7 +569,7 @@ onUnmounted(() => {
           <!-- Right Action Controls -->
           <div class="flex items-center gap-2">
             <!-- Network Offline Indicator -->
-            <div v-if="!isOnline" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-bold animate-pulse">
+            <div v-if="!isOnline" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-bold animate-pulse shadow-xs">
               <span class="w-2 h-2 rounded-full bg-amber-500"></span>
               <span>Mode Offline</span>
             </div>
@@ -577,23 +577,23 @@ onUnmounted(() => {
             <!-- Dark / Light Mode Toggle Button -->
             <button
               type="button"
-              class="w-8 h-8 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition shadow-2xs focus-visible:outline-none"
+              class="w-9 h-9 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all duration-200 active:scale-90 shadow-2xs hover:shadow-xs focus-visible:outline-none"
               @click="toggleDark"
               :title="isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'"
             >
-              <span class="text-sm leading-none">{{ isDark ? '☀️' : '🌙' }}</span>
+              <span class="text-sm leading-none transition-transform duration-200 hover:rotate-12">{{ isDark ? '☀️' : '🌙' }}</span>
             </button>
 
             <!-- Role Switcher for Super Admin (Mobile only; Desktop is inside AppSidebar) -->
             <button
               v-if="canSwitchRole"
               type="button"
-              class="lg:hidden rounded-full px-2.5 py-1 text-xs font-bold transition shadow-2xs border flex items-center gap-1.5 focus-visible:outline-none"
+              class="lg:hidden rounded-full px-3 py-1.5 text-xs font-bold transition-all duration-200 active:scale-95 shadow-2xs border flex items-center gap-1.5 focus-visible:outline-none"
               :class="mode === 'admin' ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'"
               @click="toggleMode"
               :title="mode === 'admin' ? 'Beralih ke Tampilan Driver' : 'Beralih ke Tampilan Admin'"
             >
-              <Icon name="switch" className="w-3 h-3" />
+              <Icon name="switch" className="w-3.5 h-3.5" />
               <span class="hidden sm:inline">{{ mode === 'admin' ? 'Mode Driver' : 'Mode Admin' }}</span>
             </button>
 
@@ -601,7 +601,7 @@ onUnmounted(() => {
             <div v-if="isIT" class="relative">
               <button
                 type="button"
-                class="rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-1.5 text-xs font-extrabold shadow-sm flex items-center gap-1.5 transition active:scale-95 focus-visible:outline-none"
+                class="rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white px-3.5 py-1.5 text-xs font-extrabold shadow-sm hover:shadow-md flex items-center gap-1.5 transition-all duration-200 active:scale-95 focus-visible:outline-none"
                 @click="showOmniMenu = !showOmniMenu"
                 title="Akses Semua Situs & Halaman KPM (Super Admin IT)"
                 aria-haspopup="true"

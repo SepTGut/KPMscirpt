@@ -133,25 +133,25 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-md mx-auto py-6 px-4">
+  <div class="max-w-md mx-auto py-6 px-4 animate-slideUpFade">
     <!-- Card Container -->
-    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl overflow-hidden animate-fadeIn text-slate-800 dark:text-slate-100 transition-colors">
+    <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl overflow-hidden text-slate-800 dark:text-slate-100 transition-colors">
       <!-- Top Google Accent Bar -->
       <div class="google-bar"></div>
 
       <div class="p-6 sm:p-8">
         <!-- Success State -->
-        <div v-if="isConfirmed" class="text-center py-6 animate-fadeIn">
+        <div v-if="isConfirmed" class="text-center py-6 animate-springPop">
           <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-400 flex items-center justify-center shadow-inner mb-4">
             <Icon name="check" className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 mb-2">
-            Status: Telah Tiba & Diterima
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 mb-2 shadow-2xs">
+            Status: Telah Tiba &amp; Diterima
           </span>
           <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Barang Berhasil Diterima!</h2>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Konfirmasi serah terima telah tersimpan di sistem monitoring dan arsip T.Log.</p>
 
-          <div class="mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-left space-y-2.5 text-xs">
+          <div class="mt-6 p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-left space-y-2.5 text-xs shadow-2xs">
             <div class="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
               <span class="text-slate-500 dark:text-slate-400">Nomor KPM:</span>
               <strong class="font-mono font-bold text-google-blue-700 dark:text-blue-400 uppercase">{{ kpmId }}</strong>
@@ -167,7 +167,7 @@ onMounted(() => {
           </div>
 
           <!-- Photo Preview in Confirmation State if Attached -->
-          <div v-if="photoPreview" class="mt-4 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-700 shadow-sm max-w-[220px] mx-auto animate-fadeIn">
+          <div v-if="photoPreview" class="mt-4 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-700 shadow-sm max-w-[220px] mx-auto animate-scaleIn">
             <img :src="photoPreview" alt="Foto Serah Terima" class="w-full h-28 object-cover" />
             <div class="py-1 px-2 bg-slate-50 dark:bg-slate-800 text-[10.5px] text-emerald-700 dark:text-emerald-400 font-bold text-center border-t border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
               <Icon name="check" className="w-3 h-3" />
@@ -178,7 +178,7 @@ onMounted(() => {
           <div class="mt-6">
             <button
               type="button"
-              class="btn-secondary w-full !py-3 !text-xs !font-bold"
+              class="btn-primary w-full !py-3 !text-xs !font-bold"
               @click="emit('back-to-home')"
             >
               Kembali ke Beranda
@@ -189,7 +189,7 @@ onMounted(() => {
         <!-- Form Confirmation State -->
         <div v-else>
           <div class="text-center mb-6">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 dark:bg-blue-950/60 border border-google-blue-200 dark:border-blue-800 flex items-center justify-center text-google-blue-600 dark:text-blue-400 shadow-sm mb-3">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 dark:bg-blue-950/60 border border-google-blue-200 dark:border-blue-800 flex items-center justify-center text-google-blue-600 dark:text-blue-400 shadow-sm mb-3 transition-transform duration-300 hover:scale-105">
               <Icon name="box" className="w-7 h-7" />
             </div>
             <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">Konfirmasi Penerimaan KPM</h1>
@@ -197,7 +197,7 @@ onMounted(() => {
           </div>
 
           <!-- KPM Info Badge & Quick Selector -->
-          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 dark:bg-blue-950/40 border border-google-blue-100 dark:border-blue-900/60 space-y-2">
+          <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 dark:bg-blue-950/40 border border-google-blue-100 dark:border-blue-900/60 space-y-2 shadow-2xs">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <span class="text-[10px] font-bold text-google-blue-600 dark:text-blue-400 uppercase tracking-wider block">Surat Penugasan KPM</span>
