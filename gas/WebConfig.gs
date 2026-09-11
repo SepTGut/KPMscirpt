@@ -17,6 +17,14 @@ var WEB_CONFIG = {
   ALLOWED_IMAGE_MIMES: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
   RECIPIENTS_SHEET_NAME: "Penerima",
   DEFAULT_RECIPIENTS: ["AANG", "EKO", "RULI", "EGI", "NUGRAHA", "TAUFIQ"],
+  // Dynamic External Material Database (IMPORTRANGE source)
+  MATERIAL_DB_URL: "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit?gid=1881214309#gid=1881214309",
+  MATERIAL_DB_SPREADSHEET_ID: "1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk",
+  MATERIAL_DB_GID: "1881214309",
+  MATERIAL_DB_SHEET_NAME: "DataBase",
+  MATERIAL_DB_HEADER_ROW: 4,
+  MATERIAL_DB_START_ROW: 5,
+  MATERIAL_DB_IMPORTRANGE_FORMULA: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit", "DataBase!A4:L")',
   // Tokens must be configured in Apps Script Script Properties.
   DEFAULT_ADMIN_TOKEN: "",
   DEFAULT_DRIVER_TOKEN: ""

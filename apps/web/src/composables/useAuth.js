@@ -275,6 +275,7 @@ export function useAuth() {
     loginWithCredentials,
     loginWithGoogle,
     loginWithQr,
-    logout
+    logout,
+    loginAttempts
   }
 }
