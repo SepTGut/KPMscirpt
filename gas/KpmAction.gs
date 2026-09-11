@@ -63,13 +63,14 @@ function parseMaterialItems(rawInput) {
       var parsed = [];
       for (var i = 0; i < jsonArray.length; i++) {
         var itm = jsonArray[i];
-        if (itm && (itm.nama || itm.spek || itm.kode)) {
-          var namaVal = String(itm.nama || itm.spek || itm.kode || "").trim();
+        if (itm && (itm.nama || itm.namaBarang || itm.spek || itm.kode || itm.kodeBarang)) {
+          var namaVal = String(itm.nama || itm.namaBarang || itm.spek || itm.kode || itm.kodeBarang || "").trim();
+          var kodeVal = String(itm.kode || itm.kodeBarang || "").trim();
           var rawQty = itm.qty !== undefined && itm.qty !== null ? itm.qty : itm.jumlah;
           var qtyVal = String(rawQty === undefined || rawQty === null ? "1" : rawQty).trim();
           var uomVal = String(itm.uom || itm.satuan || "").trim();
           if (namaVal !== "") {
-            parsed.push({ nama: namaVal, qty: qtyVal, uom: uomVal });
+            parsed.push({ kode: kodeVal, nama: namaVal, qty: qtyVal, uom: uomVal });
           }
         }
       }
@@ -225,13 +226,15 @@ function validateAndCreateKpm(params) {
     rowData[MONITOR_COL_NOLF - 1] = nomorBaruStr;
     rowData[MONITOR_COL_ITEM - 1] = j + 1;
 
+    var kodeVal = itemObj.kode ? sanitizeShortInput_(itemObj.kode) : "";
     var spekNama = sanitizeMaterialInput_(itemObj.nama);
-    var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
+    var mat = (typeof getMaterialByKode === "function") ? (getMaterialByKode(kodeVal) || getMaterialByKode(spekNama)) : null;
     if (mat) {
       rowData[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
       rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
       rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || sanitizeMaterialInput_(itemObj.uom || ""));
     } else {
+      if (kodeVal) rowData[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(kodeVal);
       rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
       rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(sanitizeMaterialInput_(itemObj.uom || ""));
     }
@@ -685,13 +688,15 @@ function editLatestKpmItems(params) {
     rowArray[MONITOR_COL_NOLF - 1] = noLfVal;
     rowArray[MONITOR_COL_ITEM - 1] = j + 1;
 
+    var kodeVal = itm.kode ? sanitizeShortInput_(itm.kode) : "";
     var spekNama = sanitizeMaterialInput_(itm.nama);
-    var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
+    var mat = (typeof getMaterialByKode === "function") ? (getMaterialByKode(kodeVal) || getMaterialByKode(spekNama)) : null;
     if (mat) {
       rowArray[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
       rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
       rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || sanitizeMaterialInput_(itm.uom || ""));
     } else {
+      if (kodeVal) rowArray[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(kodeVal);
       rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
       rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(sanitizeMaterialInput_(itm.uom || ""));
     }

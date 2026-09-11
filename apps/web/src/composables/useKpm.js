@@ -295,7 +295,7 @@ export function useKpm() {
       if (items.length > 100) throw new Error('Maksimal 100 item material.')
 
       for (const it of items) {
-        const nama = String(it.namaBarang || '').trim()
+        const nama = String(it.namaBarang || it.nama || '').trim()
         if (!nama) throw new Error('Semua material harus memiliki nama.')
         if (nama.length > 200) throw new Error('Nama material maksimal 200 karakter.')
         const qty = String(it.qty || '').trim()
@@ -305,12 +305,20 @@ export function useKpm() {
       }
 
       // Formula Injection Defense
-      const sanitizedItems = items.map(it => ({
-        kodeBarang: sanitizeSpreadsheetInput(String(it.kodeBarang || '')),
-        namaBarang: sanitizeSpreadsheetInput(String(it.namaBarang || '')),
-        qty: String(it.qty || ''),
-        uom: sanitizeSpreadsheetInput(String(it.uom || ''))
-      }))
+      const sanitizedItems = items.map(it => {
+        const n = sanitizeSpreadsheetInput(String(it.namaBarang || it.nama || '').trim())
+        const k = sanitizeSpreadsheetInput(String(it.kodeBarang || it.kode || '').trim())
+        const q = String(it.qty || '1').trim()
+        const u = sanitizeSpreadsheetInput(String(it.uom || 'PCS').trim())
+        return {
+          nama: n,
+          namaBarang: n,
+          kode: k,
+          kodeBarang: k,
+          qty: q,
+          uom: u
+        }
+      })
 
       const data = await api('createKpm', {
         body: {
@@ -325,6 +333,7 @@ export function useKpm() {
       message.value = `KPM ${noKpm} berhasil dibuat.`
       toast.success(`KPM ${noKpm} berhasil dibuat dan diterbitkan.`)
       clearDraft()
+      await loadMonitoring(true, true)
       return data
     } catch (e) {
       error.value = e.message
@@ -388,9 +397,9 @@ export function useKpm() {
     }
     editingKpm.value = item
     editItemsList.value = (item.daftarBarang || []).map(b => ({
-      nama: b.nama || '',
+      nama: b.nama || b.spek || b.namaBarang || '',
       qty: b.qty || 1,
-      uom: b.uom || 'PCS'
+      uom: b.uom || b.satuan || 'PCS'
     }))
     if (editItemsList.value.length === 0) {
       editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
@@ -409,12 +418,26 @@ export function useKpm() {
 
   async function saveLatestKpmItems() {
     if (!editingKpm.value) return
-    if (editItemsList.value.some(i => !i.nama?.trim() || Number(i.qty) <= 0)) {
+    if (editItemsList.value.some(i => !(i.nama || i.namaBarang)?.trim() || Number(i.qty) <= 0)) {
       error.value = 'Semua material harus memiliki nama dan kuantitas positif.'
       return
     }
     const kpmNomor = editingKpm.value.nomor
-    const itemsPayload = JSON.stringify(editItemsList.value)
+    const sanitizedEditItems = editItemsList.value.map(it => {
+      const n = sanitizeSpreadsheetInput(String(it.nama || it.namaBarang || '').trim())
+      const k = sanitizeSpreadsheetInput(String(it.kode || it.kodeBarang || '').trim())
+      const q = String(it.qty || '1').trim()
+      const u = sanitizeSpreadsheetInput(String(it.uom || 'PCS').trim())
+      return {
+        nama: n,
+        namaBarang: n,
+        kode: k,
+        kodeBarang: k,
+        qty: q,
+        uom: u
+      }
+    })
+    const itemsPayload = JSON.stringify(sanitizedEditItems)
     editingKpm.value = null
     clearNotice()
     busy.value = true
@@ -426,9 +449,11 @@ export function useKpm() {
         }
       })
       message.value = res?.message || `Material KPM ${kpmNomor} berhasil diperbarui.`
+      toast.success(message.value)
       await loadMonitoring(true)
     } catch (e) {
       error.value = e.message
+      toast.error(e.message, 'Gagal Menyimpan Material')
     } finally {
       busy.value = false
     }

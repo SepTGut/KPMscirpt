@@ -439,6 +439,15 @@ function onLogout() {
   logout()
 }
 
+async function onCreateKpm(formData) {
+  try {
+    const res = await handleCreateKpm(formData)
+    if (res) {
+      adminView.value = 'monitor'
+    }
+  } catch {}
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onKeyDown)
@@ -840,7 +849,7 @@ onUnmounted(() => {
                 :master="master"
                 :busy="busy"
                 :is-i-t="isIT"
-                @create="handleCreateKpm"
+                @create="onCreateKpm"
               />
 
               <!-- MONITORING PANEL (With KPI stats and smart auto-polling) -->

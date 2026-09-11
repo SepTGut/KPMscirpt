@@ -496,7 +496,8 @@ function loginUser(params) {
   var qrAuthToken = String(params.qrAuth || params.token || "").trim();
 
   // RATE LIMITING: Check login attempts per identifier (username/email/QR)
-  var rateLimitKey = "LOGIN_RATE_LIMIT_" + (inputUsername || googleEmail || qrAuthToken || "unknown")
+  var cleanId = String(inputUsername || googleEmail || qrAuthToken || "unknown").replace(/[^a-zA-Z0-9_@.-]/g, '').substring(0, 40)
+  var rateLimitKey = "LOGIN_RATE_LIMIT_" + cleanId
   var now = Date.now()
   var windowMs = 15 * 60 * 1000 // 15 minutes
   var maxAttempts = 5
@@ -510,10 +511,11 @@ function loginUser(params) {
       parsed.attempts = parsed.attempts.filter(function(t) { return now - t < windowMs })
       if (parsed.attempts.length >= maxAttempts) {
         // Log rate limit hit
-        loginAuditLog_("rate_limit", inputUsername || googleEmail || qrAuthToken, false, "Rate limit exceeded")
+        loginAuditLog_("rate_limit", cleanId, false, "Rate limit exceeded")
         throw { code: "RATE_LIMITED", message: "Terlalu banyak percobaan login. Harap tunggu 15 menit sebelum mencoba lagi." }
       }
       parsed.attempts.push(now)
+      if (parsed.attempts.length > 10) parsed.attempts = parsed.attempts.slice(-10)
       props.setProperty(rateLimitKey, JSON.stringify(parsed))
     } else {
       props.setProperty(rateLimitKey, JSON.stringify({ attempts: [now] }))
@@ -694,7 +696,8 @@ function loginUser(params) {
   // Clear rate limit on successful login
   try {
     var props = PropertiesService.getScriptProperties()
-    var rateLimitKey = "LOGIN_RATE_LIMIT_" + (inputUsername || googleEmail || qrAuthToken || "unknown")
+    var cleanSuccessId = String(inputUsername || googleEmail || qrAuthToken || matchedUser.username || "unknown").replace(/[^a-zA-Z0-9_@.-]/g, '').substring(0, 40)
+    var rateLimitKey = "LOGIN_RATE_LIMIT_" + cleanSuccessId
     props.deleteProperty(rateLimitKey)
   } catch (e) {}
 
@@ -722,8 +725,8 @@ function loginAuditLog_(method, identifier, success, details) {
     var existingLog = props.getProperty(logKey)
     var logs = existingLog ? JSON.parse(existingLog) : []
     logs.push(logEntry)
-    // Keep only last 1000 entries per day
-    if (logs.length > 1000) logs = logs.slice(-1000)
+    // Keep only last 25 entries per day to stay safely within 9KB ScriptProperties quota
+    if (logs.length > 25) logs = logs.slice(-25)
     props.setProperty(logKey, JSON.stringify(logs))
   } catch (e) {
     Logger.log("Audit log warning: " + e.message)
