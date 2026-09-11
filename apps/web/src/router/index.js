@@ -32,7 +32,7 @@ const routes = [
     path: '/kpm/confirm',
     name: 'recipientConfirm',
     component: RecipientConfirmPanel,
-    meta: { requiresAuth: false, layout: 'public', title: 'Konfirmasi Penerimaan KPM' }
+    meta: { requiresAuth: false, view: 'recipient', title: 'Konfirmasi Penerimaan KPM' }
   },
   { path: '/confirm', redirect: '/kpm/confirm' },
   { path: '/recipient', redirect: '/kpm/confirm' },
@@ -43,7 +43,7 @@ const routes = [
     path: '/kpm/gate',
     name: 'checkerGate',
     component: CheckerVerifyPanel,
-    meta: { requiresAuth: false, layout: 'public', title: 'Verifikasi Checker Gerbang' }
+    meta: { requiresAuth: false, view: 'checker', title: 'Verifikasi Checker Gerbang' }
   },
   { path: '/gate', redirect: '/kpm/gate' },
   { path: '/security', redirect: '/kpm/gate' },
@@ -56,13 +56,13 @@ const routes = [
     path: '/r/:shortId',
     name: 'shortLinkRecipient',
     component: RecipientConfirmPanel,
-    meta: { requiresAuth: false, layout: 'public', title: 'Konfirmasi Penerimaan KPM' }
+    meta: { requiresAuth: false, view: 'recipient', title: 'Konfirmasi Penerimaan KPM' }
   },
   {
     path: '/s/:shortId',
     name: 'shortLinkChecker',
     component: CheckerVerifyPanel,
-    meta: { requiresAuth: false, layout: 'public', title: 'Verifikasi Checker Gerbang' }
+    meta: { requiresAuth: false, view: 'checker', title: 'Verifikasi Checker Gerbang' }
   },
 
   // ─── Authenticated Admin Routes ───────────────────────────

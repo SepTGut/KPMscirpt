@@ -194,8 +194,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loginWithQr(qrAuthToken) {
     if (!qrAuthToken) return null
-    // Validate QR token format (kpm_usr_* or kpm_st_master_* pattern)
-    if (!/^kpm_(usr|st)_[a-z0-9_]+$/.test(qrAuthToken)) {
+    // Validate QR token format (kpm_usr_*, kpm_st_*, or st_master_* pattern)
+    if (!/^(kpm_(usr|st)_[a-z0-9_]+|st_[a-z0-9_]+)$/.test(qrAuthToken)) {
       throw new Error('Format QR token tidak valid.')
     }
     loginError.value = ''

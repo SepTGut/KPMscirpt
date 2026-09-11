@@ -133,13 +133,34 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-md mx-auto py-6 px-4 animate-slideUpFade">
+  <div class="w-full max-w-xl mx-auto py-4 sm:py-6 px-2 sm:px-4 animate-slideUpFade">
     <!-- Card Container -->
     <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl overflow-hidden text-slate-800 dark:text-slate-100 transition-colors">
       <!-- Top Google Accent Bar -->
       <div class="google-bar"></div>
 
-      <div class="p-6 sm:p-8">
+      <div class="p-5 sm:p-7">
+        <!-- Top Header with Back/Close Button -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Icon name="box" className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 class="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">Konfirmasi Penerima KPM</h2>
+              <p class="text-[10.5px] text-slate-400 dark:text-slate-500">Tanda terima muatan tiba di workshop tujuan</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="emit('back-to-home')"
+            class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold transition cursor-pointer shrink-0"
+            title="Kembali"
+          >
+            ✕
+          </button>
+        </div>
+
         <!-- Success State -->
         <div v-if="isConfirmed" class="text-center py-6 animate-springPop">
           <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-400 flex items-center justify-center shadow-inner mb-4">
@@ -178,7 +199,7 @@ onMounted(() => {
           <div class="mt-6">
             <button
               type="button"
-              class="btn-primary w-full !py-3 !text-xs !font-bold"
+              class="btn-primary w-full !py-3 !text-xs !font-bold cursor-pointer"
               @click="emit('back-to-home')"
             >
               Kembali ke Beranda
@@ -188,13 +209,6 @@ onMounted(() => {
 
         <!-- Form Confirmation State -->
         <div v-else>
-          <div class="text-center mb-6">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-google-blue-50 dark:bg-blue-950/60 border border-google-blue-200 dark:border-blue-800 flex items-center justify-center text-google-blue-600 dark:text-blue-400 shadow-sm mb-3 transition-transform duration-300 hover:scale-105">
-              <Icon name="box" className="w-7 h-7" />
-            </div>
-            <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">Konfirmasi Penerimaan KPM</h1>
-            <p class="text-xs text-google-surface-500 dark:text-slate-400 mt-1">Silakan pilih nama Anda sebagai penerima barang lalu tekan tombol konfirmasi.</p>
-          </div>
 
           <!-- KPM Info Badge & Quick Selector -->
           <div class="mb-5 p-4 rounded-2xl bg-google-blue-50/60 dark:bg-blue-950/40 border border-google-blue-100 dark:border-blue-900/60 space-y-2 shadow-2xs">
