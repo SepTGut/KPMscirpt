@@ -203,48 +203,44 @@ function setupMaterialDatabaseImportRange() {
     sheet = ss.insertSheet(MATERIALDB_SHEET_NAME);
   }
 
-  // Clear existing content to prevent spill / reference collision errors (#REF!)
+  // Clear existing content completely so the IMPORTRANGE array expands freely from A1 without spill error
   sheet.clearContents();
 
-  // Banner information on rows 1-2
-  sheet.getRange("A1").setValue("DATABASE MASTER MATERIAL KPM LINE FEEDING (DYNAMIC IMPORTRANGE)");
-  sheet.getRange("A1").setFontWeight("bold").setFontSize(11);
-  sheet.getRange("A2").setValue("Sumber: https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit?gid=1881214309#gid=1881214309");
-  sheet.getRange("A2").setFontSize(9).setFontColor("#555555");
-
-  // In row 4, set the IMPORTRANGE formula
+  // Set the IMPORTRANGE formula directly in cell A1 (Source rows 1-4 are headers A-V, row 5+ is material data A-L)
   var importUrl = "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit";
-  var importRangeFormula = '=IMPORTRANGE("' + importUrl + '", "DataBase!A4:L")';
+  var importRangeFormula = '=IMPORTRANGE("' + importUrl + '", "DataBase!A:V")';
 
-  sheet.getRange("A4").setFormula(importRangeFormula);
+  sheet.getRange("A1").setFormula(importRangeFormula);
 
-  // Format row 4 header visual
-  sheet.getRange("A4:L4").setFontWeight("bold").setBackground("#E8F0FE");
+  // Freeze the first 4 rows so headers remain visible when scrolling data
   try {
     sheet.setFrozenRows(4);
   } catch (e) {}
 
-  // Invalidate memory and script caches to force fresh load
+  // Invalidate memory and script caches to force fresh reload
   _materialMemoryCache = {};
   _materialsLoadedInRam = false;
   try {
     CacheService.getScriptCache().remove("ALL_MATS_count");
   } catch (e) {}
 
-  var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet DataBase sel A4!\n\n" +
-                 "Formula: " + importRangeFormula + "\n\n" +
+  var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet DataBase sel A1!\n\n" +
+                 "Formula di A1: " + importRangeFormula + "\n\n" +
+                 "Struktur Import:\n" +
+                 "- Baris 1-4: Header & informasi master (Kolom A-V)\n" +
+                 "- Baris 5+: Data spesifikasi material (No., Kode Material, Deskripsi, Satuan BUn, dsb.)\n\n" +
                  "CATATAN PENTING:\n" +
-                 "Jika sel A4 menampilkan '#REF!' dengan pesan 'You need to connect these sheets', " +
-                 "silakan arahkan kursor ke sel A4 lalu klik tombol 'Izinkan Akses' (Allow Access) " +
-                 "yang muncul pada tooltip pop-up Google Sheets.";
+                 "Jika sel A1 menampilkan '#REF!' dengan pesan 'You need to connect these sheets', " +
+                 "silakan klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access) " +
+                 "agar Google Sheets menghubungkan kedua spreadsheet.";
 
   try {
-    SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Terpasang", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
+    SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Terpasang di Sel A1", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
   } catch (e) {
     Logger.log(alertMsg);
   }
 
-  return { success: true, formula: importRangeFormula, message: alertMsg };
+  return { success: true, formula: importRangeFormula, cell: "A1", message: alertMsg };
 }
 
 /**
