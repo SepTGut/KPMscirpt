@@ -214,17 +214,17 @@ function setupMaterialDatabaseImportRange() {
 
   // Set the IMPORTRANGE formula directly in cell A1 (Source rows 1-4 are headers A-V, row 5+ is material data A-L)
   var importUrl = "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit";
-  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "DataBase!A:V")';
   var importRangeFormulaSemicolon = '=IMPORTRANGE("' + importUrl + '"; "DataBase!A:V")';
+  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "DataBase!A:V")';
 
   var cellA1 = sheet.getRange("A1");
   try {
-    cellA1.setFormula(importRangeFormulaComma);
+    cellA1.setFormulaLocal(importRangeFormulaSemicolon);
   } catch (e1) {
     try {
-      cellA1.setFormulaLocal(importRangeFormulaSemicolon);
+      cellA1.setFormula(importRangeFormulaComma);
     } catch (e2) {
-      cellA1.setValue(importRangeFormulaComma);
+      cellA1.setValue(importRangeFormulaSemicolon);
     }
   }
 
@@ -257,7 +257,7 @@ function setupMaterialDatabaseImportRange() {
     Logger.log(alertMsg);
   }
 
-  return { success: true, formula: importRangeFormulaComma, formulaIndo: importRangeFormulaSemicolon, cell: "A1", message: alertMsg };
+  return { success: true, formula: importRangeFormulaSemicolon, formulaIndo: importRangeFormulaSemicolon, cell: "A1", message: alertMsg };
 }
 
 /**
@@ -521,17 +521,17 @@ function setupLogKedatanganImportRange() {
   sheet.clearContents();
 
   var importUrl = "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit";
-  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "\'Kedatangan Log 2026\'!A:N")';
   var importRangeFormulaSemicolon = '=IMPORTRANGE("' + importUrl + '"; "\'Kedatangan Log 2026\'!A:N")';
+  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "\'Kedatangan Log 2026\'!A:N")';
 
   var cellA1 = sheet.getRange("A1");
   try {
-    cellA1.setFormula(importRangeFormulaComma);
+    cellA1.setFormulaLocal(importRangeFormulaSemicolon);
   } catch (e1) {
     try {
-      cellA1.setFormulaLocal(importRangeFormulaSemicolon);
+      cellA1.setFormula(importRangeFormulaComma);
     } catch (e2) {
-      cellA1.setValue(importRangeFormulaComma);
+      cellA1.setValue(importRangeFormulaSemicolon);
     }
   }
 
@@ -565,7 +565,7 @@ function setupLogKedatanganImportRange() {
     success: true,
     sheetName: LOG_KEDATANGAN_SHEET_NAME,
     sourceSheet: LOG_KEDATANGAN_SOURCE_SHEET_NAME,
-    formula: importRangeFormulaComma,
+    formula: importRangeFormulaSemicolon,
     formulaIndo: importRangeFormulaSemicolon,
     cell: "A1",
     message: alertMsg
