@@ -100,10 +100,15 @@ function fixFormat() {
       activeGroupNoLf = "";
     }
 
-    // Preserve any existing formulas in the row
+    // Preserve and auto-repair any existing formulas in the row
     for (var c = 0; c < totalCols; c++) {
-      if (formulas[r][c]) {
-        currentRow[c] = formulas[r][c];
+      var f = formulas[r][c];
+      if (f) {
+        // Fix any HYPERLINK formulas that used semicolon parameter separator causing parse error
+        if (typeof f === "string" && f.indexOf("=HYPERLINK(") === 0 && f.indexOf(";") !== -1) {
+          f = f.replace(/;(?=\s*"[^"]*"\s*\)$)/, ",");
+        }
+        currentRow[c] = f;
       }
     }
   }

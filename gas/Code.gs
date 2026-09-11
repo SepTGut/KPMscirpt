@@ -208,9 +208,19 @@ function setupMaterialDatabaseImportRange() {
 
   // Set the IMPORTRANGE formula directly in cell A1 (Source rows 1-4 are headers A-V, row 5+ is material data A-L)
   var importUrl = "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit";
-  var importRangeFormula = '=IMPORTRANGE("' + importUrl + '", "DataBase!A:V")';
+  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "DataBase!A:V")';
+  var importRangeFormulaSemicolon = '=IMPORTRANGE("' + importUrl + '"; "DataBase!A:V")';
 
-  sheet.getRange("A1").setFormula(importRangeFormula);
+  var cellA1 = sheet.getRange("A1");
+  try {
+    cellA1.setFormula(importRangeFormulaComma);
+  } catch (e1) {
+    try {
+      cellA1.setFormulaLocal(importRangeFormulaSemicolon);
+    } catch (e2) {
+      cellA1.setValue(importRangeFormulaComma);
+    }
+  }
 
   // Freeze the first 4 rows so headers remain visible when scrolling data
   try {
@@ -225,14 +235,15 @@ function setupMaterialDatabaseImportRange() {
   } catch (e) {}
 
   var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet DataBase sel A1!\n\n" +
-                 "Formula di A1: " + importRangeFormula + "\n\n" +
-                 "Struktur Import:\n" +
-                 "- Baris 1-4: Header & informasi master (Kolom A-V)\n" +
-                 "- Baris 5+: Data spesifikasi material (No., Kode Material, Deskripsi, Satuan BUn, dsb.)\n\n" +
-                 "CATATAN PENTING:\n" +
-                 "Jika sel A1 menampilkan '#REF!' dengan pesan 'You need to connect these sheets', " +
-                 "silakan klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access) " +
-                 "agar Google Sheets menghubungkan kedua spreadsheet.";
+                 "Formula di A1:\n" +
+                 "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
+                 "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
+                 "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
+                 "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
+                 "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
+                 "LANGKAH SELANJUTNYA:\n" +
+                 "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
+                 "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
 
   try {
     SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Terpasang di Sel A1", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -240,7 +251,7 @@ function setupMaterialDatabaseImportRange() {
     Logger.log(alertMsg);
   }
 
-  return { success: true, formula: importRangeFormula, cell: "A1", message: alertMsg };
+  return { success: true, formula: importRangeFormulaComma, formulaIndo: importRangeFormulaSemicolon, cell: "A1", message: alertMsg };
 }
 
 /**

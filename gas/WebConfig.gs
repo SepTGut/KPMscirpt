@@ -193,24 +193,13 @@ function extractHyperlinkUrl(dispVal, formulaVal, rawVal) {
 var _cachedSpreadsheetLocale = null;
 
 /**
- * Creates locale-aware =HYPERLINK("url"; "[Link]") formula for setValues().
- * Uses semicolon (;) for Indonesian and comma (,) for US English locales.
- * Caches the locale to avoid repeated getSpreadsheetLocale() calls in batch loops.
+ * Creates standard =HYPERLINK("url", "[Link]") formula for setValues().
+ * Range.setValues() in Apps Script is locale-invariant and strictly requires comma (,) as formula argument separator.
  */
 function createHyperlinkFormula(url, label) {
   if (!url) return "";
-  if (_cachedSpreadsheetLocale === null) {
-    try {
-      _cachedSpreadsheetLocale = (SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale() || "").toLowerCase();
-    } catch (e) {
-      _cachedSpreadsheetLocale = "";
-    }
-  }
-  var loc = _cachedSpreadsheetLocale;
-  // Indonesia, German, French, Spanish, Italian use semicolon formula separator
-  var isSemicolon = (!loc || loc.indexOf("id") === 0 || loc.indexOf("in") === 0 || loc.indexOf("de") === 0 || loc.indexOf("fr") === 0 || loc.indexOf("es") === 0 || loc.indexOf("it") === 0);
-  var sep = isSemicolon ? ";" : ",";
-  return '=HYPERLINK("' + url + '"' + sep + ' "' + (label || '[Link]') + '")';
+  var cleanLabel = String(label || '[Link]').replace(/"/g, '""');
+  return '=HYPERLINK("' + url + '", "' + cleanLabel + '")';
 }
 
 /**
