@@ -9,6 +9,11 @@ var MATERIALDB_SHEET_NAME = "DataBase";
 var MATERIALDB_HEADER_ROW = 4; // header labels on row 4
 var MATERIALDB_START_ROW = 5;  // data starts at row 5
 
+var LOG_KEDATANGAN_SHEET_NAME = "Log Kedatangan";
+var LOG_KEDATANGAN_SOURCE_SHEET_NAME = "Kedatangan Log 2026";
+var LOG_KEDATANGAN_HEADER_ROW = 1; // row 1 = column headers, row 2 = aliases/codes
+var LOG_KEDATANGAN_START_ROW = 3;  // data starts at row 3
+
 // DataBase columns (1-indexed, A to L):
 // A=No., B=Kode Material, C=Deskripsi Material, D=Material Group,
 // E=BUn, F=Plant, G=Update Data, H=Kategori, I=Lead Time (hari),
@@ -44,6 +49,7 @@ function onOpen() {
   var masterMenu = ui.createMenu('📊 Master Data & Konfigurasi')
     .addItem('⚙️ Pengaturan Format Nomor KPM', 'openMasterKpm')
     .addItem('🔄 Setup / Sinkronisasi IMPORTRANGE DataBase Material', 'setupMaterialDatabaseImportRange')
+    .addItem('📥 Setup / Sinkronisasi IMPORTRANGE Log Kedatangan', 'setupLogKedatanganImportRange')
     .addItem('👥 Inisialisasi Sheet Pengguna (Users)', 'setupUsersSheet')
     .addItem('📦 Inisialisasi Sheet Penerima (Recipients)', 'setupRecipientsSheet');
 
@@ -474,6 +480,291 @@ function searchMaterialDatabase(query, limit) {
   }
 
   return results;
+}
+
+// ============================================
+// LOG KEDATANGAN (Arrival Log) IMPORTRANGE & QUERY API
+// Source: https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit?gid=745488400#gid=745488400
+// External Tab: 'Kedatangan Log 2026'
+// Columns (A to N):
+// A: No.
+// B: Tanggal
+// C: TURUN (Workshop / Drop Location: CS, SS, TR, RM, etc.)
+// D: No. PO
+// E: Vendor
+// F: Nomer SJN
+// G: Komat (Kode Material)
+// H: Deskripsi
+// I: Jumlah (SJN)
+// J: Cek Jumlah Ekspedisi
+// K: Deviasi
+// L: Proyek
+// M: Keterangan
+// N: Operator Hitung Ekspedisi
+// ============================================
+
+var _logKedatanganMemoryCache = null;
+var _logKedatanganLoadedInRam = false;
+
+/**
+ * Sets up the "Log Kedatangan" sheet with an IMPORTRANGE formula pointing to the external arrival log.
+ * External tab: 'Kedatangan Log 2026'
+ */
+function setupLogKedatanganImportRange() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(LOG_KEDATANGAN_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(LOG_KEDATANGAN_SHEET_NAME);
+  }
+
+  // Clear existing content completely so the IMPORTRANGE array expands freely from A1 without spill error
+  sheet.clearContents();
+
+  var importUrl = "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit";
+  var importRangeFormulaComma = '=IMPORTRANGE("' + importUrl + '", "\'Kedatangan Log 2026\'!A:N")';
+  var importRangeFormulaSemicolon = '=IMPORTRANGE("' + importUrl + '"; "\'Kedatangan Log 2026\'!A:N")';
+
+  var cellA1 = sheet.getRange("A1");
+  try {
+    cellA1.setFormula(importRangeFormulaComma);
+  } catch (e1) {
+    try {
+      cellA1.setFormulaLocal(importRangeFormulaSemicolon);
+    } catch (e2) {
+      cellA1.setValue(importRangeFormulaComma);
+    }
+  }
+
+  // Freeze top 2 rows (Row 1 = Headers, Row 2 = Column Codes/Aliases)
+  try {
+    sheet.setFrozenRows(2);
+  } catch (e) {}
+
+  // Invalidate memory caches
+  _logKedatanganMemoryCache = null;
+  _logKedatanganLoadedInRam = false;
+
+  var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet '" + LOG_KEDATANGAN_SHEET_NAME + "' sel A1!\n\n" +
+                 "Formula di A1:\n" +
+                 "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
+                 "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
+                 "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
+                 "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
+                 "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
+                 "LANGKAH SELANJUTNYA:\n" +
+                 "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
+                 "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
+
+  try {
+    SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Log Kedatangan Terpasang di Sel A1", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    Logger.log(alertMsg);
+  }
+
+  return {
+    success: true,
+    sheetName: LOG_KEDATANGAN_SHEET_NAME,
+    sourceSheet: LOG_KEDATANGAN_SOURCE_SHEET_NAME,
+    formula: importRangeFormulaComma,
+    formulaIndo: importRangeFormulaSemicolon,
+    cell: "A1",
+    message: alertMsg
+  };
+}
+
+/**
+ * Returns all arrival log records with multi-tiered fallback:
+ * 1. In-memory RAM cache
+ * 2. Local sheet 'Log Kedatangan' (populated by IMPORTRANGE)
+ * 3. Fallback A: Direct SpreadsheetApp.openById external master spreadsheet
+ * 4. Fallback B: Public CSV export endpoint via UrlFetchApp & Utilities.parseCsv
+ */
+function getAllLogKedatanganRows() {
+  if (_logKedatanganLoadedInRam && _logKedatanganMemoryCache && _logKedatanganMemoryCache.length > 0) {
+    return _logKedatanganMemoryCache;
+  }
+
+  var records = [];
+  var loadedFromLocal = false;
+
+  // 1. Fetch from Local 'Log Kedatangan' sheet (Rows 3+ onwards, Cols A to N = 14 cols)
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(LOG_KEDATANGAN_SHEET_NAME);
+    if (!sheet) {
+      var sheets = ss.getSheets();
+      for (var s = 0; s < sheets.length; s++) {
+        if (sheets[s].getName().trim().toLowerCase() === LOG_KEDATANGAN_SHEET_NAME.trim().toLowerCase()) {
+          sheet = sheets[s];
+          break;
+        }
+      }
+    }
+
+    if (sheet) {
+      var lastRow = sheet.getLastRow();
+      if (lastRow >= LOG_KEDATANGAN_START_ROW) {
+        var numRows = lastRow - LOG_KEDATANGAN_START_ROW + 1;
+        var data = sheet.getRange(LOG_KEDATANGAN_START_ROW, 1, numRows, 14).getValues();
+        if (data.length > 0 && data[0][0] !== "" && !String(data[0][0]).startsWith('#')) {
+          for (var i = 0; i < data.length; i++) {
+            var row = data[i];
+            if (row[0] || row[1] || row[3] || row[7]) {
+              records.push(parseLogKedatanganRow_(row));
+            }
+          }
+          if (records.length > 0) {
+            loadedFromLocal = true;
+          }
+        }
+      }
+    }
+  } catch (localErr) {
+    Logger.log("Local Log Kedatangan read note: " + localErr.message);
+  }
+
+  // 2. Direct external spreadsheet read fallback
+  if (!loadedFromLocal) {
+    var extSpreadsheetId = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.LOG_KEDATANGAN_SPREADSHEET_ID)
+      ? WEB_CONFIG.LOG_KEDATANGAN_SPREADSHEET_ID
+      : "1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk";
+
+    try {
+      var extSs = SpreadsheetApp.openById(extSpreadsheetId);
+      var extSheet = extSs.getSheetByName(LOG_KEDATANGAN_SOURCE_SHEET_NAME) || extSs.getSheetByName("Kedatangan Log 2026") || extSs.getSheets()[0];
+      var extLastRow = extSheet.getLastRow();
+      if (extLastRow >= LOG_KEDATANGAN_START_ROW) {
+        var extNumRows = extLastRow - LOG_KEDATANGAN_START_ROW + 1;
+        var extData = extSheet.getRange(LOG_KEDATANGAN_START_ROW, 1, extNumRows, 14).getValues();
+        for (var e = 0; e < extData.length; e++) {
+          var eRow = extData[e];
+          if (eRow[0] || eRow[1] || eRow[3] || eRow[7]) {
+            records.push(parseLogKedatanganRow_(eRow));
+          }
+        }
+      }
+    } catch (extErr) {
+      Logger.log("Direct external Log Kedatangan read note: " + extErr.message);
+
+      // Fallback B: Public CSV export endpoint
+      try {
+        var gid = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.LOG_KEDATANGAN_GID) ? WEB_CONFIG.LOG_KEDATANGAN_GID : "745488400";
+        var csvUrl = "https://docs.google.com/spreadsheets/d/" + extSpreadsheetId + "/export?format=csv&gid=" + gid;
+        var resp = UrlFetchApp.fetch(csvUrl, { muteHttpExceptions: true });
+        if (resp.getResponseCode() === 200) {
+          var csvText = resp.getContentText();
+          var csvRows = Utilities.parseCsv(csvText);
+          // CSV index 0 = row 1 (Header), index 1 = row 2 (Keys), index 2+ = row 3+ (Data)
+          for (var c = 2; c < csvRows.length; c++) {
+            var cRow = csvRows[c];
+            if (cRow && (cRow[0] || cRow[1] || cRow[3] || cRow[7])) {
+              records.push(parseLogKedatanganRow_(cRow));
+            }
+          }
+        }
+      } catch (csvErr) {
+        Logger.log("UrlFetch CSV Log Kedatangan fallback note: " + csvErr.message);
+      }
+    }
+  }
+
+  _logKedatanganMemoryCache = records;
+  _logKedatanganLoadedInRam = records.length > 0;
+  return _logKedatanganMemoryCache;
+}
+
+/**
+ * Parses raw array row (14 columns) into a structured Log Kedatangan object.
+ */
+function parseLogKedatanganRow_(row) {
+  var tanggalVal = row[1];
+  var tanggalStr = "";
+  if (tanggalVal instanceof Date) {
+    try {
+      tanggalStr = Utilities.formatDate(tanggalVal, Session.getScriptTimeZone() || "GMT+7", "dd/MM/yyyy");
+    } catch (e) {
+      tanggalStr = String(tanggalVal);
+    }
+  } else {
+    tanggalStr = String(tanggalVal || "").trim();
+  }
+
+  return {
+    no: String(row[0] || "").trim(),
+    tanggal: tanggalStr,
+    turun: String(row[2] || "").trim(),
+    noPo: String(row[3] || "").trim(),
+    vendor: String(row[4] || "").trim(),
+    nomerSjn: String(row[5] || "").trim(),
+    komat: String(row[6] || "").trim(),
+    deskripsi: String(row[7] || "").trim(),
+    jumlahSjn: row[8] !== undefined && row[8] !== null ? String(row[8]).trim() : "",
+    cekJumlahEkspedisi: row[9] !== undefined && row[9] !== null ? String(row[9]).trim() : "",
+    deviasi: String(row[10] || "").trim(),
+    proyek: String(row[11] || "").trim(),
+    keterangan: String(row[12] || "").trim(),
+    operatorHitung: String(row[13] || "").trim()
+  };
+}
+
+/**
+ * Returns paginated / filtered list of Log Kedatangan.
+ * Supports params: query, limit, offset, turun/workshop, vendor.
+ */
+function getLogKedatanganData(params) {
+  params = params || {};
+  var limit = Math.min(Math.max(parseInt(params.limit || "50", 10), 1), 200);
+  var offset = Math.max(parseInt(params.offset || "0", 10), 0);
+  var query = (params.query || params.q || "").toString().trim().toLowerCase();
+  var filterTurun = (params.turun || params.workshop || "").toString().trim().toUpperCase();
+  var filterVendor = (params.vendor || "").toString().trim().toLowerCase();
+
+  var allRows = getAllLogKedatanganRows();
+  var filtered = allRows;
+
+  if (filterTurun) {
+    filtered = filtered.filter(function(r) {
+      return String(r.turun || "").trim().toUpperCase() === filterTurun;
+    });
+  }
+
+  if (filterVendor) {
+    filtered = filtered.filter(function(r) {
+      return String(r.vendor || "").toLowerCase().indexOf(filterVendor) !== -1;
+    });
+  }
+
+  if (query) {
+    filtered = filtered.filter(function(r) {
+      return (
+        String(r.noPo || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.vendor || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.nomerSjn || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.komat || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.deskripsi || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.proyek || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.keterangan || "").toLowerCase().indexOf(query) !== -1 ||
+        String(r.operatorHitung || "").toLowerCase().indexOf(query) !== -1
+      );
+    });
+  }
+
+  var total = filtered.length;
+  var paginated = filtered.slice(offset, offset + limit);
+
+  return {
+    total: total,
+    limit: limit,
+    offset: offset,
+    items: paginated
+  };
+}
+
+/**
+ * Searches Log Kedatangan records by query string.
+ */
+function searchLogKedatanganData(query, limit) {
+  return getLogKedatanganData({ query: query, limit: limit || 30, offset: 0 });
 }
 
 // ============================================

@@ -26,6 +26,16 @@ var WEB_CONFIG = {
   MATERIAL_DB_START_ROW: 5,
   MATERIAL_DB_RANGE: "DataBase!A:V",
   MATERIAL_DB_IMPORTRANGE_FORMULA: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit", "DataBase!A:V")',
+  // Dynamic External Arrival Log (Log Kedatangan IMPORTRANGE source)
+  LOG_KEDATANGAN_URL: "https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit?gid=745488400#gid=745488400",
+  LOG_KEDATANGAN_SPREADSHEET_ID: "1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk",
+  LOG_KEDATANGAN_GID: "745488400",
+  LOG_KEDATANGAN_SHEET_NAME: "Log Kedatangan",
+  LOG_KEDATANGAN_SOURCE_SHEET_NAME: "Kedatangan Log 2026",
+  LOG_KEDATANGAN_HEADER_ROW: 1,
+  LOG_KEDATANGAN_START_ROW: 3,
+  LOG_KEDATANGAN_RANGE: "'Kedatangan Log 2026'!A:N",
+  LOG_KEDATANGAN_IMPORTRANGE_FORMULA: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk/edit", "\'Kedatangan Log 2026\'!A:N")',
   // Tokens must be configured in Apps Script Script Properties.
   DEFAULT_ADMIN_TOKEN: "",
   DEFAULT_DRIVER_TOKEN: ""

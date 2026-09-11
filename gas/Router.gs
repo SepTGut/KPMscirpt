@@ -14,7 +14,7 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "checkDepartureStatus", "rejectDepartureSecurity", "searchMaterials", "setupMaterialDb"];
+    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "checkDepartureStatus", "rejectDepartureSecurity", "searchMaterials", "setupMaterialDb", "setupLogKedatangan", "getLogKedatangan", "searchLogKedatangan"];
     if (allowedGetActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -32,6 +32,14 @@ function doGet(e) {
       responseData = searchMaterialDatabase(q, limit);
     } else if (action === "setupMaterialDb") {
       responseData = setupMaterialDatabaseImportRange();
+    } else if (action === "setupLogKedatangan") {
+      responseData = setupLogKedatanganImportRange();
+    } else if (action === "getLogKedatangan") {
+      responseData = getLogKedatanganData(params);
+    } else if (action === "searchLogKedatangan") {
+      var qLog = params.query || params.q || "";
+      var limitLog = parseInt(params.limit || "30", 10);
+      responseData = searchLogKedatanganData(qLog, limitLog);
     } else if (action === "resolveShortLink") {
       responseData = resolveShortLink(params);
     } else if (action === "getRecipients") {
@@ -104,7 +112,7 @@ function doPost(e) {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
       throw { code: "SYSTEM_INTEGRITY_VIOLATION", message: "Akses ditolak: Integritas hak cipta dan modul sistem telah dimodifikasi secara tidak sah." };
     }
-    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "rejectDepartureSecurity", "checkDepartureStatus", "searchMaterials", "setupMaterialDb"];
+    var allowedPostActions = ["createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "getMasterData", "getDeliveries", "getMonitoring", "login", "getUsersList", "saveUser", "toggleUserStatus", "runSystemDiagnostics", "stageArrival", "confirmArrivalReceipt", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "rejectDepartureSecurity", "checkDepartureStatus", "searchMaterials", "setupMaterialDb", "setupLogKedatangan", "getLogKedatangan", "searchLogKedatangan"];
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
@@ -142,6 +150,14 @@ function doPost(e) {
       resultData = searchMaterialDatabase(q, limit);
     } else if (action === "setupMaterialDb") {
       resultData = setupMaterialDatabaseImportRange();
+    } else if (action === "setupLogKedatangan") {
+      resultData = setupLogKedatanganImportRange();
+    } else if (action === "getLogKedatangan") {
+      resultData = getLogKedatanganData(params);
+    } else if (action === "searchLogKedatangan") {
+      var qLogPost = params.query || params.q || "";
+      var limitLogPost = parseInt(params.limit || "30", 10);
+      resultData = searchLogKedatanganData(qLogPost, limitLogPost);
     } else if (action === "getRecipients") {
       resultData = getRecipientsList(isIT);
     } else if (action === "getDeliveries") {
