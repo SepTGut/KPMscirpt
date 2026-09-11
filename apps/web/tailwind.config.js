@@ -82,6 +82,16 @@ export default {
       },
       fontFamily: {
         sans: ['"Google Sans"', '"Plus Jakarta Sans"', 'Roboto', 'Inter', 'sans-serif'],
+      },
+      screens: {
+        'xs': '475px',
+      },
+      animation: {
+        'fadeIn': 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'slideUpFade': 'slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'scaleIn': 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'springPop': 'springPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'pulseGlow': 'pulseGlow 2.5s ease-in-out infinite',
       }
     }
   },

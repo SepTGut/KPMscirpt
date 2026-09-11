@@ -8,12 +8,78 @@ const __dirname = path.dirname(__filename)
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
 const DIST_DIR = path.resolve(__dirname, 'dist')
-const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
-const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
-const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN
-const DRIVER_TOKEN = process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN
+const DRIVER_TOKEN = process.env.DRIVER_TOKEN
+
+if (!GOOGLE_SCRIPT_URL) {
+  console.error('❌ FATAL: GOOGLE_SCRIPT_URL environment variable is required. Set it in .env or system environment.')
+  process.exit(1)
+}
+if (!ADMIN_TOKEN || !DRIVER_TOKEN) {
+  console.warn('⚠️  WARNING: ADMIN_TOKEN and/or DRIVER_TOKEN not set. API proxy will reject non-login requests.')
+}
+
+// CORS origin allowlist
+const ALLOWED_ORIGINS = new Set([
+  'https://lnfd.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+])
+
+function getCorsOrigin(req) {
+  const origin = req.headers.origin || ''
+  if (ALLOWED_ORIGINS.has(origin)) return origin
+  // Allow any localhost port in dev
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin
+  return ''
+}
+
+// Security headers applied to all responses
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()'
+}
+
+function applySecurityHeaders(res) {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(key, value)
+  }
+}
+
+// Simple in-memory rate limiter (100 requests/minute per IP)
+const rateLimitMap = new Map()
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 100
+
+function isRateLimited(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown'
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+
+  if (!entry || (now - entry.windowStart) > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(ip, { windowStart: now, count: 1 })
+    return false
+  }
+
+  entry.count++
+  if (entry.count > RATE_LIMIT_MAX) return true
+  return false
+}
+
+// Periodically clean rate limit map to prevent memory leaks
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, entry] of rateLimitMap) {
+    if ((now - entry.windowStart) > RATE_LIMIT_WINDOW_MS * 2) {
+      rateLimitMap.delete(ip)
+    }
+  }
+}, RATE_LIMIT_WINDOW_MS)
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -36,14 +102,30 @@ const MIME_TYPES = {
 }
 
 async function handleApiProxy(req, res) {
+  const corsOrigin = getCorsOrigin(req)
+  applySecurityHeaders(res)
+
   // CORS Preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin || 'null',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400'
     })
     return res.end()
+  }
+
+  // Rate limiting check
+  if (isRateLimited(req)) {
+    res.writeHead(429, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Retry-After': '60'
+    })
+    return res.end(JSON.stringify({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Terlalu banyak permintaan. Coba lagi dalam 1 menit.' }
+    }))
   }
 
   const host = req.headers.host || `localhost:${PORT}`
@@ -78,10 +160,19 @@ async function handleApiProxy(req, res) {
   const action = params.get('action') || ''
   const clientRole = (params.get('authRole') || params.get('role') || '').toLowerCase()
 
-  const isDriver = (clientRole === 'driver' || clientRole === 'user')
-  const token = isDriver ? DRIVER_TOKEN : ADMIN_TOKEN
+  const isDriverRole = (clientRole === 'driver' || clientRole === 'user')
+  const token = isDriverRole ? DRIVER_TOKEN : ADMIN_TOKEN
   if (token) {
     params.set('apiToken', token)
+  } else if (action !== 'login') {
+    res.writeHead(500, {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...(corsOrigin ? { 'Access-Control-Allow-Origin': corsOrigin } : {})
+    })
+    return res.end(JSON.stringify({
+      success: false,
+      error: { code: 'CONFIG_ERROR', message: `Token role '${clientRole || 'unknown'}' belum dikonfigurasi (ADMIN_TOKEN / DRIVER_TOKEN).` }
+    }))
   }
 
   try {
@@ -108,13 +199,13 @@ async function handleApiProxy(req, res) {
 
     res.writeHead(upstream.status, {
       'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*'
+      ...(corsOrigin ? { 'Access-Control-Allow-Origin': corsOrigin } : {})
     })
     res.end(body)
   } catch (err) {
     res.writeHead(502, {
       'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*'
+      ...(corsOrigin ? { 'Access-Control-Allow-Origin': corsOrigin } : {})
     })
     res.end(JSON.stringify({
       success: false,
@@ -171,6 +262,7 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  applySecurityHeaders(res)
   serveStatic(req, res)
 })
 

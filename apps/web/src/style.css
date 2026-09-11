@@ -3,6 +3,53 @@
 @tailwind utilities;
 
 @layer base {
+  /* ─── CSS Custom Properties (Semantic Color System) ────────── */
+  :root {
+    color-scheme: light;
+    --color-surface: #f8fafd;
+    --color-surface-alt: #ffffff;
+    --color-surface-hover: #f1f3f4;
+    --color-text: #1e293b;
+    --color-text-muted: #64748b;
+    --color-text-inverse: #ffffff;
+    --color-border: #e2e8f0;
+    --color-border-subtle: #f1f5f9;
+    --color-primary: #1a73e8;
+    --color-primary-hover: #1967d2;
+    --color-primary-light: #e8f0fe;
+    --color-success: #1e8e3e;
+    --color-success-light: #e6f4ea;
+    --color-danger: #d93025;
+    --color-danger-light: #fce8e6;
+    --color-warning: #f9ab00;
+    --color-warning-light: #fef7e0;
+    --color-shadow: rgba(0, 0, 0, 0.08);
+    --color-backdrop: rgba(0, 0, 0, 0.3);
+  }
+
+  html.dark {
+    color-scheme: dark;
+    --color-surface: #090d16;
+    --color-surface-alt: #111827;
+    --color-surface-hover: #1e293b;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-text-inverse: #0f172a;
+    --color-border: #1f2937;
+    --color-border-subtle: #1e293b;
+    --color-primary: #4285f4;
+    --color-primary-hover: #669df6;
+    --color-primary-light: #0c2d64;
+    --color-success: #34a853;
+    --color-success-light: #0d3320;
+    --color-danger: #ea4335;
+    --color-danger-light: #3b1212;
+    --color-warning: #fbbc04;
+    --color-warning-light: #3b2e05;
+    --color-shadow: rgba(0, 0, 0, 0.4);
+    --color-backdrop: rgba(0, 0, 0, 0.6);
+  }
+
   body {
     @apply m-0 min-h-screen bg-google-surface-50 text-slate-800 antialiased selection:bg-google-blue-100 selection:text-google-blue-900 transition-colors duration-200;
     font-family: "Plus Jakarta Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -85,6 +132,7 @@
   }
 }
 
+/* ─── Google 4-Color Accent Bar ──────────────────────────────── */
 .google-bar {
   height: 3.5px;
   background: linear-gradient(90deg, #4285f4 0%, #ea4335 33%, #fbbc04 66%, #34a853 100%);
@@ -97,6 +145,7 @@
   100% { background-position: -100% 0; }
 }
 
+/* ─── Animations ─────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -151,15 +200,12 @@
   }
 }
 
-/* Dark mode Leaflet tile filter */
-html.dark .leaflet-layer,
-html.dark .leaflet-control-zoom-in,
-html.dark .leaflet-control-zoom-out,
-html.dark .leaflet-control-attribution {
-  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-}
+/* ─── Leaflet Dark Mode ──────────────────────────────────────── */
+/* NOTE: The old CSS filter: invert() hack has been REMOVED.
+   Dark mode tiles are now handled via tile layer swap in LiveTrackingMap.vue
+   (CartoDB Dark Matter for dark, CartoDB Positron for light) */
 
-/* Page & Tab view transition */
+/* ─── Transitions ────────────────────────────────────────────── */
 .page-fade-enter-active,
 .page-fade-leave-active {
   transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -223,3 +269,12 @@ html.dark .leaflet-control-attribution {
   transform: scale(0.95) translateY(4px);
 }
 
+/* ─── Leaflet Truck Marker Animation ─────────────────────────── */
+@keyframes truckPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(66, 133, 244, 0); }
+}
+
+.truck-marker-active {
+  animation: truckPulse 2s ease-in-out infinite;
+}

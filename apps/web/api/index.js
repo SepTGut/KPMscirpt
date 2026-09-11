@@ -1,20 +1,61 @@
 export const maxDuration = 30
 
+// CORS origin allowlist
+const ALLOWED_ORIGINS = new Set([
+  'https://lnfd.vercel.app'
+])
+
+function getCorsOrigin(req) {
+  const origin = req.headers?.origin || ''
+  if (ALLOWED_ORIGINS.has(origin)) return origin
+  // Allow localhost in development
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin
+  return ''
+}
+
+// Security headers
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()'
+}
+
+function applySecurityHeaders(res) {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(key, value)
+  }
+}
+
 export default async function handler(req, res) {
+  const corsOrigin = getCorsOrigin(req)
+  applySecurityHeaders(res)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin || 'null')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.setHeader('Access-Control-Max-Age', '86400')
     return res.status(204).end()
   }
 
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
-  const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
-  const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
+  // Set CORS for all responses
+  if (corsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin)
+  }
 
-  const envUrl = (process.env.GOOGLE_SCRIPT_URL || '').trim()
-  const scriptUrl = envUrl.includes('AKfycbz1XwsnPkZ7') ? envUrl : DEFAULT_SCRIPT_URL
+  // Environment-only tokens (no hardcoded defaults)
+  const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN
+  const DRIVER_TOKEN = process.env.DRIVER_TOKEN
+
+  if (!GOOGLE_SCRIPT_URL) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'CONFIG_ERROR', message: 'GOOGLE_SCRIPT_URL belum dikonfigurasi di Environment Variables Vercel.' },
+    })
+  }
 
   // Parse parameters safely using WHATWG URL without calling legacy url.parse()
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost'
@@ -22,6 +63,16 @@ export default async function handler(req, res) {
   const fullUrl = new URL(req.url, `${proto}://${host}`)
 
   let params = new URLSearchParams(fullUrl.searchParams)
+
+  // Request body size safety check (reject >1MB payloads)
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10)
+  if (contentLength > 1_048_576) {
+    return res.status(413).json({
+      success: false,
+      error: { code: 'PAYLOAD_TOO_LARGE', message: 'Ukuran permintaan melebihi batas 1MB.' },
+    })
+  }
+
   if (req.method !== 'GET') {
     if (typeof req.body === 'object' && req.body !== null) {
       for (const [key, value] of Object.entries(req.body)) {
@@ -49,14 +100,12 @@ export default async function handler(req, res) {
   const clientRole = (params.get('authRole') || params.get('role') || '').toLowerCase()
 
   const isDriver = (clientRole === 'driver' || clientRole === 'user')
-  const token = isDriver
-    ? (process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN)
-    : (process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN)
+  const token = isDriver ? DRIVER_TOKEN : ADMIN_TOKEN
 
   if (!token && action !== 'login') {
     return res.status(500).json({
       success: false,
-      error: { code: 'PROXY_ERROR', message: `Token role '${clientRole || 'unknown'}' belum dikonfigurasi di Environment Variables Vercel (ADMIN_TOKEN / DRIVER_TOKEN).` },
+      error: { code: 'CONFIG_ERROR', message: `Token role '${clientRole || 'unknown'}' belum dikonfigurasi di Environment Variables Vercel (ADMIN_TOKEN / DRIVER_TOKEN).` },
     })
   }
 
@@ -68,19 +117,19 @@ export default async function handler(req, res) {
   const timeout = setTimeout(() => controller.abort(), 28000)
 
   try {
-    let upstreamUrl = scriptUrl
+    let upstreamUrl = GOOGLE_SCRIPT_URL
     const requestOptions = {
       method: req.method === 'GET' ? 'GET' : 'POST',
       signal: controller.signal,
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'KPM-Vercel-Proxy/1.0'
       },
       redirect: 'follow'
     }
 
     if (req.method === 'GET') {
-      const url = new URL(scriptUrl)
+      const url = new URL(GOOGLE_SCRIPT_URL)
       params.forEach((value, key) => url.searchParams.set(key, value))
       upstreamUrl = url.toString()
     } else {
@@ -96,7 +145,7 @@ export default async function handler(req, res) {
       const preview = body.replace(/\s+/g, ' ').trim().slice(0, 160)
       return res.status(502).json({
         success: false,
-        error: { code: 'PROXY_ERROR', message: `Apps Script (${upstreamUrl}) mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}` },
+        error: { code: 'PROXY_ERROR', message: `Apps Script mengembalikan respons non-JSON (HTTP ${upstream.status}). Cuplikan: ${preview}` },
       })
     }
 

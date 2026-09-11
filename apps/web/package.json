@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "allowScripts": {
     "esbuild": true
@@ -15,13 +18,20 @@
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
     "leaflet": "^1.9.4",
-    "vue": "^3.5.13"
+    "leaflet.markercluster": "^1.5.3",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.13",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@pinia/testing": "^2.0.1",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.5.0",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^4.1.11"
   }
 }

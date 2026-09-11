@@ -6,6 +6,7 @@
 import { reactive } from 'vue'
 
 const DEFAULT_FIREBASE_DB_URL = 'https://linefeedingdbt-default-rtdb.asia-southeast1.firebasedatabase.app'
+const FIREBASE_WRITE_KEY = import.meta.env.VITE_FIREBASE_WRITE_KEY || ''
 
 export const WORKSHOP_COORDINATES = {
   'Candi Sewu': { lat: -7.6162207, lng: 111.5215291, label: 'Workshop Candi Sewu (Jl. Candi Sewu No.30 Madiun)' },
@@ -103,7 +104,8 @@ async function syncToFirebase(coords, kpmItem, driverName) {
     accuracy: coords.accuracy,
     speedKmh: coords.speedKmh,
     heading: coords.heading,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
+    _writeKey: FIREBASE_WRITE_KEY
   }
 
   try {
