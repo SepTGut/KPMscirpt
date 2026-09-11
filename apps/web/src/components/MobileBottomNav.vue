@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import Icon from './Icon.vue'
-import { useTheme } from '../composables/useTheme'
 
 const props = defineProps({
   mode: { type: String, required: true },
@@ -15,7 +14,6 @@ const props = defineProps({
 const emit = defineEmits(['navigate', 'toggle-mode', 'logout'])
 
 const showMobileDrawer = ref(false)
-const { isDark, toggleDark } = useTheme()
 
 function handleNav(view) {
   emit('navigate', view)
@@ -64,38 +62,13 @@ function handleNav(view) {
 
           <button
             @click="handleNav('tutorial')"
-            class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 font-bold transition text-left"
+            class="col-span-2 flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 font-bold transition text-left"
             :class="adminView === 'tutorial' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300' : 'text-slate-700 dark:text-slate-200'"
           >
             <Icon name="tutorial" className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span class="truncate">Buku Panduan</span>
+            <span class="truncate">Buku Panduan & Tutorial</span>
           </button>
         </template>
-
-        <button
-          @click="toggleDark"
-          class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 font-bold transition text-slate-700 dark:text-slate-200 text-left"
-        >
-          <span class="text-base">{{ isDark ? '☀️' : '🌙' }}</span>
-          <span class="truncate">{{ isDark ? 'Mode Terang' : 'Mode Gelap' }}</span>
-        </button>
-
-        <button
-          v-if="canSwitchRole"
-          @click="$emit('toggle-mode'); showMobileDrawer = false"
-          class="col-span-2 flex items-center justify-center gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 font-bold transition"
-        >
-          <Icon name="switch" className="w-4 h-4" />
-          <span>{{ mode === 'admin' ? 'Beralih ke Portal Driver' : 'Beralih ke Portal Admin' }}</span>
-        </button>
-
-        <button
-          @click="$emit('logout'); showMobileDrawer = false"
-          class="col-span-2 flex items-center justify-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold transition"
-        >
-          <Icon name="close" className="w-4 h-4" />
-          <span>Keluar Akun (Logout)</span>
-        </button>
       </div>
     </div>
 

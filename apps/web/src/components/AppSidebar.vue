@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import Icon from './Icon.vue'
-import { useTheme } from '../composables/useTheme'
 
 const props = defineProps({
   currentUser: { type: Object, required: true },
@@ -20,7 +19,6 @@ const props = defineProps({
 const emit = defineEmits(['navigate', 'toggle-mode', 'logout'])
 
 const isCollapsed = ref(false)
-const { theme, isDark, toggleDark } = useTheme()
 
 function toggleSidebar() {
   isCollapsed.value = !isCollapsed.value
@@ -242,26 +240,12 @@ function handleNav(view) {
       </template>
     </nav>
 
-    <!-- Footer Controls: Theme Toggle & Logout -->
-    <div class="p-3 border-t border-google-surface-200/80 dark:border-slate-800 space-y-2">
-      <!-- Dark Mode Switcher -->
-      <button
-        type="button"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus-visible:outline-none"
-        :class="isCollapsed ? 'justify-center' : ''"
-        @click="toggleDark"
-        :title="isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'"
-      >
-        <span class="text-base leading-none">{{ isDark ? '☀️' : '🌙' }}</span>
-        <span v-if="!isCollapsed" class="truncate">
-          {{ isDark ? 'Mode Terang' : 'Mode Gelap' }}
-        </span>
-      </button>
-
+    <!-- Footer Controls: Logout -->
+    <div class="p-3 border-t border-google-surface-200/80 dark:border-slate-800">
       <!-- Logout Button -->
       <button
         type="button"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition focus-visible:outline-none"
+        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition focus-visible:outline-none"
         :class="isCollapsed ? 'justify-center' : ''"
         @click="$emit('logout')"
         title="Keluar Akun"

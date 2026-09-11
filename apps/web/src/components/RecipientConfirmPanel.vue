@@ -268,7 +268,7 @@ onMounted(() => {
               <input
                 v-model="customRecipient"
                 type="text"
-                class="field bg-white uppercase font-bold"
+                class="field uppercase font-bold"
                 placeholder="Masukkan Nama Anda"
                 required
               />
@@ -304,7 +304,7 @@ onMounted(() => {
               <label v-else class="block cursor-pointer">
                 <input
                   ref="photoInputRef"
-                  class="field bg-white cursor-pointer file:mr-3 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 hover:file:bg-google-blue-100"
+                  class="field cursor-pointer file:mr-3 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-google-blue-50 file:text-google-blue-700 dark:file:bg-google-blue-950 dark:file:text-google-blue-300 hover:file:bg-google-blue-100"
                   type="file"
                   accept="image/*"
                   capture="environment"

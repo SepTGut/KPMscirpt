@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed, watch } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import LoginScreen from './components/LoginScreen.vue'
 import LiveTrackingMap from './components/LiveTrackingMap.vue'
 import AdminCreatePanel from './components/AdminCreatePanel.vue'
@@ -15,11 +15,18 @@ import CheckerVerifyPanel from './components/CheckerVerifyPanel.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import MobileBottomNav from './components/MobileBottomNav.vue'
 import ToastContainer from './components/ToastContainer.vue'
+import Icon from './components/Icon.vue'
 import { useAuth } from './composables/useAuth'
 import { useKpm } from './composables/useKpm'
 import { useTheme } from './composables/useTheme'
 import { useToast } from './composables/useToast'
 import { requestApi } from './composables/useApi'
+
+function onKeyDown(e) {
+  if (e.key === 'Escape' && showOmniMenu.value) {
+    showOmniMenu.value = false
+  }
+}
 
 const showDriverTutorial = ref(false)
 const { isDark, toggleDark } = useTheme()
@@ -385,8 +392,8 @@ const breadcrumbs = computed(() => {
   }
   if (mode.value === 'admin') {
     const crumbs = [
-      { label: 'Beranda', iconName: 'home', action: () => { adminView.value = 'create' } },
-      { label: 'Admin', action: () => { adminView.value = 'create' } }
+      { label: 'Beranda', iconName: 'home', action: () => goToSite('create') },
+      { label: 'Admin', action: () => goToSite('create') }
     ]
     if (adminView.value === 'create') {
       crumbs.push({ label: 'Buat KPM Baru', current: true })
@@ -433,6 +440,10 @@ function onLogout() {
 }
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', onKeyDown)
+  }
+
   if (isShortRoute.value) {
     resolveShortRoute()
   }
@@ -461,6 +472,12 @@ onMounted(() => {
   if (currentUser.value) {
     if (mode.value === 'admin') loadMaster(true)
     else loadDeliveries(true)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onKeyDown)
   }
 })
 </script>
@@ -567,11 +584,11 @@ onMounted(() => {
               <span class="text-sm leading-none">{{ isDark ? '☀️' : '🌙' }}</span>
             </button>
 
-            <!-- Role Switcher for Super Admin (Mobile & Desktop) -->
+            <!-- Role Switcher for Super Admin (Mobile only; Desktop is inside AppSidebar) -->
             <button
               v-if="canSwitchRole"
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-bold transition shadow-2xs border flex items-center gap-1.5 focus-visible:outline-none"
+              class="lg:hidden rounded-full px-2.5 py-1 text-xs font-bold transition shadow-2xs border flex items-center gap-1.5 focus-visible:outline-none"
               :class="mode === 'admin' ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'"
               @click="toggleMode"
               :title="mode === 'admin' ? 'Beralih ke Tampilan Driver' : 'Beralih ke Tampilan Admin'"
@@ -584,102 +601,156 @@ onMounted(() => {
             <div v-if="isIT" class="relative">
               <button
                 type="button"
-                class="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-2.5 py-1 text-xs font-extrabold shadow-sm flex items-center gap-1.5 transition active:scale-95 focus-visible:outline-none"
+                class="rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-1.5 text-xs font-extrabold shadow-sm flex items-center gap-1.5 transition active:scale-95 focus-visible:outline-none"
                 @click="showOmniMenu = !showOmniMenu"
                 title="Akses Semua Situs & Halaman KPM (Super Admin IT)"
+                aria-haspopup="true"
+                :aria-expanded="showOmniMenu"
               >
                 <span>⚡</span>
                 <span class="hidden sm:inline">Akses Situs IT</span>
-                <span class="text-[9px]">▼</span>
+                <span class="text-[9px] transition-transform duration-200" :class="showOmniMenu ? 'rotate-180' : ''">▼</span>
               </button>
 
-              <!-- Backdrop -->
-              <div v-if="showOmniMenu" class="fixed inset-0 z-40" @click="showOmniMenu = false"></div>
+              <!-- Backdrop with subtle blur -->
+              <div v-if="showOmniMenu" class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" @click="showOmniMenu = false"></div>
 
               <!-- Dropdown Menu -->
-              <div
-                v-if="showOmniMenu"
-                class="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 py-1.5 z-50 animate-fadeIn text-xs"
+              <Transition
+                enter-active-class="transition duration-150 ease-out"
+                enter-from-class="opacity-0 scale-95 -translate-y-1"
+                enter-to-class="opacity-100 scale-100 translate-y-0"
+                leave-active-class="transition duration-100 ease-in"
+                leave-from-class="opacity-100 scale-100 translate-y-0"
+                leave-to-class="opacity-0 scale-95 -translate-y-1"
               >
-                <div class="px-3 py-1.5 border-b border-slate-100 dark:border-slate-700 text-[10px] font-extrabold uppercase text-amber-800 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40 flex items-center justify-between">
-                  <span>Omni-Access Navigation</span>
-                  <span class="text-emerald-600 dark:text-emerald-400 font-mono font-bold">ALL SITES</span>
+                <div
+                  v-if="showOmniMenu"
+                  class="absolute right-0 mt-2 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 py-2 z-50 text-xs divide-y divide-slate-100 dark:divide-slate-800 animate-fadeIn"
+                >
+                  <div class="px-3.5 py-2 text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40 rounded-t-xl flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                      <span>⚡</span>
+                      <span>Omni-Access Hub</span>
+                    </span>
+                    <span class="text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[9px] px-1.5 py-0.5 rounded bg-emerald-100/60 dark:bg-emerald-950/80">SUPER ADMIN</span>
+                  </div>
+
+                  <!-- Section 1: Operasional Utama -->
+                  <div class="py-1.5 px-1">
+                    <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Operasional Utama
+                    </div>
+                    <button
+                      @click="goToSite('create'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'create' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="plus" className="w-4 h-4 text-google-blue-600" />
+                        <span>Buat KPM Baru</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'create'" class="w-1.5 h-1.5 rounded-full bg-google-blue-600"></span>
+                    </button>
+
+                    <button
+                      @click="goToSite('monitor'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'monitor' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="doc" className="w-4 h-4 text-google-blue-600" />
+                        <span>Pantau KPM ({{ monitoring.length }})</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'monitor'" class="w-1.5 h-1.5 rounded-full bg-google-blue-600"></span>
+                    </button>
+
+                    <button
+                      @click="goToSite('map'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'map' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="map" className="w-4 h-4 text-indigo-600" />
+                        <span>Live Radar Armada</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'map'" class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    </button>
+                  </div>
+
+                  <!-- Section 2: Pos Gerbang & Lapangan -->
+                  <div class="py-1.5 px-1">
+                    <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Pos Gerbang & Lapangan
+                    </div>
+                    <button
+                      @click="goToSite('checker'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-amber-50/80 dark:hover:bg-amber-950/50 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'checker' ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="shield" className="w-4 h-4 text-amber-600" />
+                        <span>Pos Checker (Gate Out)</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'checker'" class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                    </button>
+
+                    <button
+                      @click="goToSite('recipient'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-emerald-50/80 dark:hover:bg-emerald-950/50 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'recipient' ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="box" className="w-4 h-4 text-emerald-600" />
+                        <span>Penerima (Tanda Terima)</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'recipient'" class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    </button>
+
+                    <button
+                      @click="goToSite('driver'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-blue-50/80 dark:hover:bg-blue-950/50 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'user' ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="truck" className="w-4 h-4 text-blue-600" />
+                        <span>Portal Lapangan Driver</span>
+                      </div>
+                      <span v-if="mode === 'user'" class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                    </button>
+                  </div>
+
+                  <!-- Section 3: Pengguna & Panduan -->
+                  <div class="py-1.5 px-1">
+                    <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Sistem & Dokumentasi
+                    </div>
+                    <button
+                      @click="goToSite('users'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'users' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="users" className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                        <span>Kelola Pengguna (Users)</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'users'" class="w-1.5 h-1.5 rounded-full bg-google-blue-600"></span>
+                    </button>
+
+                    <button
+                      @click="goToSite('tutorial'); showOmniMenu = false"
+                      class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 flex items-center justify-between font-semibold transition"
+                      :class="mode === 'admin' && adminView === 'tutorial' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
+                    >
+                      <div class="flex items-center gap-2.5">
+                        <Icon name="tutorial" className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                        <span>Buku Panduan & Tutorial</span>
+                      </div>
+                      <span v-if="mode === 'admin' && adminView === 'tutorial'" class="w-1.5 h-1.5 rounded-full bg-google-blue-600"></span>
+                    </button>
+                  </div>
                 </div>
-
-                <div class="py-1">
-                  <button
-                    @click="goToSite('create'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'create' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="plus" className="w-3.5 h-3.5 text-google-blue-600" />
-                    <span>Buat KPM Baru (Admin)</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('monitor'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'monitor' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="doc" className="w-3.5 h-3.5 text-google-blue-600" />
-                    <span>Pantau KPM Monitoring</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('map'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'map' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="map" className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Live Radar Pelacakan Armada</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('checker'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'checker' ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="shield" className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Pos Checker (Gate Out)</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('recipient'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'recipient' ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="box" className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Penerima (Tanda Terima)</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('driver'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'user' ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="truck" className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Portal Lapangan Driver</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('users'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'users' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="users" className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Kelola Pengguna (Users)</span>
-                  </button>
-
-                  <button
-                    @click="goToSite('tutorial'); showOmniMenu = false"
-                    class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 font-semibold transition"
-                    :class="mode === 'admin' && adminView === 'tutorial' ? 'text-google-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 font-bold' : 'text-slate-700 dark:text-slate-200'"
-                  >
-                    <Icon name="tutorial" className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Buku Panduan & Tutorial</span>
-                  </button>
-                </div>
-              </div>
+              </Transition>
             </div>
 
             <!-- Active User Chip (Desktop) -->
@@ -724,139 +795,112 @@ onMounted(() => {
 
         <template v-else>
           <!-- Notices -->
-          <div v-if="error" class="mb-5 rounded-2xl border border-google-red-200 dark:border-red-900/50 bg-google-red-50 dark:bg-red-950/40 px-4 py-3.5 text-sm font-semibold text-google-red-700 dark:text-red-300 shadow-sm flex items-center justify-between animate-fadeIn">
+          <div v-if="error" class="mb-5 rounded-2xl border border-google-red-200/90 dark:border-red-900/50 bg-google-red-50/90 dark:bg-red-950/40 backdrop-blur-sm px-4 py-3.5 text-sm font-semibold text-google-red-700 dark:text-red-300 shadow-sm flex items-center justify-between animate-fadeIn">
             <div class="flex items-center gap-2.5">
               <Icon name="alert" className="w-4 h-4 text-google-red-600 dark:text-red-400 flex-shrink-0" />
               <span>{{ error }}</span>
             </div>
-            <button @click="error = ''" class="text-google-red-700 dark:text-red-300 hover:opacity-70 font-bold p-1">
+            <button @click="error = ''" class="text-google-red-700 dark:text-red-300 hover:opacity-70 font-bold p-1 rounded-lg transition" title="Tutup">
               <Icon name="close" className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div v-if="message" class="mb-5 rounded-2xl border border-google-green-200 dark:border-emerald-900/50 bg-google-green-50 dark:bg-emerald-950/40 px-4 py-3.5 text-sm font-semibold text-google-green-700 dark:text-emerald-300 shadow-sm flex items-center justify-between animate-fadeIn">
+          <div v-if="message" class="mb-5 rounded-2xl border border-google-green-200/90 dark:border-emerald-900/50 bg-google-green-50/90 dark:bg-emerald-950/40 backdrop-blur-sm px-4 py-3.5 text-sm font-semibold text-google-green-700 dark:text-emerald-300 shadow-sm flex items-center justify-between animate-fadeIn">
             <div class="flex items-center gap-2.5">
               <Icon name="check" className="w-4 h-4 text-google-green-600 dark:text-emerald-400 flex-shrink-0" />
               <span>{{ message }}</span>
             </div>
-            <button @click="message = ''" class="text-google-green-700 dark:text-emerald-300 hover:opacity-70 font-bold p-1">
+            <button @click="message = ''" class="text-google-green-700 dark:text-emerald-300 hover:opacity-70 font-bold p-1 rounded-lg transition" title="Tutup">
               <Icon name="close" className="w-3.5 h-3.5" />
             </button>
           </div>
 
           <!-- ADMIN / SUPER ADMIN / IT SECTION -->
           <section v-if="mode === 'admin'">
-            <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h1 v-if="adminView === 'create'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buat Surat Penugasan KPM Baru</h1>
-                <h1 v-else-if="adminView === 'monitor'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Pantau Status & Posisi KPM</h1>
-                <h1 v-else-if="adminView === 'map'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Live Radar Pelacakan Armada</h1>
-                <h1 v-else-if="adminView === 'checker'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Verifikasi Checker Gerbang Asal (Gate Out)</h1>
-                <h1 v-else-if="adminView === 'recipient'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Konfirmasi Penerimaan KPM (Serah Terima)</h1>
-                <h1 v-else-if="adminView === 'users'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Kelola Pengguna Sistem</h1>
-                <h1 v-else-if="adminView === 'tutorial'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buku Panduan & Tutorial Aplikasi</h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {{ adminView === 'checker' ? 'Pemeriksaan fisik muatan sebelum armada keluar (Gate Out).' :
-                     adminView === 'recipient' ? 'Konfirmasi serah terima barang oleh penerima di lokasi tujuan.' :
-                     'Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional logistik secara real-time.' }}
-                </p>
+            <div class="mb-6">
+              <h1 v-if="adminView === 'create'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buat Surat Penugasan KPM Baru</h1>
+              <h1 v-else-if="adminView === 'monitor'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Pantau Status & Posisi KPM</h1>
+              <h1 v-else-if="adminView === 'map'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Live Radar Pelacakan Armada</h1>
+              <h1 v-else-if="adminView === 'checker'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Verifikasi Checker Gerbang Asal (Gate Out)</h1>
+              <h1 v-else-if="adminView === 'recipient'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Konfirmasi Penerimaan KPM (Serah Terima)</h1>
+              <h1 v-else-if="adminView === 'users'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Kelola Pengguna Sistem</h1>
+              <h1 v-else-if="adminView === 'tutorial'" class="text-xl lg:text-2xl font-black text-slate-800 dark:text-white">Buku Panduan & Tutorial Aplikasi</h1>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {{ adminView === 'checker' ? 'Pemeriksaan fisik muatan sebelum armada keluar (Gate Out).' :
+                   adminView === 'recipient' ? 'Konfirmasi serah terima barang oleh penerima di lokasi tujuan.' :
+                   'Buat penugasan baru, pantau pergerakan KPM, dan kelola operasional logistik secara real-time.' }}
+              </p>
+            </div>
+
+            <!-- Panels with Fluid Page Fade Transition -->
+            <Transition name="page-fade" mode="out-in">
+              <!-- CREATE KPM PANEL -->
+              <AdminCreatePanel
+                v-if="adminView === 'create'"
+                :master="master"
+                :busy="busy"
+                :is-i-t="isIT"
+                @create="handleCreateKpm"
+              />
+
+              <!-- MONITORING PANEL (With KPI stats and smart auto-polling) -->
+              <AdminMonitoringPanel
+                v-else-if="adminView === 'monitor'"
+                :monitoring="filteredMonitoring"
+                :master="master"
+                :busy="busy"
+                :filter="filter"
+                :can-override-status="canOverrideStatus"
+                :is-i-t="isIT"
+                :kpi-stats="kpiStats"
+                :is-polling-active="isPollingActive"
+                :polling-seconds-left="pollingSecondsLeft"
+                @update:filter="filter = $event"
+                @refresh="loadMonitoring(true)"
+                @change-status="handleAdminChangeStatus"
+                @archive="handleArchiveKpm"
+                @edit-material="startEditLatestKpm"
+                @clean-test="cleanOrphanedAndTestRows"
+                @toggle-polling="togglePolling"
+              />
+
+              <!-- LIVE RADAR FLEET MAP VIEW -->
+              <div v-else-if="adminView === 'map'">
+                <LiveTrackingMap
+                  :monitoringData="monitoring"
+                  :firebaseDbUrl="master.firebaseDbUrl"
+                />
               </div>
 
-              <!-- Quick Segmented Navigation on Desktop Top -->
-              <div class="hidden xl:flex bg-google-surface-100 dark:bg-slate-800 p-1 rounded-full border border-google-surface-300/70 dark:border-slate-700 shadow-2xs gap-1">
-                <button
-                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                  :class="adminView === 'create' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
-                  @click="adminView = 'create'"
-                >
-                  <Icon name="plus" className="w-3.5 h-3.5" />
-                  <span>Buat KPM Baru</span>
-                </button>
-                <button
-                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                  :class="adminView === 'monitor' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
-                  @click="adminView = 'monitor'; loadMonitoring()"
-                >
-                  <Icon name="doc" className="w-3.5 h-3.5" />
-                  <span>Pantau ({{ monitoring.length }})</span>
-                </button>
-                <button
-                  class="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-150 inline-flex items-center gap-1.5 focus-visible:outline-none"
-                  :class="adminView === 'map' ? 'bg-google-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'"
-                  @click="adminView = 'map'; loadMonitoring()"
-                >
-                  <Icon name="map" className="w-3.5 h-3.5" />
-                  <span>Radar GPS</span>
-                </button>
+              <!-- POS CHECKER GATE OUT PANEL -->
+              <div v-else-if="adminView === 'checker'" class="max-w-2xl mx-auto py-2">
+                <CheckerVerifyPanel
+                  :kpm-nomor="resolvedKpmNomor"
+                  :is-i-t="isIT"
+                  @back-to-home="goToSite('monitor')"
+                />
               </div>
-            </div>
 
-            <!-- CREATE KPM PANEL -->
-            <AdminCreatePanel
-              v-if="adminView === 'create'"
-              :master="master"
-              :busy="busy"
-              :is-i-t="isIT"
-              @create="handleCreateKpm"
-            />
+              <!-- RECIPIENT CONFIRMATION PANEL -->
+              <div v-else-if="adminView === 'recipient'" class="max-w-xl mx-auto py-2">
+                <RecipientConfirmPanel
+                  :kpm-nomor="resolvedKpmNomor"
+                  :is-i-t="isIT"
+                  @back-to-home="goToSite('monitor')"
+                />
+              </div>
 
-            <!-- MONITORING PANEL (With KPI stats and smart auto-polling) -->
-            <AdminMonitoringPanel
-              v-else-if="adminView === 'monitor'"
-              :monitoring="filteredMonitoring"
-              :master="master"
-              :busy="busy"
-              :filter="filter"
-              :can-override-status="canOverrideStatus"
-              :is-i-t="isIT"
-              :kpi-stats="kpiStats"
-              :is-polling-active="isPollingActive"
-              :polling-seconds-left="pollingSecondsLeft"
-              @update:filter="filter = $event"
-              @refresh="loadMonitoring(true)"
-              @change-status="handleAdminChangeStatus"
-              @archive="handleArchiveKpm"
-              @edit-material="startEditLatestKpm"
-              @clean-test="cleanOrphanedAndTestRows"
-              @toggle-polling="togglePolling"
-            />
-
-            <!-- LIVE RADAR FLEET MAP VIEW -->
-            <div v-else-if="adminView === 'map'">
-              <LiveTrackingMap
-                :monitoringData="monitoring"
-                :firebaseDbUrl="master.firebaseDbUrl"
-              />
-            </div>
-
-            <!-- POS CHECKER GATE OUT PANEL -->
-            <div v-else-if="adminView === 'checker'" class="max-w-2xl mx-auto py-2">
-              <CheckerVerifyPanel
-                :kpm-nomor="resolvedKpmNomor"
+              <!-- USER MANAGEMENT PANEL (IT & Super Admin) -->
+              <UserManagementPanel
+                v-else-if="adminView === 'users' && canManageUsers"
                 :is-i-t="isIT"
-                @back-to-home="adminView = 'monitor'"
               />
-            </div>
 
-            <!-- RECIPIENT CONFIRMATION PANEL -->
-            <div v-else-if="adminView === 'recipient'" class="max-w-xl mx-auto py-2">
-              <RecipientConfirmPanel
-                :kpm-nomor="resolvedKpmNomor"
-                :is-i-t="isIT"
-                @back-to-home="adminView = 'monitor'"
+              <!-- TUTORIAL PANEL -->
+              <TutorialPanel
+                v-else-if="adminView === 'tutorial'"
               />
-            </div>
-
-            <!-- USER MANAGEMENT PANEL (IT & Super Admin) -->
-            <UserManagementPanel
-              v-else-if="adminView === 'users' && canManageUsers"
-              :is-i-t="isIT"
-            />
-
-            <!-- TUTORIAL PANEL -->
-            <TutorialPanel
-              v-else-if="adminView === 'tutorial'"
-            />
+            </Transition>
 
             <!-- MODAL: KELOLA MATERIAL KPM TERBARU -->
             <MaterialEditorModal
@@ -873,34 +917,36 @@ onMounted(() => {
 
           <!-- PERSONEL / DRIVER SECTION -->
           <div v-else>
-            <!-- Driver Tutorial View Toggle -->
-            <div v-if="showDriverTutorial || adminView === 'tutorial'" class="space-y-4">
-              <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <button
-                  type="button"
-                  class="btn-primary !py-2 !px-4 !text-xs font-bold flex items-center gap-1.5"
-                  @click="goToDriver"
-                >
-                  <span>←</span>
-                  <span>Kembali ke Penugasan Driver</span>
-                </button>
-                <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Mode Panduan Operasional Driver</span>
+            <Transition name="page-fade" mode="out-in">
+              <!-- Driver Tutorial View Toggle -->
+              <div v-if="showDriverTutorial || adminView === 'tutorial'" class="space-y-4">
+                <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <button
+                    type="button"
+                    class="btn-primary !py-2 !px-4 !text-xs font-bold flex items-center gap-1.5"
+                    @click="goToDriver"
+                  >
+                    <span>←</span>
+                    <span>Kembali ke Penugasan Driver</span>
+                  </button>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Mode Panduan Operasional Driver</span>
+                </div>
+                <TutorialPanel />
               </div>
-              <TutorialPanel />
-            </div>
 
-            <DriverDeliveryPanel
-              v-else
-              :deliveries="deliveries"
-              :selectedDelivery="selectedDelivery"
-              :driverName="driverName"
-              :busy="busy"
-              :is-i-t="isIT"
-              @select-delivery="selectedDelivery = $event"
-              @refresh-deliveries="loadDeliveries(true)"
-              @update-driver-name="driverName = $event"
-              @submit-status-update="handleDriverStatusUpdate"
-            />
+              <DriverDeliveryPanel
+                v-else
+                :deliveries="deliveries"
+                :selectedDelivery="selectedDelivery"
+                :driverName="driverName"
+                :busy="busy"
+                :is-i-t="isIT"
+                @select-delivery="selectedDelivery = $event"
+                @refresh-deliveries="loadDeliveries(true)"
+                @update-driver-name="driverName = $event"
+                @submit-status-update="handleDriverStatusUpdate"
+              />
+            </Transition>
           </div>
         </template>
       </main>
