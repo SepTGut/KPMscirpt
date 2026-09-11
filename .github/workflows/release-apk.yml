@@ -7,9 +7,10 @@ on:
     branches:
       - 'main'
       - 'Beta'
+      - 'Alpha'
       - 'Apps(personel)'
     paths:
-      - 'apps/**'
+      - 'apps/mobile/**'
       - '.github/workflows/release-apk.yml'
   workflow_dispatch:
     inputs:

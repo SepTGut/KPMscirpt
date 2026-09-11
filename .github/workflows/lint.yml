@@ -5,11 +5,13 @@ on:
     branches:
       - main
       - Beta
+      - Alpha
       - 'Apps(personel)'
   pull_request:
     branches:
       - main
       - Beta
+      - Alpha
       - 'Apps(personel)'
 
 jobs:

@@ -5,31 +5,102 @@
 html, body {
   overscroll-behavior-y: none;
   touch-action: manipulation;
-  background-color: #f8f9fa;
+  @apply bg-[#f8f9fa] dark:bg-dark-bg text-slate-800 dark:text-slate-100 transition-colors duration-200;
 }
 
-/* Material 3 Custom scrollbars for Light Theme */
+/* Google 4-Color Accent Top Bar */
+.google-bar {
+  height: 3px;
+  background: linear-gradient(90deg, #4285f4 0%, #4285f4 25%, #ea4335 25%, #ea4335 50%, #fbbc04 50%, #fbbc04 75%, #34a853 75%, #34a853 100%);
+  background-size: 200% 100%;
+  animation: barFlow 3s linear infinite;
+}
+
+/* Material 3 Custom scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f3f4;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #dadce0;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
 }
 
-/* Material 3 Smooth Transitions */
-.m3-transition {
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-200 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-google-blue-600 via-indigo-600 to-google-blue-700 hover:from-google-blue-700 hover:to-indigo-700 text-white shadow-m3-1 hover:shadow-m3-2;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700/80;
+  }
+
+  .btn-success {
+    @apply btn bg-gradient-to-r from-google-green-600 to-teal-600 hover:from-google-green-700 hover:to-teal-700 text-white shadow-m3-1 hover:shadow-m3-2;
+  }
+
+  .panel {
+    @apply rounded-3xl border border-slate-200/90 bg-white/95 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 dark:bg-slate-900/90 dark:border-slate-800;
+  }
+
+  .card-interactive {
+    @apply panel hover:-translate-y-0.5 hover:shadow-md hover:border-google-blue-300/80 dark:hover:border-blue-900/80 transition-all duration-300;
+  }
 }
 
-/* Google 4-Color Gradient Border & Highlights */
-.google-border-gradient {
-  border-image: linear-gradient(135deg, #4285f4, #ea4335, #fbbc04, #34a853) 1;
+/* Vue Transitions */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-scale-enter-active,
+.modal-scale-leave-active {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+.modal-scale-enter-from,
+.modal-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.94) translateY(8px);
+}
+
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.25s ease;
+}
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.list-move {
+  transition: transform 0.25s ease;
+}
+

@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
@@ -7,6 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        'dark-bg': '#090d16',
+        'dark-card': '#111827',
+        'dark-border': '#1f2937',
+        'dark-hover': '#1e293b',
+        'dark-muted': '#94a3b8',
         brand: {
           50: '#e8f0fe',
           100: '#d2e3fc',
@@ -81,11 +87,48 @@ export default {
         }
       },
       boxShadow: {
+        '2xs': '0 1px 1px 0 rgba(0, 0, 0, 0.03)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'm3-1': '0 1px 3px 1px rgba(0, 0, 0, 0.15), 0 1px 2px 0 rgba(0, 0, 0, 0.3)',
         'm3-2': '0 2px 6px 2px rgba(0, 0, 0, 0.15), 0 1px 2px 0 rgba(0, 0, 0, 0.3)',
         'm3-3': '0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px 0 rgba(0, 0, 0, 0.3)',
         'm3-4': '0 6px 10px 4px rgba(0, 0, 0, 0.15), 0 2px 3px 0 rgba(0, 0, 0, 0.3)',
         'google-glow': '0 0 20px -3px rgba(66, 133, 244, 0.35)',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
+        },
+        slideUpFade: {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' }
+        },
+        pulseGlow: {
+          '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.05)' }
+        },
+        springPop: {
+          '0%': { transform: 'scale(0.85)', opacity: '0' },
+          '70%': { transform: 'scale(1.06)' },
+          '100%': { transform: 'scale(1)', opacity: '1' }
+        },
+        barFlow: {
+          '0%': { backgroundPosition: '0% 50%' },
+          '100%': { backgroundPosition: '200% 50%' }
+        }
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.25s ease-out forwards',
+        slideUpFade: 'slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        scaleIn: 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        pulseGlow: 'pulseGlow 3s ease-in-out infinite',
+        springPop: 'springPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        barFlow: 'barFlow 3s linear infinite'
       },
       fontFamily: {
         sans: ['"Google Sans"', '"Plus Jakarta Sans"', 'Roboto', 'sans-serif'],

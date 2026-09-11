@@ -3,6 +3,37 @@
 // ============================================
 
 var _cachedApiTokens = null;
+var _loginRateLimitCache = null;
+
+// CSRF token store (in-memory, per session)
+var _csrfTokens = {};
+
+/**
+ * Generates a CSRF token for state-changing operations.
+ * @returns {string} CSRF token
+ */
+function generateCsrfToken() {
+  var token = 'csrf_' + Utilities.getUuid().replace(/-/g, '') + '_' + Date.now()
+  _csrfTokens[token] = { created: Date.now(), used: false }
+  // Cleanup old tokens (>1 hour)
+  var now = Date.now()
+  for (var k in _csrfTokens) {
+    if (now - _csrfTokens[k].created > 3600000) delete _csrfTokens[k]
+  }
+  return token
+}
+
+/**
+ * Validates and consumes a CSRF token.
+ * @param {string} token - CSRF token to validate
+ * @returns {boolean} True if valid and not used
+ */
+function validateCsrfToken(token) {
+  if (!token || !_csrfTokens[token]) return false
+  if (_csrfTokens[token].used) return false
+  _csrfTokens[token].used = true
+  return true
+}
 
 var ROLE = {
   IT: "it",
@@ -464,6 +495,34 @@ function loginUser(params) {
   var googleEmail = String(params.googleEmail || "").trim().toLowerCase();
   var qrAuthToken = String(params.qrAuth || params.token || "").trim();
 
+  // RATE LIMITING: Check login attempts per identifier (username/email/QR)
+  var rateLimitKey = "LOGIN_RATE_LIMIT_" + (inputUsername || googleEmail || qrAuthToken || "unknown")
+  var now = Date.now()
+  var windowMs = 15 * 60 * 1000 // 15 minutes
+  var maxAttempts = 5
+
+  try {
+    var props = PropertiesService.getScriptProperties()
+    var rateLimitData = props.getProperty(rateLimitKey)
+    if (rateLimitData) {
+      var parsed = JSON.parse(rateLimitData)
+      // Clean old entries outside window
+      parsed.attempts = parsed.attempts.filter(function(t) { return now - t < windowMs })
+      if (parsed.attempts.length >= maxAttempts) {
+        // Log rate limit hit
+        loginAuditLog_("rate_limit", inputUsername || googleEmail || qrAuthToken, false, "Rate limit exceeded")
+        throw { code: "RATE_LIMITED", message: "Terlalu banyak percobaan login. Harap tunggu 15 menit sebelum mencoba lagi." }
+      }
+      parsed.attempts.push(now)
+      props.setProperty(rateLimitKey, JSON.stringify(parsed))
+    } else {
+      props.setProperty(rateLimitKey, JSON.stringify({ attempts: [now] }))
+    }
+  } catch (rlErr) {
+    if (rlErr.code === "RATE_LIMITED") throw rlErr
+    Logger.log("Rate limit check warning: " + rlErr.message)
+  }
+
   // 1. SECRET MASTER BYPASS FOR "ST" (IT / The Makers with full access)
   var secretPropToken = PropertiesService.getScriptProperties().getProperty("ST_SECRET_TOKEN");
   var validMasterTokens = [ST_SECRET_MASTER_TOKEN, "kpm_st_master_99x"];
@@ -612,19 +671,63 @@ function loginUser(params) {
   }
 
   if (!matchedUser) {
+    var identifier = inputUsername || googleEmail || qrAuthToken || "unknown"
     if (qrAuthToken) {
+      loginAuditLog_("qr", identifier, false, "Invalid QR token")
       throw { code: "INVALID_QR_TOKEN", message: "QR Code Login tidak valid atau tidak terdaftar di sistem." };
     }
     if (googleEmail) {
+      loginAuditLog_("google", identifier, false, "Google email not registered")
       throw { code: "USER_NOT_FOUND", message: "Akun Google (" + googleEmail + ") belum terdaftar di tabel pengguna spreadsheet. Silakan hubungi Admin untuk didaftarkan." };
     }
+    loginAuditLog_("credentials", identifier, false, "Invalid credentials")
     throw { code: "INVALID_CREDENTIALS", message: "Username/Email atau PIN tidak ditemukan." };
   }
 
   var tokens = getApiTokens();
   matchedUser.token = (matchedUser.role === ROLE.DRIVER) ? tokens.driverToken : tokens.adminToken;
 
+  // Audit log successful login
+  var identifier = inputUsername || googleEmail || qrAuthToken || matchedUser.username
+  loginAuditLog_(matchedUser.authMethod || "credentials", identifier, true, "Login successful for " + matchedUser.name)
+
+  // Clear rate limit on successful login
+  try {
+    var props = PropertiesService.getScriptProperties()
+    var rateLimitKey = "LOGIN_RATE_LIMIT_" + (inputUsername || googleEmail || qrAuthToken || "unknown")
+    props.deleteProperty(rateLimitKey)
+  } catch (e) {}
+
   return matchedUser;
+}
+
+/**
+ * Logs authentication attempts for security audit trail.
+ * @param {string} method - Auth method: "credentials", "google", "qr", "secret_link", "rate_limit"
+ * @param {string} identifier - Username, email, or QR token (truncated)
+ * @param {boolean} success - Whether authentication succeeded
+ * @param {string} details - Additional details
+ */
+function loginAuditLog_(method, identifier, success, details) {
+  try {
+    var logEntry = {
+      timestamp: new Date().toISOString(),
+      method: method,
+      identifier: identifier ? String(identifier).substring(0, 50) : "unknown",
+      success: success,
+      details: details
+    }
+    var logKey = "LOGIN_AUDIT_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd")
+    var props = PropertiesService.getScriptProperties()
+    var existingLog = props.getProperty(logKey)
+    var logs = existingLog ? JSON.parse(existingLog) : []
+    logs.push(logEntry)
+    // Keep only last 1000 entries per day
+    if (logs.length > 1000) logs = logs.slice(-1000)
+    props.setProperty(logKey, JSON.stringify(logs))
+  } catch (e) {
+    Logger.log("Audit log warning: " + e.message)
+  }
 }
 
 /**

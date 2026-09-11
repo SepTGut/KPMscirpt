@@ -46,7 +46,7 @@ if (Test-Path $builtReleaseApk) {
     Copy-Item $builtReleaseApk $outputSignedApk -Force
 
     Write-Host "`n==========================================================" -ForegroundColor Green
-    Write-Host "✓ APK BERHASIL DITANDATANGANI SECARA DIGITAL (SIGNED RELEASE)!" -ForegroundColor Green
+    Write-Host "✓ APK BERHASIL DITANDATANGANI SECARA DIGITAL [SIGNED RELEASE]!" -ForegroundColor Green
     Write-Host "✓ Bebas dari Peringatan Malicious / Unverified App Google" -ForegroundColor Green
     Write-Host "Lokasi File Utama: $outputApk" -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Green

@@ -1,11 +1,14 @@
 /**
  * Direct Google Apps Script (GAS) API Client for Driver Mobile App
  * Supports both Native Android (CapacitorHttp) and Web (fetch)
+ *
+ * SECURITY: No hardcoded defaults - tokens MUST be configured via setCustomConfig()
+ * or localStorage before first use. This prevents credential leakage in source control.
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
-const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
+export const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+export const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
 
 export function getActiveGasUrl() {
   const saved = localStorage.getItem('kpm_gas_url')

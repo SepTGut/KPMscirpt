@@ -13,6 +13,27 @@ const failedLoginAttempts = ref(0)
 const cooldownSeconds = ref(0)
 let cooldownInterval = null
 
+// Login attempt tracking for audit (client-side)
+const loginAttempts = ref([])
+const MAX_LOGIN_ATTEMPTS_LOG = 20
+
+function recordLoginAttempt(method, identifier, success) {
+  const attempt = {
+    timestamp: Date.now(),
+    method,
+    identifier: identifier ? String(identifier).substring(0, 50) : 'unknown',
+    success
+  }
+  loginAttempts.value.unshift(attempt)
+  if (loginAttempts.value.length > MAX_LOGIN_ATTEMPTS_LOG) {
+    loginAttempts.value = loginAttempts.value.slice(0, MAX_LOGIN_ATTEMPTS_LOG)
+  }
+  // Persist to sessionStorage for cross-tab audit
+  try {
+    sessionStorage.setItem('kpm_login_audit', JSON.stringify(loginAttempts.value))
+  } catch {}
+}
+
 export function useAuth() {
   const toast = useToast()
   const currentPath = typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/'
@@ -104,6 +125,7 @@ export function useAuth() {
       }
 
       failedLoginAttempts.value = 0
+      recordLoginAttempt('credentials', payload.username, true)
       data._sessionTime = Date.now()
       currentUser.value = data
       mode.value = (data.role === 'driver' || data.role === 'user') ? 'user' : 'admin'
@@ -120,10 +142,15 @@ export function useAuth() {
         sessionStorage.setItem('kpm_user_session', sessionStr)
       }
 
+      // NOTE: For production deployment with HTTPS, consider using HttpOnly Secure cookies
+      // instead of localStorage/sessionStorage for session tokens.
+      // This requires backend support for cookie-based auth.
+
       toast.success(`Selamat datang kembali, ${data.name || data.username}!`, 'Login Berhasil')
       return data
     } catch (e) {
       failedLoginAttempts.value++
+      recordLoginAttempt('credentials', payload.username, false)
       if (failedLoginAttempts.value >= 3) {
         startCooldownTicker(20)
       }
@@ -164,8 +191,10 @@ export function useAuth() {
         sessionStorage.setItem('kpm_user_session', sessionStr)
       }
 
+      recordLoginAttempt('google', payload.googleEmail, true)
       return data
     } catch (e) {
+      recordLoginAttempt('google', payload.googleEmail, false)
       loginError.value = e.message
       throw e
     } finally {
@@ -175,6 +204,10 @@ export function useAuth() {
 
   async function loginWithQr(qrAuthToken) {
     if (!qrAuthToken) return null
+    // Validate QR token format (kpm_usr_* or kpm_st_master_* pattern)
+    if (!/^kpm_(usr|st)_[a-z0-9_]+$/.test(qrAuthToken)) {
+      throw new Error('Format QR token tidak valid.')
+    }
     loginError.value = ''
     isAuthBusy.value = true
     try {

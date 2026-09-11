@@ -3,6 +3,48 @@
 // ============================================
 
 /**
+ * Server-side input sanitization to prevent formula injection and XSS.
+ * Applies to ALL user-controlled inputs before writing to spreadsheet.
+ * @param {string} str - Input string
+ * @param {number} maxLen - Maximum allowed length (default 500)
+ * @returns {string} - Sanitized string
+ */
+function sanitizeInput_(str, maxLen) {
+  if (str === null || str === undefined) return ''
+  var s = String(str).trim()
+  // Strip null bytes and control characters (except tab, CR, LF which we handle)
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+  // Formula injection: prepend single quote to dangerous prefixes
+  if (/^[=+\-@\t\r＝]|^=[A-Za-z]/.test(s)) {
+    s = "'" + s
+  }
+  // Truncate to max length
+  var limit = maxLen || 500
+  if (s.length > limit) {
+    s = s.substring(0, limit)
+  }
+  return s
+}
+
+/**
+ * Sanitizes material item fields specifically.
+ * @param {string} str - Input string
+ * @returns {string} - Sanitized string (max 200 chars for names)
+ */
+function sanitizeMaterialInput_(str) {
+  return sanitizeInput_(str, 200)
+}
+
+/**
+ * Sanitizes short identifier fields (names, codes, PICs).
+ * @param {string} str - Input string
+ * @returns {string} - Sanitized string (max 100 chars)
+ */
+function sanitizeShortInput_(str) {
+  return sanitizeInput_(str, 100)
+}
+
+/**
  * Parses material item array from JSON string or legacy delimited format.
  * Strictly throws INVALID_MATERIAL on malformed JSON rather than falling through.
  */
@@ -99,7 +141,7 @@ function validateAndCreateKpm(params) {
     params.token === "kpm_st_master_99x"
   ));
 
-  var namaPIC = (params.namaPIC || "").trim();
+  var namaPIC = sanitizeShortInput_(params.namaPIC || "");
   if (!namaPIC) {
     throw { code: "INVALID_INPUT", message: "Nama PIC / Petugas wajib diisi." };
   }
@@ -119,13 +161,13 @@ function validateAndCreateKpm(params) {
   namaPIC = picMatched;
 
   var lokasiBerangkat = params.lokasiBerangkat
-    ? validateWorkshopRoute(params.lokasiBerangkat, isIT)
+    ? validateWorkshopRoute(sanitizeShortInput_(params.lokasiBerangkat), isIT)
     : "";
   var lokasiTiba = params.lokasiTiba
-    ? validateWorkshopRoute(params.lokasiTiba, isIT)
+    ? validateWorkshopRoute(sanitizeShortInput_(params.lokasiTiba), isIT)
     : "";
   var lokasiWorkshop = params.lokasiWorkshop
-    ? validateWorkshopRoute(params.lokasiWorkshop, isIT)
+    ? validateWorkshopRoute(sanitizeShortInput_(params.lokasiWorkshop), isIT)
     : "";
   if (!lokasiBerangkat || !lokasiTiba) {
     if (!lokasiWorkshop || lokasiWorkshop.indexOf("➔") === -1) {
@@ -135,7 +177,7 @@ function validateAndCreateKpm(params) {
     lokasiBerangkat = routeParts[0].trim();
     lokasiTiba = routeParts[1].trim();
   }
-  var namaProyek = (params.namaProyek || "").trim();
+  var namaProyek = sanitizeInput_(params.namaProyek || "", 200);
   if (!namaProyek || namaProyek.length > 200) {
     throw { code: "INVALID_INPUT", message: "Nama proyek wajib diisi dan maksimal 200 karakter." };
   }
@@ -183,15 +225,15 @@ function validateAndCreateKpm(params) {
     rowData[MONITOR_COL_NOLF - 1] = nomorBaruStr;
     rowData[MONITOR_COL_ITEM - 1] = j + 1;
 
-    var spekNama = itemObj.nama;
+    var spekNama = sanitizeMaterialInput_(itemObj.nama);
     var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
     if (mat) {
       rowData[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
       rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
-      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || itemObj.uom || "");
+      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || sanitizeMaterialInput_(itemObj.uom || ""));
     } else {
       rowData[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
-      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(itemObj.uom || "");
+      rowData[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(sanitizeMaterialInput_(itemObj.uom || ""));
     }
 
     rowData[MONITOR_COL_PROYEK - 1] = sanitizeSpreadsheetInput(namaProyek);
@@ -359,8 +401,8 @@ function validateAndUpdateStatus(params) {
     namaPIC = picMatched;
   }
 
-  var namaDriver = (params.namaDriver || params.driver || "").trim().toUpperCase();
-  var namaPenerima = (params.namaPenerima || params.penerima || "").trim();
+  var namaDriver = sanitizeShortInput_(params.namaDriver || params.driver || "").toUpperCase();
+  var namaPenerima = sanitizeShortInput_(params.namaPenerima || params.penerima || "");
 
   var lokasiWorkshop = "";
   var workshopOrigin = "";
@@ -643,15 +685,15 @@ function editLatestKpmItems(params) {
     rowArray[MONITOR_COL_NOLF - 1] = noLfVal;
     rowArray[MONITOR_COL_ITEM - 1] = j + 1;
 
-    var spekNama = itm.nama;
+    var spekNama = sanitizeMaterialInput_(itm.nama);
     var mat = (typeof getMaterialByKode === "function") ? getMaterialByKode(spekNama) : null;
     if (mat) {
       rowArray[MONITOR_COL_KODE - 1] = sanitizeSpreadsheetInput(mat.kode);
       rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(mat.nama);
-      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || itm.uom || "");
+      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(mat.satuan || sanitizeMaterialInput_(itm.uom || ""));
     } else {
       rowArray[MONITOR_COL_SPEK - 1] = sanitizeSpreadsheetInput(spekNama);
-      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(itm.uom || "");
+      rowArray[MONITOR_COL_UOM - 1] = sanitizeSpreadsheetInput(sanitizeMaterialInput_(itm.uom || ""));
     }
 
     rowArray[MONITOR_COL_QTY - 1] = itm.qty;
@@ -754,8 +796,8 @@ function stageArrival(params) {
  * and saving the recipient's name to Column AA (MONITOR_COL_PENERIMA).
  */
 function confirmArrivalReceipt(params) {
-  var nomorKPM = (params.nomorKPM || params.kpmId || "").trim();
-  var namaPenerima = (params.namaPenerima || params.penerima || params.recipientName || "").trim();
+  var nomorKPM = sanitizeShortInput_(params.nomorKPM || params.kpmId || "");
+  var namaPenerima = sanitizeShortInput_(params.namaPenerima || params.penerima || params.recipientName || "");
   if (!nomorKPM) {
     throw { code: "INVALID_INPUT", message: "Nomor KPM wajib disertakan." };
   }

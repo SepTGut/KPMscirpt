@@ -24,9 +24,24 @@ let pollingTimer = null
 const DRAFT_KEY = 'kpm_create_draft_v1'
 
 // Formula Injection Defense
+/**
+ * Sanitizes input to prevent spreadsheet formula injection.
+ * Prepends a single quote to strings that start with formula triggers.
+ *
+ * @param {string|any} str - Input string to sanitize
+ * @returns {string|any} - Sanitized string or original value if not string
+ *
+ * @example
+ * sanitizeSpreadsheetInput('=SUM(A1:A10)') // "'=SUM(A1:A10)"
+ * sanitizeSpreadsheetInput('=IMPORTRANGE("...")') // "'=IMPORTRANGE("...")"
+ * sanitizeSpreadsheetInput('＝EVIL') // "'＝EVIL" (fullwidth equals)
+ * sanitizeSpreadsheetInput('Normal text') // "Normal text"
+ * sanitizeSpreadsheetInput(123) // 123 (non-string passthrough)
+ */
 export function sanitizeSpreadsheetInput(str) {
   if (typeof str !== 'string') return str
-  if (/^[=+\-@\t\r]/.test(str)) {
+  // Matches: = + - @ tab CR LF, fullwidth equals (＝ U+FF1D), = followed by alpha (formula start)
+  if (/^[=+\-@\t\r＝]|^=[A-Za-z]/.test(str)) {
     return "'" + str
   }
   return str
@@ -260,8 +275,37 @@ export function useKpm() {
     clearNotice()
     busy.value = true
     try {
+      // Input validation - max lengths
+      const namaPIC = String(formData.namaPIC || '').trim()
+      const namaProyek = String(formData.namaProyek || '').trim()
+      const lokasiBerangkat = String(formData.lokasiBerangkat || '').trim()
+      const lokasiTiba = String(formData.lokasiTiba || '').trim()
+
+      if (!namaPIC) throw new Error('Nama PIC wajib diisi.')
+      if (namaPIC.length > 100) throw new Error('Nama PIC maksimal 100 karakter.')
+      if (!namaProyek) throw new Error('Nama proyek wajib diisi.')
+      if (namaProyek.length > 200) throw new Error('Nama proyek maksimal 200 karakter.')
+      if (!lokasiBerangkat) throw new Error('Lokasi berangkat wajib diisi.')
+      if (lokasiBerangkat.length > 100) throw new Error('Lokasi berangkat maksimal 100 karakter.')
+      if (!lokasiTiba) throw new Error('Lokasi tujuan wajib diisi.')
+      if (lokasiTiba.length > 100) throw new Error('Lokasi tujuan maksimal 100 karakter.')
+
+      const items = formData.items || []
+      if (!items.length) throw new Error('Minimal 1 material barang wajib diisi.')
+      if (items.length > 100) throw new Error('Maksimal 100 item material.')
+
+      for (const it of items) {
+        const nama = String(it.namaBarang || '').trim()
+        if (!nama) throw new Error('Semua material harus memiliki nama.')
+        if (nama.length > 200) throw new Error('Nama material maksimal 200 karakter.')
+        const qty = String(it.qty || '').trim()
+        if (!/^\d+(\.\d+)?$/.test(qty) || Number(qty) <= 0) {
+          throw new Error(`Kuantitas untuk material '${nama}' harus angka positif.`)
+        }
+      }
+
       // Formula Injection Defense
-      const sanitizedItems = (formData.items || []).map(it => ({
+      const sanitizedItems = items.map(it => ({
         kodeBarang: sanitizeSpreadsheetInput(String(it.kodeBarang || '')),
         namaBarang: sanitizeSpreadsheetInput(String(it.namaBarang || '')),
         qty: String(it.qty || ''),
@@ -270,10 +314,10 @@ export function useKpm() {
 
       const data = await api('createKpm', {
         body: {
-          namaPIC: sanitizeSpreadsheetInput(String(formData.namaPIC || '')),
-          namaProyek: sanitizeSpreadsheetInput(String(formData.namaProyek || '')),
-          lokasiBerangkat: sanitizeSpreadsheetInput(String(formData.lokasiBerangkat || '')),
-          lokasiTiba: sanitizeSpreadsheetInput(String(formData.lokasiTiba || '')),
+          namaPIC: sanitizeSpreadsheetInput(namaPIC),
+          namaProyek: sanitizeSpreadsheetInput(namaProyek),
+          lokasiBerangkat: sanitizeSpreadsheetInput(lokasiBerangkat),
+          lokasiTiba: sanitizeSpreadsheetInput(lokasiTiba),
           daftarBarang: JSON.stringify(sanitizedItems),
         },
       })
