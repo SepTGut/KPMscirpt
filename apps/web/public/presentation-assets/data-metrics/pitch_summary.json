@@ -1,0 +1,55 @@
+{
+  "systemName": "KPM Line Feeding Tracking System",
+  "version": "1.0.0-p (Production Release 2026)",
+  "fiveStepWorkflow": [
+    {
+      "step": 1,
+      "name": "Admin Creates the KPM & Prints Document",
+      "role": "Admin / Gudang (Warehouse Staff)",
+      "actions": "Input rute muatan, PIC, material items, generate KPM & cetak lembar fisik Triple QR",
+      "assets": [
+        "ui-desktop/02_admin_monitoring_board.png",
+        "physical-print/kpm_triple_qr_sheet.png"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Driver Logs In & Prepares Cargo",
+      "role": "Truck Driver (Supir Armada)",
+      "actions": "Scan QR ID badge, pilih batch muatan 1 truk di ponsel, foto bak truk & minta izin Gate Out",
+      "assets": [
+        "physical-print/driver_qr_card.png",
+        "ui-mobile/01_driver_tasks.png"
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Gate Checker Authorizes Exit (Gate Out)",
+      "role": "Security Guard / Gate Checker (Pos Gerbang)",
+      "actions": "Scan QR 2 (Tengah), cek fisik muatan vs foto supir, 1-klik izin seluruh batch (<30 detik)",
+      "assets": [
+        "ui-desktop/03_checker_gate_out.png"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "On the Road & Live Fleet Radar",
+      "role": "Driver & Logistics Dispatcher",
+      "actions": "1-Klik navigasi Google Maps, background streaming GPS tiap 10s, radar satelit kantor real-time",
+      "assets": [
+        "ui-mobile/02_driver_navigation.png",
+        "ui-desktop/01_fleet_radar.png"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Arrival & Frictionless Recipient Handover",
+      "role": "Workshop Recipient (Penerima Bengkel Tujuan)",
+      "actions": "Scan QR 3 tanpa login/app, pilih nama, foto bukti bongkar material, 1-klik konfirmasi selesai",
+      "assets": [
+        "ui-mobile/03_recipient_confirm.png",
+        "diagrams/5_step_process_flow.png"
+      ]
+    }
+  ]
+}

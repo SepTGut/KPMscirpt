@@ -29,6 +29,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Temporary presentation test previews
+*preview*.png
+*preview*.jpg
+
 # OS & Editor
 .DS_Store
 Thumbs.db

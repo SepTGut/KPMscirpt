@@ -53,6 +53,12 @@ resume.md
 scratch/
 WKPM/.remember/
 
+# Temporary presentation test previews & capture artifacts
+*preview*.png
+*preview*.jpg
+test-results/
+.puppeteer/
+
 # Editor and OS files
 .vscode/*
 !.vscode/extensions.json
@@ -64,3 +70,4 @@ WKPM/.remember/
 *.sw?
 .DS_Store
 Thumbs.db
+

@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panduan Operasional KPM Line Feeding — Web & PPT Interaktif</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            deckBg: '#090D16',
+            deckSurface: 'rgba(15, 23, 42, 0.85)',
+            brandBlue: '#2563EB',
+            brandEmerald: '#059669',
+            brandAmber: '#D97706',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- GSAP Animation Library CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    /* Executive Background Mesh */
+    .bg-deck {
+      background-color: #090D16;
+      background-image:
+        radial-gradient(at 10% 10%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
+        radial-gradient(at 90% 10%, rgba(5, 150, 105, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 90%, rgba(99, 102, 241, 0.10) 0px, transparent 55%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+    }
+
+    /* Glassmorphism Surface */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+    }
+    .glass-card-hover {
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+    .glass-card-hover:hover {
+      transform: translateY(-3px);
+      border-color: rgba(37, 99, 235, 0.35);
+      box-shadow: 0 25px 50px -12px rgba(37, 99, 235, 0.15);
+    }
+
+    /* Step Badge */
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Action Checklist Box */
+    .action-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all 0.25s ease;
+    }
+    .action-step:hover {
+      background: rgba(37, 99, 235, 0.08);
+      border-color: rgba(37, 99, 235, 0.35);
+      transform: translateX(4px);
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 900;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* Screenshot Presentation Frame */
+    .slide-media-frame {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.7);
+      background: #020617;
+      position: relative;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+    }
+    .slide-media-frame:hover {
+      transform: scale(1.02);
+      box-shadow: 0 25px 60px -12px rgba(37, 99, 235, 0.25);
+    }
+
+    /* 16:9 Presentation Canvas for PPT Mode */
+    .ppt-modal-canvas {
+      aspect-ratio: 16 / 9;
+      max-height: calc(100vh - 100px);
+      width: min(96vw, calc((100vh - 100px) * (16 / 9)));
+    }
+
+    .ppt-slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      padding: 2rem 2.5rem;
+      opacity: 0;
+    }
+    .ppt-slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #090D16; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+
+<body class="bg-deck text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       STICKY TOP NAVIGATION BAR (WEB MODE)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <nav class="sticky top-0 z-50 w-full bg-deckBg/90 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <!-- Left Logo -->
+      <a href="#hero" class="flex items-center gap-3 shrink-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-600/30">
+          <i data-lucide="truck" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-sm sm:text-base text-white tracking-tight">KPM LINE FEEDING</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              SOP RESMI
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Panduan Interaktif Alur Tunggal (Single Linear Flow)</p>
+        </div>
+      </a>
+
+      <!-- Center Nav Links (Scrollspy) -->
+      <div class="hidden xl:flex items-center gap-1 text-xs font-semibold text-slate-300">
+        <a href="#overview" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-white transition">Alur Tunggal</a>
+        <a href="#step-1" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-blue-400 transition">1. Gudang</a>
+        <a href="#step-2" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-teal-400 transition">2. Driver</a>
+        <a href="#step-3" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-amber-400 transition">3. Checker</a>
+        <a href="#step-4" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-indigo-400 transition">4. GPS</a>
+        <a href="#step-5" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-emerald-400 transition">5. Penerima</a>
+        <a href="#monitoring" class="px-3 py-1.5 rounded-lg hover:bg-slate-800/80 hover:text-purple-400 transition">Radar & Rekap</a>
+      </div>
+
+      <!-- Right Action CTAs & Presentation Switcher -->
+      <div class="flex items-center gap-2.5">
+        <!-- Switch to PPT Slideshow Mode Button -->
+        <button onclick="openPptMode()" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs font-mono transition flex items-center gap-1.5 border border-slate-700 shadow-sm">
+          <i data-lucide="presentation" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span>Mode Slide PPT</span>
+        </button>
+
+        <a href="https://lnfd.vercel.app" target="_blank" rel="noopener noreferrer" class="px-3.5 sm:px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-blue-600/30">
+          <span>Buka Aplikasi</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 0: HERO (STATIC WEB LANDING)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <header id="hero" class="relative max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-16 lg:pt-20 lg:pb-24 flex flex-col lg:flex-row items-center justify-between gap-12 text-left">
+    <div class="flex-1 space-y-6 max-w-2xl">
+      <div class="step-badge bg-blue-950/80 text-blue-300 border border-blue-800/80">
+        <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+        STANDAR OPERASIONAL PROSEDUR • ALUR TUNGGAL (ZERO BRANCHING)
+      </div>
+
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1]">
+        Panduan Cara Penggunaan <br/>
+        <span class="bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+          KPM Line Feeding
+        </span>
+      </h1>
+
+      <p class="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
+        Panduan resmi interaktif bagi <b>Gudang Asal</b>, <b>Driver Armada</b>, <b>Checker Pos Gerbang</b>, dan <b>Workshop Penerima</b> dalam satu rantai alur linier tanpa percabangan rumit.
+      </p>
+
+      <!-- 3 Key Metric Badges -->
+      <div class="grid grid-cols-3 gap-3 pt-2">
+        <div class="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-500">
+          <div class="text-[11px] font-bold text-slate-400">Kecepatan Gerbang</div>
+          <div class="text-xl sm:text-2xl font-black text-emerald-400 font-mono">&lt; 30 Detik</div>
+          <div class="text-[10.5px] text-slate-500">1-Klik Batch Otorisasi</div>
+        </div>
+        <div class="glass-card p-3.5 rounded-2xl border-l-4 border-l-blue-500">
+          <div class="text-[11px] font-bold text-slate-400">Verifikasi Fisik</div>
+          <div class="text-xl sm:text-2xl font-black text-blue-400 font-mono">Triple QR</div>
+          <div class="text-[10.5px] text-slate-500">Lembar Cetak Resmi A4</div>
+        </div>
+        <div class="glass-card p-3.5 rounded-2xl border-l-4 border-l-amber-500">
+          <div class="text-[11px] font-bold text-slate-400">Arsip Digital</div>
+          <div class="text-xl sm:text-2xl font-black text-amber-400 font-mono">100% Cloud</div>
+          <div class="text-[10.5px] text-slate-500">Bebas Risiko Dokumen Hilang</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-3 flex flex-wrap items-center gap-3">
+        <a href="#step-1" class="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm transition shadow-lg shadow-blue-600/30 flex items-center gap-2">
+          <span>Mulai Pelajari Langkah 1</span>
+          <i data-lucide="arrow-down" class="w-4 h-4"></i>
+        </a>
+        <button onclick="openPptMode()" class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition flex items-center gap-2 border border-slate-700">
+          <i data-lucide="play" class="w-4 h-4 text-emerald-400"></i>
+          <span>Buka Presentasi PPT</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Hero Visual (A4 Physical Triple QR Sheet) -->
+    <div class="flex-1 w-full max-w-lg flex flex-col items-center">
+      <div class="slide-media-frame cursor-pointer group w-full" onclick="openLightbox('../presentation-assets/physical-print/kpm_triple_qr_sheet.png')">
+        <img src="../presentation-assets/physical-print/kpm_triple_qr_sheet.png" alt="Lembar Fisik KPM Triple QR" class="w-full h-auto object-contain group-hover:scale-103 transition duration-300">
+        <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+          🔍 Klik untuk memperbesar Lembar Fisik Triple QR (A4)
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 1: OVERVIEW ALUR TUNGGAL (THE 1-WAY LINEAR FLOW)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="overview" class="py-16 border-t border-slate-800/60 bg-slate-950/40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-left space-y-8">
+      <div class="max-w-3xl space-y-2">
+        <div class="step-badge bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+          KONSEP DASAR • SATU ALUR PASTI
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          5 Tahap Wajib Berurutan (Zero Branching)
+        </h2>
+        <p class="text-sm sm:text-base text-slate-300">
+          Sistem KPM dirancang menggunakan <b>Sequential State Machine</b> yang terkunci secara digital. Setiap dokumen material wajib menyelesaikan tahapannya secara linier tanpa ada celah manipulasi atau jalan pintas.
+        </p>
+      </div>
+
+      <!-- Linear Step Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <!-- Step 1 Card -->
+        <a href="#step-1" class="glass-card glass-card-hover p-5 rounded-2xl flex flex-col justify-between border-t-4 border-t-blue-500">
+          <div class="space-y-2">
+            <span class="text-xs font-mono font-bold text-blue-400">TAHAP 01</span>
+            <div class="text-base font-bold text-white">Gudang / PPIC</div>
+            <p class="text-xs text-slate-400">Input material muatan & cetak lembar fisik Triple QR.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-blue-400 font-bold">
+            Status: Baru Dibuat ➔
+          </div>
+        </a>
+
+        <!-- Step 2 Card -->
+        <a href="#step-2" class="glass-card glass-card-hover p-5 rounded-2xl flex flex-col justify-between border-t-4 border-t-teal-500">
+          <div class="space-y-2">
+            <span class="text-xs font-mono font-bold text-teal-400">TAHAP 02</span>
+            <div class="text-base font-bold text-white">Driver Truk</div>
+            <p class="text-xs text-slate-400">Pilih muatan batch di ponsel, foto bak truk, minta izin.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-teal-400 font-bold">
+            Status: Staged ➔
+          </div>
+        </a>
+
+        <!-- Step 3 Card -->
+        <a href="#step-3" class="glass-card glass-card-hover p-5 rounded-2xl flex flex-col justify-between border-t-4 border-t-amber-500">
+          <div class="space-y-2">
+            <span class="text-xs font-mono font-bold text-amber-400">TAHAP 03</span>
+            <div class="text-base font-bold text-white">Checker Gerbang</div>
+            <p class="text-xs text-slate-400">Scan QR 2, cek fisik barang, 1-klik izin keluar seluruh truk.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-amber-400 font-bold">
+            Status: Izin Jalan ➔
+          </div>
+        </a>
+
+        <!-- Step 4 Card -->
+        <a href="#step-4" class="glass-card glass-card-hover p-5 rounded-2xl flex flex-col justify-between border-t-4 border-t-indigo-500">
+          <div class="space-y-2">
+            <span class="text-xs font-mono font-bold text-indigo-400">TAHAP 04</span>
+            <div class="text-base font-bold text-white">Perjalanan (GPS)</div>
+            <p class="text-xs text-slate-400">Driver ikuti Google Maps, radar satelit melacak otomatis.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-indigo-400 font-bold">
+            Status: Jalan (Live) ➔
+          </div>
+        </a>
+
+        <!-- Step 5 Card -->
+        <a href="#step-5" class="glass-card glass-card-hover p-5 rounded-2xl flex flex-col justify-between border-t-4 border-t-emerald-500">
+          <div class="space-y-2">
+            <span class="text-xs font-mono font-bold text-emerald-400">TAHAP 05</span>
+            <div class="text-base font-bold text-white">Penerima Workshop</div>
+            <p class="text-xs text-slate-400">Scan QR 3 tanpa login, upload foto bongkar, tanda tangan.</p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-emerald-400 font-bold">
+            Status: Tiba (Selesai) ✓
+          </div>
+        </a>
+      </div>
+
+      <!-- Asset Summary Table (5-Step Master Matrix) -->
+      <div class="mt-8 p-6 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div class="space-y-1">
+            <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="layers" class="w-5 h-5 text-blue-400"></i>
+              Matriks Aset Operasional Lapangan (5-Step Asset Reference)
+            </h3>
+            <p class="text-xs text-slate-400">Panduan aset visual dan peran aktor pada setiap tahapan alur operasional nyata</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 self-start sm:self-center">
+            ASET 100% TERVERIFIKASI
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 font-mono text-[11px] uppercase tracking-wider">
+                <th class="py-2.5 px-3">Step #</th>
+                <th class="py-2.5 px-3">Tahap Operasional</th>
+                <th class="py-2.5 px-3">Aktor Lapangan</th>
+                <th class="py-2.5 px-3">Tindakan Lapangan</th>
+                <th class="py-2.5 px-3">File Aset di <code>presentation-assets/</code></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-3 px-3 font-mono font-extrabold text-blue-400">1</td>
+                <td class="py-3 px-3 font-bold text-white">Admin create & print</td>
+                <td class="py-3 px-3 text-slate-300">Admin / Gudang</td>
+                <td class="py-3 px-3 text-slate-400">Input rute & muatan, klik terbitkan, cetak kertas A4 Triple QR</td>
+                <td class="py-3 px-3 font-mono text-slate-300 space-y-1">
+                  <div class="flex items-center gap-1.5"><span class="text-blue-400">📄</span> <code>physical-print/kpm_triple_qr_sheet.png</code></div>
+                  <div class="flex items-center gap-1.5"><span class="text-blue-400">🖥️</span> <code>ui-desktop/02_admin_monitoring_board.png</code></div>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-3 px-3 font-mono font-extrabold text-teal-400">2</td>
+                <td class="py-3 px-3 font-bold text-white">Driver login & cargo photo</td>
+                <td class="py-3 px-3 text-slate-300">Driver Truk</td>
+                <td class="py-3 px-3 text-slate-400">Scan ID pass wearable, cek batch muatan, foto bak, minta izin gate out</td>
+                <td class="py-3 px-3 font-mono text-slate-300 space-y-1">
+                  <div class="flex items-center gap-1.5"><span class="text-teal-400">📇</span> <code>physical-print/driver_qr_card.png</code></div>
+                  <div class="flex items-center gap-1.5"><span class="text-teal-400">📱</span> <code>ui-mobile/01_driver_tasks.png</code></div>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-3 px-3 font-mono font-extrabold text-amber-400">3</td>
+                <td class="py-3 px-3 font-bold text-white">Gate security 1-click out</td>
+                <td class="py-3 px-3 text-slate-300">Checker Gerbang</td>
+                <td class="py-3 px-3 text-slate-400">Scan QR 2 tengah, cek fisik vs foto, 1-klik setujui seluruh batch</td>
+                <td class="py-3 px-3 font-mono text-slate-300">
+                  <div class="flex items-center gap-1.5"><span class="text-amber-400">🖥️</span> <code>ui-desktop/03_checker_gate_out.png</code></div>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-3 px-3 font-mono font-extrabold text-indigo-400">4</td>
+                <td class="py-3 px-3 font-bold text-white">Driving & Live Fleet Radar</td>
+                <td class="py-3 px-3 text-slate-300">Driver & Dispatcher</td>
+                <td class="py-3 px-3 text-slate-400">1-Klik navigasi Google Maps, ponsel streaming GPS 10s, kantor pantau radar</td>
+                <td class="py-3 px-3 font-mono text-slate-300 space-y-1">
+                  <div class="flex items-center gap-1.5"><span class="text-indigo-400">📱</span> <code>ui-mobile/02_driver_navigation.png</code></div>
+                  <div class="flex items-center gap-1.5"><span class="text-indigo-400">🗺️</span> <code>ui-desktop/01_fleet_radar.png</code></div>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-3 px-3 font-mono font-extrabold text-emerald-400">5</td>
+                <td class="py-3 px-3 font-bold text-white">Recipient QR sign-off</td>
+                <td class="py-3 px-3 text-slate-300">Penerima Workshop</td>
+                <td class="py-3 px-3 text-slate-400">Scan QR 3 tanpa app / zero-login, pilih nama, foto barang, status TIBA tuntas</td>
+                <td class="py-3 px-3 font-mono text-slate-300 space-y-1">
+                  <div class="flex items-center gap-1.5"><span class="text-emerald-400">📱</span> <code>ui-mobile/03_recipient_confirm.png</code></div>
+                  <div class="flex items-center gap-1.5"><span class="text-emerald-400">📊</span> <code>diagrams/5_step_process_flow.png</code></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 2: LANGKAH 1 - GUDANG ASAL (ADMIN & PRINT)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="step-1" class="py-16 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 text-left">
+      <!-- Header row -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="step-badge bg-blue-950/80 text-blue-300 border border-blue-800/80">
+            🎬 LANGKAH 1 DARI 5 • ADMIN / GUDANG (WAREHOUSE STAFF)
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Admin Creates the KPM & Prints the Document
+          </h2>
+          <p class="text-sm text-slate-300">
+            <b>Who does it:</b> Admin / Gudang (Warehouse Staff) &bull; Mendaftarkan permohonan pengiriman digital dan mencetak lembar jalan fisik Triple QR.
+          </p>
+        </div>
+
+        <!-- Executive Narrative Quote Box -->
+        <div class="max-w-md p-4 rounded-2xl bg-blue-950/40 border border-blue-800/60 text-xs sm:text-sm text-blue-200 italic space-y-1 shrink-0">
+          <div class="font-bold text-[11px] uppercase tracking-wider text-blue-400 not-italic font-mono">📢 Narasi Operasional:</div>
+          &ldquo;First, the logistics admin creates the digital request in seconds and prints the physical travel sheet. The sheet features 3 smart QR codes for public tracking, gate clearance, and recipient handover.&rdquo;
+        </div>
+      </div>
+
+      <!-- Action Steps -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="action-step">
+          <div class="step-num bg-blue-600 text-white">1</div>
+          <div>
+            <div class="text-sm font-bold text-white">Input Rute & Material</div>
+            <div class="text-xs text-slate-400">Admin membuka portal dan memasukkan workshop asal (<i>Candi Sewu</i>), tujuan (<i>Tiron</i>), nama driver (<i>Pak Budi</i>), dan material.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-blue-600 text-white">2</div>
+          <div>
+            <div class="text-sm font-bold text-white">Klik "Simpan & Terbitkan KPM"</div>
+            <div class="text-xs text-slate-400">Sistem otomatis generate nomor KPM resmi (<code>001/PPO/LF/IX/2026</code>) dan mencatat status <b>"Baru Dibuat"</b> di database spreadsheet.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-blue-600 text-white">3</div>
+          <div>
+            <div class="text-sm font-bold text-white">Cetak Dokumen Fisik A4 Triple QR</div>
+            <div class="text-xs text-slate-400">Cetak lembar kertas A4 yang memuat 3 QR codes cerdas: <b>QR 1 (Tracking)</b>, <b>QR 2 (Pos Gerbang)</b>, dan <b>QR 3 (Penerima)</b>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual Asset Visual Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2">
+        <!-- Asset 1: Screen -->
+        <div class="lg:col-span-7 space-y-2">
+          <div class="text-xs font-mono font-bold text-blue-400 flex items-center gap-2">
+            <span>🖥️</span> ASET 1: SCREEN FORM & MONITORING BOARD
+          </div>
+          <div class="slide-media-frame cursor-pointer group w-full" onclick="openLightbox('../presentation-assets/ui-desktop/02_admin_monitoring_board.png')">
+            <img src="../presentation-assets/ui-desktop/02_admin_monitoring_board.png" alt="Admin Monitoring Board" class="w-full h-auto object-cover group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              🖥️ Screen: Monitoring Board & Form Penerbitan KPM (Tombol "Simpan & Terbitkan KPM")
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset 2: Document -->
+        <div class="lg:col-span-5 space-y-2">
+          <div class="text-xs font-mono font-bold text-blue-400 flex items-center gap-2">
+            <span>📄</span> ASET 2: LEMBAR CETAK FISIK A4 TRIPLE QR
+          </div>
+          <div class="slide-media-frame cursor-pointer group w-full flex justify-center" onclick="openLightbox('../presentation-assets/physical-print/kpm_triple_qr_sheet.png')">
+            <img src="../presentation-assets/physical-print/kpm_triple_qr_sheet.png" alt="Lembar KPM Triple QR" class="w-full max-h-[380px] object-contain p-2 group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📄 Document: Lembar Kertas A4 dengan QR 1 (Track), QR 2 (Checker), QR 3 (Penerima)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 3: LANGKAH 2 - DRIVER ARMADA (PREPARASI & FOTO)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="step-2" class="py-16 border-t border-slate-800/80 bg-slate-950/40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 text-left">
+      <!-- Header row -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="step-badge bg-teal-950/80 text-teal-300 border border-teal-800/80">
+            🎬 LANGKAH 2 DARI 5 • DRIVER / PENGEMUDI ARMADA TRUK
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Driver Logs In & Prepares Cargo
+          </h2>
+          <p class="text-sm text-slate-300">
+            <b>Who does it:</b> Truck Driver &bull; Login instan tanpa password, cek daftar tugas KPM, dan potret muatan bak truk.
+          </p>
+        </div>
+
+        <!-- Executive Narrative Quote Box -->
+        <div class="max-w-md p-4 rounded-2xl bg-teal-950/40 border border-teal-800/60 text-xs sm:text-sm text-teal-200 italic space-y-1 shrink-0">
+          <div class="font-bold text-[11px] uppercase tracking-wider text-teal-400 not-italic font-mono">📢 Narasi Operasional:</div>
+          &ldquo;Second, the driver taps into their mobile app using a wearable QR badge, takes a quick photo of the loaded cargo, and requests exit gate clearance.&rdquo;
+        </div>
+      </div>
+
+      <!-- Action Steps -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="action-step">
+          <div class="step-num bg-teal-600 text-white">1</div>
+          <div>
+            <div class="text-sm font-bold text-white">Login Instan via Wearable QR Pass</div>
+            <div class="text-xs text-slate-400">Driver memindai kartu lanyard QR ID miliknya untuk masuk otomatis ke portal ponsel tanpa perlu mengingat dan mengetik kata sandi.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-teal-600 text-white">2</div>
+          <div>
+            <div class="text-sm font-bold text-white">Lihat KPM & Potret 1 Foto Muatan</div>
+            <div class="text-xs text-slate-400">Driver membuka aplikasi di HP, melihat KPM yang ditugaskan (batch muatan 1 truk), dan mengambil 1 foto kondisi fisik muatan di bak truk.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-teal-600 text-white">3</div>
+          <div>
+            <div class="text-sm font-bold text-white">Tap "Minta Izin Checker (Gate Out)"</div>
+            <div class="text-xs text-slate-400">Driver menekan tombol hijau sebelum melajukan truk ke pos gerbang. Data muatan otomatis berstatus <b>"Staged"</b>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual Asset Visual Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2">
+        <!-- Asset 1: Driver ID Pass -->
+        <div class="lg:col-span-5 space-y-2 flex flex-col items-center">
+          <div class="text-xs font-mono font-bold text-teal-400 flex items-center gap-2 self-start">
+            <span>📇</span> ASET 1: PHYSICAL ID PASS (WEARABLE BADGE)
+          </div>
+          <div class="slide-media-frame cursor-pointer group max-w-xs w-full flex justify-center" onclick="openLightbox('../presentation-assets/physical-print/driver_qr_card.png')">
+            <img src="../presentation-assets/physical-print/driver_qr_card.png" alt="Kartu Driver QR ID" class="w-full max-h-[460px] object-contain group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📇 Physical ID: Kartu Lanyard Driver (Pak Budi • AE 8241 UZ)
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset 2: Mobile Driver Task Screen -->
+        <div class="lg:col-span-7 space-y-2 flex flex-col items-center">
+          <div class="text-xs font-mono font-bold text-teal-400 flex items-center gap-2 self-start">
+            <span>📱</span> ASET 2: SCREEN PORTAL MOBILE DRIVER
+          </div>
+          <div class="slide-media-frame cursor-pointer group max-w-xs w-full flex justify-center" onclick="openLightbox('../presentation-assets/ui-mobile/01_driver_tasks.png')">
+            <img src="../presentation-assets/ui-mobile/01_driver_tasks.png" alt="Driver Tasks Mobile" class="w-full max-h-[460px] object-contain group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📱 Screen: Daftar Muatan Batch 1 Truk & Tombol "Minta Izin Checker (Gate Out)"
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 4: LANGKAH 3 - CHECKER GERBANG (1-KLIK BATCH OUT)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="step-3" class="py-16 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 text-left">
+      <!-- Header row -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="step-badge bg-amber-950/80 text-amber-300 border border-amber-800/80">
+            🎬 LANGKAH 3 DARI 5 • PETUGAS SECURITY / POS GERBANG (CHECKER)
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Gate Checker Authorizes Exit (Gate Out)
+          </h2>
+          <p class="text-sm text-slate-300">
+            <b>Who does it:</b> Security Guard / Gate Checker (Pos Gerbang) &bull; Otorisasi keluar 1-klik batch dalam waktu kurang dari 30 detik.
+          </p>
+        </div>
+
+        <!-- Executive Narrative Quote Box -->
+        <div class="max-w-md p-4 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-xs sm:text-sm text-amber-200 italic space-y-1 shrink-0">
+          <div class="font-bold text-[11px] uppercase tracking-wider text-amber-400 not-italic font-mono">📢 Narasi Operasional:</div>
+          &ldquo;Third, at the factory gate, security scans the paper's center QR code. Instead of 15 minutes of manual paperwork, one click approves the whole truckload to leave.&rdquo;
+        </div>
+      </div>
+
+      <!-- Action Steps -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="action-step">
+          <div class="step-num bg-amber-600 text-white">1</div>
+          <div>
+            <div class="text-sm font-bold text-white">Truk Tiba di Pos Keluar</div>
+            <div class="text-xs text-slate-400">Driver berhenti di pos keluar pabrik dan menyerahkan lembar kertas A4 Triple QR kepada petugas keamanan gerbang.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-amber-600 text-white">2</div>
+          <div>
+            <div class="text-sm font-bold text-white">Scan QR 2 (Tengah)</div>
+            <div class="text-xs text-slate-400">Security memindai <b>QR 2 (Tengah)</b> pada kertas (atau memilih truk di tablet). Modal verifikasi otomatis terbuka.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-amber-600 text-white">3</div>
+          <div>
+            <div class="text-sm font-bold text-white">Cek Fisik & Cocokkan Foto</div>
+            <div class="text-xs text-slate-400">Petugas memeriksa bak truk vs foto muatan driver di layar serta checklist manifes barang.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-amber-600 text-white">4</div>
+          <div>
+            <div class="text-sm font-bold text-white">1-Klik "✓ Izinkan Seluruh Batch"</div>
+            <div class="text-xs text-slate-400">Satu klik menyetujui seluruh KPM di truk (&lt;30 detik). Status otomatis terkunci <b>"JALAN"</b>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Single Wide Desktop Visual -->
+      <div class="space-y-2 pt-2">
+        <div class="text-xs font-mono font-bold text-amber-400 flex items-center gap-2">
+          <span>🖥️</span> ASET: SCREEN MODAL VERIFIKASI GATE CHECKER (1-KLIK BATCH OUT)
+        </div>
+        <div class="slide-media-frame cursor-pointer group w-full" onclick="openLightbox('../presentation-assets/ui-desktop/03_checker_gate_out.png')">
+          <img src="../presentation-assets/ui-desktop/03_checker_gate_out.png" alt="Checker Gate Out" class="w-full h-auto object-cover group-hover:scale-102 transition duration-300">
+          <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+            🖥️ Screen: Modal Otorisasi Gate Out dengan Foto Bak Truk, Checklist 2 KPM, dan Tombol "✓ Izinkan Seluruh Batch" (&lt;30s)
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 5: LANGKAH 4 - ON THE ROAD & LIVE FLEET RADAR
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="step-4" class="py-16 border-t border-slate-800/80 bg-slate-950/40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 text-left">
+      <!-- Header row -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="step-badge bg-indigo-950/80 text-indigo-300 border border-indigo-800/80">
+            🎬 LANGKAH 4 DARI 5 • DRIVER & LOGISTIK DISPATCHER
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            On the Road & Live Fleet Radar
+          </h2>
+          <p class="text-sm text-slate-300">
+            <b>Who does it:</b> Driver & Logistics Dispatcher &bull; Navigasi turn-by-turn dan pemantauan pergerakan armada secara real-time via satelit.
+          </p>
+        </div>
+
+        <!-- Executive Narrative Quote Box -->
+        <div class="max-w-md p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/60 text-xs sm:text-sm text-indigo-200 italic space-y-1 shrink-0">
+          <div class="font-bold text-[11px] uppercase tracking-wider text-indigo-400 not-italic font-mono">📢 Narasi Operasional:</div>
+          &ldquo;Fourth, while the driver navigates with Google Maps, the logistics office monitors the live fleet radar showing real-time location, speed, and exact route history.&rdquo;
+        </div>
+      </div>
+
+      <!-- Action Steps -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="action-step">
+          <div class="step-num bg-indigo-600 text-white">1</div>
+          <div>
+            <div class="text-sm font-bold text-white">1-Klik Buka Navigasi Google Maps</div>
+            <div class="text-xs text-slate-400">Driver menekan tombol <i>"Buka Navigasi di Google Maps"</i> untuk petunjuk arah langsung belokan demi belokan ke workshop tujuan.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-indigo-600 text-white">2</div>
+          <div>
+            <div class="text-sm font-bold text-white">Streaming GPS Latar Belakang (Tiap 10s)</div>
+            <div class="text-xs text-slate-400">HP pengemudi otomatis mentransmisikan titik koordinat GPS ke sistem setiap 10 detik tanpa mengganggu navigasi Maps.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-indigo-600 text-white">3</div>
+          <div>
+            <div class="text-sm font-bold text-white">Dispatcher Pantau Live Fleet Radar</div>
+            <div class="text-xs text-slate-400">Kantor pusat memantau titik truk bergerak di peta interaktif lengkap dengan kecepatan (42 km/h), garis rute cyan, dan sisa waktu (ETA).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual Asset Visual Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2">
+        <!-- Asset 1: Mobile Navigation -->
+        <div class="lg:col-span-4 space-y-2 flex flex-col items-center">
+          <div class="text-xs font-mono font-bold text-indigo-400 flex items-center gap-2 self-start">
+            <span>📱</span> ASET 1: SCREEN DRIVER MOBILE (NAVIGASI & GPS)
+          </div>
+          <div class="slide-media-frame cursor-pointer group max-w-xs w-full flex justify-center" onclick="openLightbox('../presentation-assets/ui-mobile/02_driver_navigation.png')">
+            <img src="../presentation-assets/ui-mobile/02_driver_navigation.png" alt="Driver Navigation" class="w-full max-h-[460px] object-contain group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📱 Screen: Driver Navigation (Google Maps CTA, Speed 42 km/h, ETA 14 Mnt)
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset 2: Desktop Fleet Radar -->
+        <div class="lg:col-span-8 space-y-2">
+          <div class="text-xs font-mono font-bold text-indigo-400 flex items-center gap-2">
+            <span>🗺️</span> ASET 2: SCREEN DESKTOP LIVE FLEET RADAR
+          </div>
+          <div class="slide-media-frame cursor-pointer group w-full" onclick="openLightbox('../presentation-assets/ui-desktop/01_fleet_radar.png')">
+            <img src="../presentation-assets/ui-desktop/01_fleet_radar.png" alt="Live Fleet Radar" class="w-full h-auto object-cover group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              🗺️ Screen: Live Fleet Radar Map (Truk Pak Budi TRK-01 melintas Candi Sewu ➔ Tiron)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 6: LANGKAH 5 - ARRIVAL & WORKSHOP HANDOVER
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="step-5" class="py-16 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 text-left">
+      <!-- Header row -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="step-badge bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+            🎬 LANGKAH 5 DARI 5 • PETUGAS WORKSHOP TUJUAN (RECIPIENT)
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Arrival & Frictionless Recipient Handover
+          </h2>
+          <p class="text-sm text-slate-300">
+            <b>Who does it:</b> Workshop Recipient at destination (e.g. at <i>Tiron</i> or <i>Sukosari</i>) &bull; Konfirmasi serah terima digital tanpa login.
+          </p>
+        </div>
+
+        <!-- Executive Narrative Quote Box -->
+        <div class="max-w-md p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-xs sm:text-sm text-emerald-200 italic space-y-1 shrink-0">
+          <div class="font-bold text-[11px] uppercase tracking-wider text-emerald-400 not-italic font-mono">📢 Narasi Operasional:</div>
+          &ldquo;Finally, upon arrival, the workshop receiver scans the QR code with their regular smartphone camera—no app download or password needed. They attach a photo, sign off digitally, and the delivery is complete with 100% verified proof.&rdquo;
+        </div>
+      </div>
+
+      <!-- Action Steps -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="action-step">
+          <div class="step-num bg-emerald-600 text-white">1</div>
+          <div>
+            <div class="text-sm font-bold text-white">Scan QR 3 (Zero Login)</div>
+            <div class="text-xs text-slate-400">Truk tiba. Penerima scan <b>QR 3 (Kanan)</b> di lembar fisik atau HP driver memakai kamera ponsel biasa tanpa install app.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-emerald-600 text-white">2</div>
+          <div>
+            <div class="text-sm font-bold text-white">Pilih Nama Petugas Penerima</div>
+            <div class="text-xs text-slate-400">Penerima memilih namanya dari daftar dropdown personil resmi (contoh: <i>AANG - Workshop Tiron</i>).</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-emerald-600 text-white">3</div>
+          <div>
+            <div class="text-sm font-bold text-white">Potret Barang & Tanda Tangan</div>
+            <div class="text-xs text-slate-400">Potret barang yang dibongkar di bengkel dan bubuhkan tanda tangan digital langsung pada layar sentuh.</div>
+          </div>
+        </div>
+        <div class="action-step">
+          <div class="step-num bg-emerald-600 text-white">4</div>
+          <div>
+            <div class="text-sm font-bold text-white">Konfirmasi Penerimaan Barang ✓</div>
+            <div class="text-xs text-slate-400">Klik tombol hijau. Status seketika berganti menjadi <b>"TIBA"</b> (Selesai), tersimpan permanen di Spreadsheet & Drive.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual Asset Visual Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2">
+        <!-- Asset 1: Mobile Recipient Sign-off -->
+        <div class="lg:col-span-5 space-y-2 flex flex-col items-center">
+          <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-2 self-start">
+            <span>📱</span> ASET 1: SCREEN MOBILE FRICTIONLESS SIGN-OFF
+          </div>
+          <div class="slide-media-frame cursor-pointer group max-w-xs w-full flex justify-center" onclick="openLightbox('../presentation-assets/ui-mobile/03_recipient_confirm.png')">
+            <img src="../presentation-assets/ui-mobile/03_recipient_confirm.png" alt="Konfirmasi Penerimaan" class="w-full max-h-[460px] object-contain group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📱 Screen: Frictionless Sign-Off (Pilih Nama, Foto Bukti, Tanda Tangan Digital)
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset 2: Process Flow Diagram -->
+        <div class="lg:col-span-7 space-y-2">
+          <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-2">
+            <span>📊</span> ASET 2: FLOWCHART OPERASIONAL END-TO-END
+          </div>
+          <div class="slide-media-frame cursor-pointer group w-full" onclick="openLightbox('../presentation-assets/diagrams/5_step_process_flow.png')">
+            <img src="../presentation-assets/diagrams/5_step_process_flow.png" alt="5-Step Process Flowchart" class="w-full max-h-[460px] object-contain p-4 group-hover:scale-102 transition duration-300">
+            <div class="absolute bottom-3 inset-x-3 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl text-center text-xs font-mono text-slate-200 border border-slate-700/60">
+              📊 Flowchart: 5 Tahap Operasional Tanpa Percabangan (Gudang ➔ Driver ➔ Checker ➔ GPS ➔ Penerima)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECTION 7: MONITORING & RADAR ARMADA (PENGAWASAN)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section id="monitoring" class="py-16 border-t border-slate-800/80 bg-slate-950/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-left space-y-8">
+      <div class="max-w-3xl space-y-2">
+        <div class="step-badge bg-purple-950/80 text-purple-300 border border-purple-800/80">
+          PENGAWASAN MANAJEMEN &bull; LIVE DASHBOARD
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          Seluruh Pergerakan Armada Terpantau Real-Time
+        </h2>
+        <p class="text-sm sm:text-base text-slate-300">
+          Tim PPIC, Manajer Logistik, dan Manajemen dapat memonitor pergerakan truk dari kantor melalui dua layar utama:
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Dashboard 1: Live Radar -->
+        <div class="glass-card p-6 rounded-3xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="radio" class="w-5 h-5 text-emerald-400"></i>
+              Live Fleet Radar (<code>/map</code>)
+            </h3>
+            <span class="text-xs font-mono text-emerald-400 font-bold">Leaflet.js + Firebase</span>
+          </div>
+          <p class="text-xs text-slate-300">
+            Menampilkan posisi truk secara real-time di atas peta satelit antara workshop <b>Candi Sewu</b>, <b>Tiron</b>, <b>Sukosari</b>, dan <b>Remul</b> lengkap dengan kecepatan dan garis rute.
+          </p>
+          <div class="slide-media-frame cursor-pointer group" onclick="openLightbox('../presentation-assets/ui-desktop/01_fleet_radar.png')">
+            <img src="../presentation-assets/ui-desktop/01_fleet_radar.png" alt="Fleet Radar Map" class="w-full h-56 object-cover group-hover:scale-103 transition duration-300">
+          </div>
+        </div>
+
+        <!-- Dashboard 2: Monitoring Board -->
+        <div class="glass-card p-6 rounded-3xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="layout-grid" class="w-5 h-5 text-blue-400"></i>
+              Board Monitoring KPM (<code>/monitor</code>)
+            </h3>
+            <span class="text-xs font-mono text-blue-400 font-bold">Database Terintegrasi</span>
+          </div>
+          <p class="text-xs text-slate-300">
+            Menampilkan rekapitulasi status KPM warna-warni (<span class="text-blue-400 font-bold">Baru Dibuat</span>, <span class="text-amber-400 font-bold">Jalan</span>, dan <span class="text-emerald-400 font-bold">Tiba</span>), durasi, foto barang, serta tombol arsip.
+          </p>
+          <div class="slide-media-frame cursor-pointer group" onclick="openLightbox('../presentation-assets/ui-desktop/02_admin_monitoring_board.png')">
+            <img src="../presentation-assets/ui-desktop/02_admin_monitoring_board.png" alt="Admin Monitoring Board" class="w-full h-56 object-cover group-hover:scale-103 transition duration-300">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════════════ -->
+  <footer class="py-10 border-t border-slate-800/80 bg-deckBg text-slate-400 text-xs text-center space-y-3">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="text-slate-300 font-bold">KPM LINE FEEDING SYSTEM</span>
+        <span>&bull; PT Rekaindo Global Jasa (Release 2026)</span>
+      </div>
+      <div class="flex items-center gap-4 font-mono text-[11px]">
+        <button onclick="openPptMode()" class="text-blue-400 hover:underline">Mode Presentasi PPT</button>
+        <span>&bull;</span>
+        <a href="https://lnfd.vercel.app" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Buka Live App</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       FULLSCREEN PPT SLIDESHOW MODAL (WIDESCREEN 16:9 WITH GSAP)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div id="ppt-modal" class="fixed inset-0 z-[80] bg-slate-950/95 backdrop-blur-2xl hidden flex-col justify-between p-4 sm:p-6" onclick="handlePptModalClick(event)">
+    <!-- Top Modal Header -->
+    <div class="w-full max-w-7xl mx-auto flex items-center justify-between pb-3 text-xs font-mono">
+      <div class="flex items-center gap-2 text-slate-300">
+        <i data-lucide="presentation" class="w-4 h-4 text-blue-400"></i>
+        <span class="font-bold">MODE SLIDE PPT (16:9 WIDESCREEN)</span>
+        <span class="text-slate-600">|</span>
+        <span id="ppt-modal-title" class="text-slate-400">1. Cover</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-slate-500 hidden sm:inline">Gunakan tombol [←] [→] atau [Space]</span>
+        <button onclick="closePptMode()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1">
+          <span>Tutup (ESC)</span>
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center 16:9 Slide Canvas -->
+    <div class="flex-1 flex items-center justify-center overflow-hidden">
+      <div id="ppt-canvas" class="ppt-modal-canvas slide-canvas rounded-3xl overflow-hidden relative shadow-2xl p-6 sm:p-8 flex flex-col justify-between">
+        <div class="ppt-accent-line"></div>
+
+        <!-- Slide 1 (PPT) -->
+        <div class="ppt-slide active flex-col justify-between" data-slide="1" data-title="Cover Panduan">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-blue-950 text-blue-300 border border-blue-800">SOP RESMI • ALUR TUNGGAL</span>
+            <span class="text-xs font-mono text-slate-400">Madiun Plant Operations</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-4">
+            <div class="col-span-7 space-y-3 text-left">
+              <h2 class="text-3xl sm:text-4xl font-black text-white">Panduan Penggunaan KPM Line Feeding</h2>
+              <p class="text-xs sm:text-sm text-slate-300">Satu alur pasti dari Gudang ➔ Driver ➔ Checker ➔ GPS ➔ Penerima.</p>
+              <div class="flex gap-2 pt-2">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-emerald-400 font-bold">&lt;30s Gate Out</span>
+                <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-blue-400 font-bold">Triple QR Fisik</span>
+                <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-amber-400 font-bold">100% Cloud</span>
+              </div>
+            </div>
+            <div class="col-span-5 flex justify-center">
+              <img src="../presentation-assets/physical-print/kpm_triple_qr_sheet.png" alt="Triple QR Sheet" class="max-h-56 object-contain rounded-xl shadow-lg border border-slate-700">
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Klik layar atau tekan [Space] untuk lanjut ➔</div>
+        </div>
+
+        <!-- Slide 2 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="2" data-title="Alur Tunggal Tanpa Percabangan">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-emerald-950 text-emerald-300 border border-emerald-800">5 TAHAP OPERASIONAL</span>
+            <span class="text-xs font-mono text-slate-400">Zero Branching State Machine</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-5 space-y-3 text-xs">
+              <h2 class="text-2xl sm:text-3xl font-black text-white">5 Tahap Wajib Berurutan</h2>
+              <p class="text-slate-300">Rantai operasional linier tanpa jalan pintas untuk mencegah kehilangan barang dan selisih data:</p>
+              <div class="space-y-1.5 font-mono text-[11px]">
+                <div class="p-2 rounded-lg bg-blue-950/50 border border-blue-800/60 text-blue-300">1. Admin Gudang ➔ Terbitkan KPM & Print A4</div>
+                <div class="p-2 rounded-lg bg-teal-950/50 border border-teal-800/60 text-teal-300">2. Driver Truk ➔ Login QR Pass & Foto Bak</div>
+                <div class="p-2 rounded-lg bg-amber-950/50 border border-amber-800/60 text-amber-300">3. Gate Security ➔ 1-Klik Izin Keluar (&lt;30s)</div>
+                <div class="p-2 rounded-lg bg-indigo-950/50 border border-indigo-800/60 text-indigo-300">4. Perjalanan ➔ Navigasi Maps & Live Radar</div>
+                <div class="p-2 rounded-lg bg-emerald-950/50 border border-emerald-800/60 text-emerald-300">5. Workshop Tujuan ➔ Scan QR 3 & BAP Tuntas</div>
+              </div>
+            </div>
+            <div class="col-span-7 flex justify-center">
+              <img src="../presentation-assets/diagrams/5_step_process_flow.png" alt="5-Step Flow" class="max-h-72 object-contain rounded-xl border border-slate-700 bg-slate-950/80 p-2">
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Langkah 1: Admin Gudang ➔</div>
+        </div>
+
+        <!-- Slide 3 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="3" data-title="Langkah 1: Admin & Gudang">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-blue-950 text-blue-300 border border-blue-800">LANGKAH 1 DARI 5 • ADMIN / GUDANG ASAL</span>
+            <span class="text-xs font-mono text-slate-400">Warehouse Staff</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-6 space-y-2.5 text-xs">
+              <h3 class="text-xl font-bold text-white">Admin Creates KPM & Prints Document</h3>
+              <div class="action-step"><div class="step-num bg-blue-600 text-white">1</div><div>Input workshop asal (Candi Sewu), tujuan (Tiron), driver, & material.</div></div>
+              <div class="action-step"><div class="step-num bg-blue-600 text-white">2</div><div>Klik "Simpan & Terbitkan KPM" (Status awal: Baru Dibuat).</div></div>
+              <div class="action-step"><div class="step-num bg-blue-600 text-white">3</div><div>Cetak kertas A4 Triple QR (Tracking, Pos Gerbang, Penerima).</div></div>
+              <div class="p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-[11px] text-blue-200 italic">
+                &ldquo;First, the logistics admin creates the digital request in seconds and prints the physical travel sheet. The sheet features 3 smart QR codes for public tracking, gate clearance, and recipient handover.&rdquo;
+              </div>
+            </div>
+            <div class="col-span-6 grid grid-cols-2 gap-3 items-center">
+              <div class="space-y-1 text-center">
+                <img src="../presentation-assets/ui-desktop/02_admin_monitoring_board.png" alt="Admin Board" class="w-full h-36 object-cover rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400">🖥️ Screen: Monitoring Board</span>
+              </div>
+              <div class="space-y-1 text-center">
+                <img src="../presentation-assets/physical-print/kpm_triple_qr_sheet.png" alt="A4 Triple QR" class="w-full h-36 object-contain rounded-xl border border-slate-700 bg-white/5 p-1">
+                <span class="text-[9.5px] font-mono text-slate-400">📄 Document: Lembar A4</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Langkah 2: Driver Truk ➔</div>
+        </div>
+
+        <!-- Slide 4 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="4" data-title="Langkah 2: Driver Truk">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-teal-950 text-teal-300 border border-teal-800">LANGKAH 2 DARI 5 • DRIVER TRUK</span>
+            <span class="text-xs font-mono text-slate-400">Truck Driver</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-6 space-y-2.5 text-xs">
+              <h3 class="text-xl font-bold text-white">Driver Logs In & Prepares Cargo</h3>
+              <div class="action-step"><div class="step-num bg-teal-600 text-white">1</div><div>Driver login instan scan lanyard QR ID pass tanpa password.</div></div>
+              <div class="action-step"><div class="step-num bg-teal-600 text-white">2</div><div>Pilih muatan batch 1 truk dan ambil 1 foto fisik barang di bak.</div></div>
+              <div class="action-step"><div class="step-num bg-teal-600 text-white">3</div><div>Tap "Minta Izin Checker (Gate Out)" sebelum gerbang.</div></div>
+              <div class="p-2.5 rounded-xl bg-teal-950/40 border border-teal-800/60 text-[11px] text-teal-200 italic">
+                &ldquo;Second, the driver taps into their mobile app using a wearable QR badge, takes a quick photo of the loaded cargo, and requests exit gate clearance.&rdquo;
+              </div>
+            </div>
+            <div class="col-span-6 grid grid-cols-2 gap-3 items-center">
+              <div class="space-y-1 text-center flex flex-col items-center">
+                <img src="../presentation-assets/physical-print/driver_qr_card.png" alt="Driver Card" class="max-h-40 object-contain rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400">📇 Physical ID: Pass Card</span>
+              </div>
+              <div class="space-y-1 text-center flex flex-col items-center">
+                <img src="../presentation-assets/ui-mobile/01_driver_tasks.png" alt="Driver Tasks" class="max-h-40 object-contain rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400">📱 Screen: Portal Driver</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Langkah 3: Checker Gerbang ➔</div>
+        </div>
+
+        <!-- Slide 5 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="5" data-title="Langkah 3: Checker Gerbang">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-amber-950 text-amber-300 border border-amber-800">LANGKAH 3 DARI 5 • POS GERBANG</span>
+            <span class="text-xs font-mono text-slate-400">Security Guard</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-5 space-y-2.5 text-xs">
+              <h3 class="text-xl font-bold text-white">Gate Checker Authorizes Exit</h3>
+              <div class="action-step"><div class="step-num bg-amber-600 text-white">1</div><div>Truk berhenti di pos gerbang keluar.</div></div>
+              <div class="action-step"><div class="step-num bg-amber-600 text-white">2</div><div>Security scan QR 2 (Tengah) pada lembar fisik.</div></div>
+              <div class="action-step"><div class="step-num bg-amber-600 text-white">3</div><div>Cek fisik bak vs foto di layar & 1-klik "Izinkan Batch".</div></div>
+              <div class="p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-200 italic">
+                &ldquo;Third, at the factory gate, security scans the paper's center QR code. Instead of 15 minutes of manual paperwork, one click approves the whole truckload to leave.&rdquo;
+              </div>
+            </div>
+            <div class="col-span-7 flex justify-center">
+              <img src="../presentation-assets/ui-desktop/03_checker_gate_out.png" alt="Checker Gate Out" class="max-h-56 object-contain rounded-xl border border-slate-700 shadow-xl">
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Langkah 4: Perjalanan & GPS ➔</div>
+        </div>
+
+        <!-- Slide 6 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="6" data-title="Langkah 4: Perjalanan & Live Radar">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-indigo-950 text-indigo-300 border border-indigo-800">LANGKAH 4 DARI 5 • DRIVER & DISPATCHER</span>
+            <span class="text-xs font-mono text-slate-400">Navigation & Live GPS</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-5 space-y-2.5 text-xs">
+              <h3 class="text-xl font-bold text-white">On the Road & Live Fleet Radar</h3>
+              <div class="action-step"><div class="step-num bg-indigo-600 text-white">1</div><div>1-Klik navigasi turn-by-turn di Google Maps.</div></div>
+              <div class="action-step"><div class="step-num bg-indigo-600 text-white">2</div><div>Ponsel supir streaming koordinat GPS background tiap 10 detik.</div></div>
+              <div class="action-step"><div class="step-num bg-indigo-600 text-white">3</div><div>Dispatcher kantor pantau pergerakan truk di radar satelit.</div></div>
+              <div class="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-800/60 text-[11px] text-indigo-200 italic">
+                &ldquo;Fourth, while the driver navigates with Google Maps, the logistics office monitors the live fleet radar showing real-time location, speed, and exact route history.&rdquo;
+              </div>
+            </div>
+            <div class="col-span-7 grid grid-cols-12 gap-3 items-center">
+              <div class="col-span-4 flex flex-col items-center">
+                <img src="../presentation-assets/ui-mobile/02_driver_navigation.png" alt="Driver Nav" class="max-h-44 object-contain rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400 mt-1">📱 Screen: Driver Nav</span>
+              </div>
+              <div class="col-span-8 flex flex-col items-center">
+                <img src="../presentation-assets/ui-desktop/01_fleet_radar.png" alt="Fleet Radar" class="w-full h-44 object-cover rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400 mt-1">🗺️ Screen: Live Radar Map</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Langkah 5: Serah Terima Workshop ➔</div>
+        </div>
+
+        <!-- Slide 7 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="7" data-title="Langkah 5: Penerima Workshop">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-emerald-950 text-emerald-300 border border-emerald-800">LANGKAH 5 DARI 5 • PENERIMA WORKSHOP</span>
+            <span class="text-xs font-mono text-slate-400">Zero Login • Tanpa App</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-5 space-y-2.5 text-xs">
+              <h3 class="text-xl font-bold text-white">Arrival & Frictionless Handover</h3>
+              <div class="action-step"><div class="step-num bg-emerald-600 text-white">1</div><div>Scan QR 3 (Kanan) via kamera smartphone (bebas login).</div></div>
+              <div class="action-step"><div class="step-num bg-emerald-600 text-white">2</div><div>Pilih nama petugas penerima dari dropdown resmi.</div></div>
+              <div class="action-step"><div class="step-num bg-emerald-600 text-white">3</div><div>Ambil foto barang bongkar & tanda tangan digital.</div></div>
+              <div class="action-step"><div class="step-num bg-emerald-600 text-white">4</div><div>Klik konfirmasi. Status seketika TIBA (Selesai).</div></div>
+              <div class="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-[11px] text-emerald-200 italic">
+                &ldquo;Finally, upon arrival, the workshop receiver scans the QR code with their regular smartphone camera—no app download or password needed. They attach a photo, sign off digitally, and the delivery is complete with 100% verified proof.&rdquo;
+              </div>
+            </div>
+            <div class="col-span-7 grid grid-cols-12 gap-3 items-center">
+              <div class="col-span-5 flex flex-col items-center">
+                <img src="../presentation-assets/ui-mobile/03_recipient_confirm.png" alt="Confirm Screen" class="max-h-48 object-contain rounded-xl border border-slate-700">
+                <span class="text-[9.5px] font-mono text-slate-400 mt-1">📱 Screen: Sign-Off Mobile</span>
+              </div>
+              <div class="col-span-7 flex flex-col items-center">
+                <img src="../presentation-assets/diagrams/5_step_process_flow.png" alt="5 Step Process" class="w-full h-48 object-contain rounded-xl border border-slate-700 bg-slate-950/80 p-1">
+                <span class="text-[9.5px] font-mono text-slate-400 mt-1">📊 Process Flowchart</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke Matriks Aset Operasional ➔</div>
+        </div>
+
+        <!-- Slide 8 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="8" data-title="Matriks Aset Operasional">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-blue-950 text-blue-300 border border-blue-800">TABEL ASET OPERASIONAL LENGKAP</span>
+            <span class="text-xs font-mono text-slate-400">5-Step Asset Summary</span>
+          </div>
+          <div class="py-2 text-left overflow-x-auto">
+            <table class="w-full text-left text-[11px]">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 font-mono uppercase text-[10px]">
+                  <th class="py-1.5 px-2">Step</th>
+                  <th class="py-1.5 px-2">Tahap</th>
+                  <th class="py-1.5 px-2">Aktor</th>
+                  <th class="py-1.5 px-2">Aset Visual / Dokumen Terkait</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <tr>
+                  <td class="py-1.5 px-2 font-mono font-bold text-blue-400">1</td>
+                  <td class="py-1.5 px-2 font-bold text-white">Admin create & print</td>
+                  <td class="py-1.5 px-2 text-slate-300">Admin / Gudang</td>
+                  <td class="py-1.5 px-2 font-mono text-[9.5px] text-slate-300">physical-print/kpm_triple_qr_sheet.png + ui-desktop/02_admin_monitoring_board.png</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-mono font-bold text-teal-400">2</td>
+                  <td class="py-1.5 px-2 font-bold text-white">Driver login & photo</td>
+                  <td class="py-1.5 px-2 text-slate-300">Driver Truk</td>
+                  <td class="py-1.5 px-2 font-mono text-[9.5px] text-slate-300">physical-print/driver_qr_card.png + ui-mobile/01_driver_tasks.png</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-mono font-bold text-amber-400">3</td>
+                  <td class="py-1.5 px-2 font-bold text-white">Gate security 1-click</td>
+                  <td class="py-1.5 px-2 text-slate-300">Checker Gerbang</td>
+                  <td class="py-1.5 px-2 font-mono text-[9.5px] text-slate-300">ui-desktop/03_checker_gate_out.png</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-mono font-bold text-indigo-400">4</td>
+                  <td class="py-1.5 px-2 font-bold text-white">Driving & Live Radar</td>
+                  <td class="py-1.5 px-2 text-slate-300">Driver & Dispatcher</td>
+                  <td class="py-1.5 px-2 font-mono text-[9.5px] text-slate-300">ui-mobile/02_driver_navigation.png + ui-desktop/01_fleet_radar.png</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-mono font-bold text-emerald-400">5</td>
+                  <td class="py-1.5 px-2 font-bold text-white">Recipient sign-off</td>
+                  <td class="py-1.5 px-2 text-slate-300">Penerima Workshop</td>
+                  <td class="py-1.5 px-2 font-mono text-[9.5px] text-slate-300">ui-mobile/03_recipient_confirm.png + diagrams/5_step_process_flow.png</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-xs text-slate-500 font-mono text-left">Lanjut ke slide penutup ➔</div>
+        </div>
+
+        <!-- Slide 9 (PPT) -->
+        <div class="ppt-slide flex-col justify-between" data-slide="9" data-title="Monitoring Satelit & Cloud">
+          <div class="flex items-center justify-between">
+            <span class="step-badge bg-blue-950 text-blue-300 border border-blue-800">PENGAWASAN OPERASIONAL</span>
+            <span class="text-xs font-mono text-emerald-400 font-bold">● SISTEM SIAP DIGUNAKAN</span>
+          </div>
+          <div class="grid grid-cols-12 gap-6 items-center py-2 text-left">
+            <div class="col-span-6 space-y-3 text-xs">
+              <h3 class="text-xl font-bold text-white">Monitoring Satelit & Arsip Cloud Otomatis</h3>
+              <p class="text-slate-300">PPIC, Manajer Logistik, dan Manajemen memantau seluruh armada real-time:</p>
+              <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800"><b>1. Live Fleet Radar:</b> Posisi GPS, kecepatan, dan riwayat rute truk.</div>
+              <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800"><b>2. Board Monitoring:</b> Rekapitulasi status KPM terintegrasi.</div>
+              <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800"><b>3. Audit Trail Cloud:</b> 100% data tersinkronisasi ke Spreadsheet & Google Drive.</div>
+            </div>
+            <div class="col-span-6 flex justify-center">
+              <img src="../presentation-assets/ui-desktop/01_fleet_radar.png" alt="Fleet Radar" class="w-full h-48 object-cover rounded-xl border border-slate-700">
+            </div>
+          </div>
+          <div class="text-xs text-emerald-400 font-mono text-left">Selesai • Tekan [Esc] untuk kembali ke Panduan Web</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Modal PPT Navigation Controls -->
+    <div class="w-full max-w-7xl mx-auto flex items-center justify-between pt-3">
+      <button onclick="prevSlidePpt()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <span>Sebelumnya</span>
+      </button>
+
+      <div class="font-mono text-xs font-bold text-slate-400">
+        Slide <span id="ppt-current-num" class="text-blue-400">1</span> / <span id="ppt-total-num">9</span>
+      </div>
+
+      <button onclick="nextSlidePpt()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-blue-600/30">
+        <span>Selanjutnya</span>
+        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       IMAGE LIGHTBOX / ZOOM MODAL
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div id="lightbox" class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-6" onclick="closeLightbox()">
+    <div class="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
+      <button onclick="closeLightbox()" class="absolute -top-12 right-0 text-slate-400 hover:text-white font-mono text-sm flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700 transition">
+        <span>ESC untuk Tutup</span>
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <img id="lightbox-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Zoom Screenshot" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-700/80">
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CLIENT SCRIPT ENGINE
+       ═══════════════════════════════════════════════════════════════════ -->
+  <script>
+    lucide.createIcons();
+
+    let pptSlideIndex = 1;
+    const pptSlides = document.querySelectorAll('#ppt-canvas .ppt-slide');
+    const totalPptSlides = pptSlides.length;
+    const pptNumEl = document.getElementById('ppt-current-num');
+    const pptTotalEl = document.getElementById('ppt-total-num');
+    const pptTitleEl = document.getElementById('ppt-modal-title');
+
+    if (pptTotalEl) {
+      pptTotalEl.textContent = totalPptSlides;
+    }
+
+    function openPptMode() {
+      const modal = document.getElementById('ppt-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      updatePptSlide();
+    }
+
+    function closePptMode() {
+      const modal = document.getElementById('ppt-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function updatePptSlide(direction = 1) {
+      pptSlides.forEach((slide, idx) => {
+        const num = idx + 1;
+        if (num === pptSlideIndex) {
+          slide.classList.add('active');
+          pptTitleEl.textContent = `${num}. ${slide.getAttribute('data-title') || ''}`;
+          // GSAP element entrance
+          gsap.fromTo(slide, { opacity: 0, x: direction > 0 ? 30 : -30 }, { opacity: 1, x: 0, duration: 0.35, ease: 'power3.out' });
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+      pptNumEl.textContent = pptSlideIndex;
+    }
+
+    function nextSlidePpt() {
+      if (pptSlideIndex < totalPptSlides) {
+        pptSlideIndex++;
+        updatePptSlide(1);
+      }
+    }
+
+    function prevSlidePpt() {
+      if (pptSlideIndex > 1) {
+        pptSlideIndex--;
+        updatePptSlide(-1);
+      }
+    }
+
+    function handlePptModalClick(e) {
+      if (e.target.closest('button, a, .slide-media-frame, #lightbox')) return;
+      nextSlidePpt();
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      const lb = document.getElementById('lightbox');
+      if (!lb.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLightbox();
+        return;
+      }
+
+      const pptModal = document.getElementById('ppt-modal');
+      if (!pptModal.classList.contains('hidden')) {
+        if (e.key === 'Escape') {
+          closePptMode();
+          return;
+        }
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          nextSlidePpt();
+        } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+          e.preventDefault();
+          prevSlidePpt();
+        }
+        return;
+      }
+
+      // If in Web Mode and user presses 'P' or 'F'
+      if (e.key === 'p' || e.key === 'P') {
+        openPptMode();
+      }
+    });
+
+    // Lightbox Modal
+    function openLightbox(src) {
+      const lb = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-img');
+      img.src = src;
+      lb.classList.remove('hidden');
+      setTimeout(() => lb.classList.remove('opacity-0'), 20);
+    }
+
+    function closeLightbox() {
+      const lb = document.getElementById('lightbox');
+      lb.classList.add('opacity-0');
+      setTimeout(() => lb.classList.add('hidden'), 300);
+    }
+  </script>
+</body>
+</html>
