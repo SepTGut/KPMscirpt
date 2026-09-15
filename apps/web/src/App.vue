@@ -148,6 +148,38 @@ function handleBreadcrumbNav(action) {
   if (typeof action === 'function') action()
 }
 
+async function handleLoginCredentials(payload) {
+  try {
+    const user = await authStore.loginWithCredentials(payload)
+    if (authStore.mode === 'admin') {
+      loadMaster(true)
+      router.push('/kpm')
+    } else {
+      loadDeliveries(true)
+      router.push('/kpm/personel')
+    }
+    uiStore.toast.success(`Selamat datang kembali, ${user.name || user.username}!`, 'Login Berhasil')
+  } catch (err) {
+    uiStore.toast.error(err.message || 'Login gagal', 'Gagal Masuk')
+  }
+}
+
+async function handleLoginGoogle(payload) {
+  try {
+    const user = await authStore.loginWithGoogle(payload)
+    if (authStore.mode === 'admin') {
+      loadMaster(true)
+      router.push('/kpm')
+    } else {
+      loadDeliveries(true)
+      router.push('/kpm/personel')
+    }
+    uiStore.toast.success(`Selamat datang kembali, ${user.name || user.username}!`, 'Login Berhasil')
+  } catch (err) {
+    uiStore.toast.error(err.message || 'Login Google gagal', 'Gagal Masuk')
+  }
+}
+
 // Global Ctrl+K / Cmd+K listener
 function onGlobalKeyDown(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -213,14 +245,14 @@ onUnmounted(() => {
       </header>
 
       <!-- Public View Center Content -->
-      <div class="flex-1 flex flex-col justify-center items-center px-4 py-6 sm:py-10">
+      <div :class="route.name === 'login' ? 'flex-1 flex flex-col justify-center items-center w-full' : 'flex-1 flex flex-col justify-center items-center px-4 py-6 sm:py-10'">
         <RouterView
           :kpm-nomor="resolvedKpmNomor"
           :is-i-t="isIT"
-          :busy="busy"
+          :busy="authStore.isAuthBusy || busy"
           :errorMessage="authStore.loginError"
-          @login-credentials="async (p) => { await authStore.loginWithCredentials(p); if (mode === 'admin') loadMaster(true); else loadDeliveries(true); router.push(mode === 'admin' ? '/kpm' : '/kpm/personel') }"
-          @login-google="async (p) => { await authStore.loginWithGoogle(p); if (mode === 'admin') loadMaster(true); else loadDeliveries(true); router.push(mode === 'admin' ? '/kpm' : '/kpm/personel') }"
+          @login-credentials="handleLoginCredentials"
+          @login-google="handleLoginGoogle"
           @back-to-home="router.push(currentUser ? '/kpm' : '/login')"
           @navigate-home="router.push('/')"
           @navigate-driver="navigate('driver')"

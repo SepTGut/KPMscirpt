@@ -427,6 +427,15 @@ export const useKpmStore = defineStore('kpm', () => {
           daftarBarang: itemsPayload
         }
       })
+      // Optimistically update local monitoring list item immediately
+      const matched = monitoring.value.find(m => String(m.nomor || m.kpmId).toUpperCase() === String(kpmNomor).toUpperCase())
+      if (matched) {
+        matched.daftarBarang = sanitizedEditItems.map(it => ({
+          nama: it.nama,
+          qty: Number(it.qty) || 1,
+          uom: it.uom
+        }))
+      }
       editingKpm.value = null
       message.value = res?.message || `Material KPM ${kpmNomor} berhasil diperbarui.`
       uiStore.toast.success(message.value)

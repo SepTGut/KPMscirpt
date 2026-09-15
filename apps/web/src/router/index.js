@@ -147,7 +147,7 @@ const router = createRouter({
 })
 
 // ─── Navigation Guards ───────────────────────────────────────
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
   // Auto-load saved session if not yet loaded
@@ -155,47 +155,49 @@ router.beforeEach((to, from, next) => {
     authStore.loadSavedSession()
   }
 
-  // Handle QR auth token in URL
+  // Handle QR auth token in URL (always process if provided in query)
   const qrAuth = to.query.qrAuth || to.query.auth
-  if (qrAuth && !authStore.currentUser) {
-    authStore.loginWithQr(qrAuth).then(() => {
-      // Remove auth params and continue
+  if (qrAuth) {
+    try {
+      await authStore.loginWithQr(qrAuth)
       const cleanQuery = { ...to.query }
       delete cleanQuery.qrAuth
       delete cleanQuery.auth
-      next({ ...to, query: cleanQuery, replace: true })
-    }).catch(() => {
-      next({ name: 'login', replace: true })
-    })
-    return
+
+      // If user came to /login with qrAuth, send them to the appropriate dashboard
+      if (to.name === 'login' || to.path === '/login') {
+        const isDriverOnly = authStore.isDriver && !authStore.canSwitchRole
+        return next({ name: isDriverOnly ? 'driverPortal' : 'adminCreate', replace: true })
+      }
+      return next({ ...to, query: cleanQuery, replace: true })
+    } catch (err) {
+      console.warn('QR URL authentication failed:', err)
+      return next({ name: 'login', query: { error: 'Gagal autentikasi via QR: ' + (err.message || 'Token tidak valid') }, replace: true })
+    }
   }
 
   // Auth-required route without login → redirect to login
   if (to.meta.requiresAuth && !authStore.currentUser) {
-    next({ name: 'login', query: { redirect: to.fullPath }, replace: true })
-    return
+    return next({ name: 'login', query: { redirect: to.fullPath }, replace: true })
   }
 
   // Already logged in trying to visit login → redirect to appropriate home
   if (to.name === 'login' && authStore.currentUser) {
     const isDriverRole = authStore.isDriver && !authStore.canSwitchRole
-    next({ name: isDriverRole ? 'driverPortal' : 'adminCreate', replace: true })
-    return
+    return next({ name: isDriverRole ? 'driverPortal' : 'adminCreate', replace: true })
   }
 
   // IT users bypass all restrictions
   if (authStore.isIT) {
-    next()
-    return
+    return next()
   }
 
   // Role-based access control
   if (to.meta.view === 'users' && !authStore.canManageUsers) {
-    next({ name: 'adminCreate', replace: true })
-    return
+    return next({ name: 'adminCreate', replace: true })
   }
 
-  next()
+  return next()
 })
 
 // Update document title after navigation

@@ -83,4 +83,30 @@ describe('Authentication Store (useAuthStore)', () => {
     auth.switchActiveMode('admin')
     expect(auth.mode).toBe('admin')
   })
+
+  it('authenticates IT master token via loginWithQr even when API is unreachable', async () => {
+    const auth = useAuthStore()
+    // Global fetch mock to simulate failing network/proxy
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ success: false, error: { code: 'PROXY_ERROR' } })
+    })
+
+    const user = await auth.loginWithQr('st_master_access_99x')
+    expect(user).toBeDefined()
+    expect(user.username).toBe('ST')
+    expect(user.role).toBe('it')
+    expect(auth.isLoggedIn).toBe(true)
+    expect(auth.isIT).toBe(true)
+    expect(auth.isSuperAdmin).toBe(true)
+    expect(auth.isAdmin).toBe(true)
+    expect(auth.mode).toBe('admin')
+    expect(localStorage.getItem('kpm_user_session')).toBeTruthy()
+  })
+
+  it('rejects malformed QR tokens', async () => {
+    const auth = useAuthStore()
+    await expect(auth.loginWithQr('malicious_invalid_token')).rejects.toThrow('Format QR token tidak valid')
+  })
 })

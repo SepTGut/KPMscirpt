@@ -659,13 +659,20 @@ function editLatestKpmItems(params) {
   var driver = templateRow[MONITOR_COL_DRIVER - 1] || "";
   var status = templateRow[MONITOR_COL_STATUS - 1] || KPM_STATUS.BARU_DIBUAT;
   var currentNormalizedStatus = normalizeKpmStatus(status) || KPM_STATUS.BARU_DIBUAT;
-  if (currentNormalizedStatus !== KPM_STATUS.BARU_DIBUAT && currentNormalizedStatus !== KPM_STATUS.BELUM_BERANGKAT) {
+  var wktBer = templateRow[MONITOR_COL_WKT_BERANGKAT - 1] || "";
+  var isPreDeparture = (
+    currentNormalizedStatus === KPM_STATUS.BARU_DIBUAT ||
+    currentNormalizedStatus === KPM_STATUS.BELUM_BERANGKAT ||
+    currentNormalizedStatus === "Menunggu Verifikasi Gerbang" ||
+    currentNormalizedStatus === "Staged" ||
+    (!wktBer && currentNormalizedStatus !== KPM_STATUS.BERANGKAT && currentNormalizedStatus !== KPM_STATUS.TIBA && currentNormalizedStatus !== KPM_STATUS.SELESAI)
+  );
+  if (!isPreDeparture) {
     throw {
       code: "FORBIDDEN",
-      message: "Material tidak dapat diubah karena KPM " + nomorKPM + " sudah berstatus '" + currentNormalizedStatus + "'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih berstatus 'Baru Dibuat' atau 'Belum Berangkat'."
+      message: "Material tidak dapat diubah karena KPM " + nomorKPM + " sudah berstatus '" + currentNormalizedStatus + "'. Penambahan atau pengurangan material hanya diizinkan saat KPM belum berangkat."
     };
   }
-  var wktBer = templateRow[MONITOR_COL_WKT_BERANGKAT - 1] || "";
   var wktTib = templateRow[MONITOR_COL_WKT_TIBA - 1] || "";
   var durasi = templateRow[MONITOR_COL_DURASI - 1] || "";
   var fotoBer = templateRow[MONITOR_COL_FOTO_BER - 1] || "";
@@ -728,9 +735,7 @@ function editLatestKpmItems(params) {
     sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
   } else if (newCount > oldRowsCount) {
     var diff = newCount - oldRowsCount;
-    if (startSheetRow + oldRowsCount - 1 < lastRow) {
-      sheet.insertRowsAfter(startSheetRow + oldRowsCount - 1, diff);
-    }
+    sheet.insertRowsAfter(startSheetRow + oldRowsCount - 1, diff);
     sheet.getRange(startSheetRow, 1, newCount, MONITOR_TOTAL_COLS).setValues(newRows);
   } else {
     var diff = oldRowsCount - newCount;

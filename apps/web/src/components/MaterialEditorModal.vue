@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import Icon from './Icon.vue'
+import { requestApi } from '../composables/useApi'
 
 const props = defineProps({
   editingKpm: { type: Object, default: null },
@@ -19,6 +20,45 @@ const availableUoms = computed(() => {
     : defaultUoms
   return base
 })
+
+// Material Database live search suggestions
+const activeSearchIndex = ref(-1)
+const suggestions = ref([])
+const isSearching = ref(false)
+let searchDebounce = null
+
+async function onSearchMaterial(index, query) {
+  activeSearchIndex.value = index
+  if (!query || query.trim().length < 2) {
+    suggestions.value = []
+    return
+  }
+  if (searchDebounce) clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(async () => {
+    isSearching.value = true
+    try {
+      const results = await requestApi('searchMaterials', {
+        method: 'GET',
+        body: { query: query.trim(), limit: '8' }
+      })
+      if (Array.isArray(results)) {
+        suggestions.value = results
+      }
+    } catch (e) {
+      // Ignore suggestion fetch error
+    } finally {
+      isSearching.value = false
+    }
+  }, 200)
+}
+
+function selectSuggestion(item, suggestion) {
+  item.nama = suggestion.nama || suggestion.deskripsi || item.nama
+  if (suggestion.satuan) item.uom = suggestion.satuan
+  if (suggestion.kode) item.kode = suggestion.kode
+  suggestions.value = []
+  activeSearchIndex.value = -1
+}
 
 function handleKeyDown(e) {
   if (e.key === 'Escape' && props.editingKpm && !props.busy) {
@@ -88,12 +128,36 @@ onUnmounted(() => {
               >
                 <span class="w-6 text-center text-xs font-mono font-bold text-slate-400 dark:text-slate-500">{{ idx + 1 }}.</span>
 
-                <input
-                  v-model="item.nama"
-                  class="flex-1 field !py-2 !px-3 !text-xs !mt-0 transition-all duration-200 focus:ring-2 focus:ring-google-blue-500"
-                  placeholder="Nama / Spesifikasi material..."
-                  required
-                />
+                <div class="relative flex-1">
+                  <input
+                    v-model="item.nama"
+                    @input="onSearchMaterial(idx, item.nama)"
+                    @focus="onSearchMaterial(idx, item.nama)"
+                    class="w-full field !py-2 !px-3 !text-xs !mt-0 transition-all duration-200 focus:ring-2 focus:ring-google-blue-500"
+                    placeholder="Cari / isi nama atau kode material..."
+                    required
+                  />
+                  <!-- Suggestions Dropdown -->
+                  <div
+                    v-if="activeSearchIndex === idx && suggestions.length > 0"
+                    class="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60"
+                  >
+                    <div
+                      v-for="s in suggestions"
+                      :key="s.kode || s.nama"
+                      @mousedown.prevent="selectSuggestion(item, s)"
+                      class="p-2 hover:bg-google-blue-50 dark:hover:bg-blue-950/50 cursor-pointer text-xs transition flex items-center justify-between gap-2"
+                    >
+                      <div class="truncate">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ s.nama }}</span>
+                        <span v-if="s.kode" class="ml-1 text-[10px] font-mono text-google-blue-600 dark:text-blue-400">({{ s.kode }})</span>
+                      </div>
+                      <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        {{ s.satuan || 'PCS' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <input
                   v-model.number="item.qty"
                   type="number"

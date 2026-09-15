@@ -166,14 +166,14 @@ function getGeneratedKpmNumbers() {
   var date = new Date();
   var year = date.getFullYear();
   var monthIndex = date.getMonth(); // 0-indexed (0 = Jan, 7 = Aug)
-  
+
   var romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
   var monthRoman = romanMonths[monthIndex];
   var monthNum = String(monthIndex + 1).padStart(2, '0');
-  
+
   var currentNo = parseInt(settings.startNo, 10) || 1;
   var formattedNo = String(currentNo).padStart(3, '0');
-  
+
   function applyTemplate(tpl) {
     if (!tpl) return "";
     return tpl
@@ -222,30 +222,30 @@ function setupMaterialDatabaseImportRange() {
     cellA1.setFormulaLocal(importRangeFormulaSemicolon);
   } catch (e1) {
     try {
-      cellA1.setFormula(importRangeFormulaComma);
+      cellA1.setFormula(importRangeFormulaSemicolon);
     } catch (e2) {
-      cellA1.setValue(importRangeFormulaSemicolon);
+      cellA1.setValue(importRangeFormulaComma);
     }
   }
 
   // Freeze the first 4 rows so headers remain visible when scrolling data
   try {
     sheet.setFrozenRows(4);
-  } catch (e) {}
+  } catch (e) { }
 
   // Invalidate memory and script caches to force fresh reload
   clearMaterialCache_();
 
   var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet DataBase sel A1!\n\n" +
-                 "Formula di A1:\n" +
-                 "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
-                 "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
-                 "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
-                 "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
-                 "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
-                 "LANGKAH SELANJUTNYA:\n" +
-                 "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
-                 "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
+    "Formula di A1:\n" +
+    "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
+    "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
+    "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
+    "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
+    "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
+    "LANGKAH SELANJUTNYA:\n" +
+    "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
+    "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
 
   try {
     SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Terpasang di Sel A1", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -266,7 +266,7 @@ function clearMaterialCache_() {
     var cacheService = CacheService.getScriptCache();
     cacheService.remove("ALL_MATS_count");
     cacheService.remove("ALL_MATS_V2_count");
-  } catch (e) {}
+  } catch (e) { }
 }
 
 /**
@@ -312,7 +312,7 @@ function getMaterialDatabaseMap() {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Fetch from PRIMARY SOURCE: Local DataBase sheet (Read Cols B to E = 4 columns, starting row 5)
   var loadedFromLocal = false;
@@ -364,34 +364,11 @@ function getMaterialDatabaseMap() {
       ? WEB_CONFIG.MATERIAL_DB_SPREADSHEET_ID
       : "1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk";
 
-    // Fallback A: Direct SpreadsheetApp.openById
+    // Fallback: Public CSV export endpoint via UrlFetchApp and Utilities.parseCsv
     try {
-      var extSs = SpreadsheetApp.openById(extSpreadsheetId);
-      var extSheet = extSs.getSheetByName(MATERIALDB_SHEET_NAME) || extSs.getSheets()[0];
-      var extLastRow = extSheet.getLastRow();
-      if (extLastRow >= MATERIALDB_START_ROW) {
-        var extNumRows = extLastRow - MATERIALDB_START_ROW + 1;
-        var extData = extSheet.getRange(MATERIALDB_START_ROW, 2, extNumRows, 4).getValues();
-        for (var eIdx = 0; eIdx < extData.length; eIdx++) {
-          var eKode = extData[eIdx][0];
-          if (eKode) {
-            var ekStr = eKode.toString().trim().toUpperCase();
-            _materialMemoryCache[ekStr] = {
-              kode: eKode.toString().trim(),
-              nama: extData[eIdx][1] ? extData[eIdx][1].toString().trim() : "",
-              satuan: extData[eIdx][3] ? extData[eIdx][3].toString().trim() : "",
-              source: "database"
-            };
-          }
-        }
-      }
-    } catch (extErr) {
-      Logger.log("Direct external spreadsheet read fallback note: " + extErr.message);
-
-      // Fallback B: Public CSV export endpoint via UrlFetchApp and Utilities.parseCsv
-      try {
-        var csvUrl = "https://docs.google.com/spreadsheets/d/" + extSpreadsheetId + "/export?format=csv&gid=1881214309";
-        var resp = UrlFetchApp.fetch(csvUrl, { muteHttpExceptions: true });
+      var csvGid = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.MATERIAL_DB_GID) ? WEB_CONFIG.MATERIAL_DB_GID : "1881214309";
+      var csvUrl = "https://docs.google.com/spreadsheets/d/" + extSpreadsheetId + "/export?format=csv&gid=" + csvGid;
+      var resp = UrlFetchApp.fetch(csvUrl, { muteHttpExceptions: true });
         if (resp.getResponseCode() === 200) {
           var csvText = resp.getContentText();
           var csvRows = Utilities.parseCsv(csvText);
@@ -415,7 +392,6 @@ function getMaterialDatabaseMap() {
         Logger.log("UrlFetch CSV export fallback note: " + csvErr.message);
       }
     }
-  }
 
   // 4. SECONDARY SOURCE: 'Log Kedatangan' Sheet
   // Komat is in column G starting from row 3 (G3:G*), and description in column H (H3:H*).
@@ -466,7 +442,7 @@ function getMaterialDatabaseMap() {
         batch["ALL_MATS_V2_" + j] = fullJson.substr(j * chunkSize, chunkSize);
       }
       cacheService.putAll(batch, 21600); // 6 hours
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return _materialMemoryCache;
@@ -582,7 +558,7 @@ function setupLogKedatanganImportRange() {
   // Freeze top 2 rows (Row 1 = Headers, Row 2 = Column Codes/Aliases)
   try {
     sheet.setFrozenRows(2);
-  } catch (e) {}
+  } catch (e) { }
 
   // Invalidate memory caches (including secondary material database)
   _logKedatanganMemoryCache = null;
@@ -590,15 +566,15 @@ function setupLogKedatanganImportRange() {
   clearMaterialCache_();
 
   var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet '" + LOG_KEDATANGAN_SHEET_NAME + "' sel A1!\n\n" +
-                 "Formula di A1:\n" +
-                 "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
-                 "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
-                 "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
-                 "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
-                 "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
-                 "LANGKAH SELANJUTNYA:\n" +
-                 "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
-                 "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
+    "Formula di A1:\n" +
+    "• Bahasa Indonesia (Titik Koma): " + importRangeFormulaSemicolon + "\n" +
+    "• Bahasa Inggris (Koma): " + importRangeFormulaComma + "\n\n" +
+    "PENTING (Jika Muncul 'Error mengurai formula'):\n" +
+    "Google Sheets dengan setelan regional Indonesia menggunakan pemisah TITIK KOMA (;).\n" +
+    "Jika Anda mengetik manual di formula bar, pastikan gunakan tanda titik koma (;), bukan koma (,).\n\n" +
+    "LANGKAH SELANJUTNYA:\n" +
+    "Jika sel A1 menampilkan '#REF!' bertuliskan 'You need to connect these sheets', " +
+    "klik sel A1 lalu klik tombol biru 'Izinkan Akses' (Allow Access).";
 
   try {
     SpreadsheetApp.getUi().alert("✅ IMPORTRANGE Log Kedatangan Terpasang di Sel A1", alertMsg, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -621,7 +597,7 @@ function setupLogKedatanganImportRange() {
  * Returns all arrival log records with multi-tiered fallback:
  * 1. In-memory RAM cache
  * 2. Local sheet 'Log Kedatangan' (populated by IMPORTRANGE)
- * 3. Fallback A: Direct SpreadsheetApp.openById external master spreadsheet
+ * 3. Fallback: Public CSV export endpoint via UrlFetchApp
  * 4. Fallback B: Public CSV export endpoint via UrlFetchApp & Utilities.parseCsv
  */
 function getAllLogKedatanganRows() {
@@ -674,28 +650,11 @@ function getAllLogKedatanganRows() {
       ? WEB_CONFIG.LOG_KEDATANGAN_SPREADSHEET_ID
       : "1NJZ6D9KuPiaEpC8qey1fn2rrZivHnNLlMGurpGX87yk";
 
+    // Fallback: Public CSV export endpoint via UrlFetchApp
     try {
-      var extSs = SpreadsheetApp.openById(extSpreadsheetId);
-      var extSheet = extSs.getSheetByName(LOG_KEDATANGAN_SOURCE_SHEET_NAME) || extSs.getSheetByName("Kedatangan Log 2026") || extSs.getSheets()[0];
-      var extLastRow = extSheet.getLastRow();
-      if (extLastRow >= LOG_KEDATANGAN_START_ROW) {
-        var extNumRows = extLastRow - LOG_KEDATANGAN_START_ROW + 1;
-        var extData = extSheet.getRange(LOG_KEDATANGAN_START_ROW, 1, extNumRows, 14).getValues();
-        for (var e = 0; e < extData.length; e++) {
-          var eRow = extData[e];
-          if (eRow[0] || eRow[1] || eRow[3] || eRow[7]) {
-            records.push(parseLogKedatanganRow_(eRow));
-          }
-        }
-      }
-    } catch (extErr) {
-      Logger.log("Direct external Log Kedatangan read note: " + extErr.message);
-
-      // Fallback B: Public CSV export endpoint
-      try {
-        var gid = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.LOG_KEDATANGAN_GID) ? WEB_CONFIG.LOG_KEDATANGAN_GID : "745488400";
-        var csvUrl = "https://docs.google.com/spreadsheets/d/" + extSpreadsheetId + "/export?format=csv&gid=" + gid;
-        var resp = UrlFetchApp.fetch(csvUrl, { muteHttpExceptions: true });
+      var gid = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.LOG_KEDATANGAN_GID) ? WEB_CONFIG.LOG_KEDATANGAN_GID : "745488400";
+      var csvUrl = "https://docs.google.com/spreadsheets/d/" + extSpreadsheetId + "/export?format=csv&gid=" + gid;
+      var resp = UrlFetchApp.fetch(csvUrl, { muteHttpExceptions: true });
         if (resp.getResponseCode() === 200) {
           var csvText = resp.getContentText();
           var csvRows = Utilities.parseCsv(csvText);
@@ -711,7 +670,6 @@ function getAllLogKedatanganRows() {
         Logger.log("UrlFetch CSV Log Kedatangan fallback note: " + csvErr.message);
       }
     }
-  }
 
   _logKedatanganMemoryCache = records;
   _logKedatanganLoadedInRam = records.length > 0;
@@ -768,19 +726,19 @@ function getLogKedatanganData(params) {
   var filtered = allRows;
 
   if (filterTurun) {
-    filtered = filtered.filter(function(r) {
+    filtered = filtered.filter(function (r) {
       return String(r.turun || "").trim().toUpperCase() === filterTurun;
     });
   }
 
   if (filterVendor) {
-    filtered = filtered.filter(function(r) {
+    filtered = filtered.filter(function (r) {
       return String(r.vendor || "").toLowerCase().indexOf(filterVendor) !== -1;
     });
   }
 
   if (query) {
-    filtered = filtered.filter(function(r) {
+    filtered = filtered.filter(function (r) {
       return (
         String(r.noPo || "").toLowerCase().indexOf(query) !== -1 ||
         String(r.vendor || "").toLowerCase().indexOf(query) !== -1 ||
@@ -842,7 +800,7 @@ function getEffectivePrintLogoId() {
     if (envLogoId && String(envLogoId).trim() && String(envLogoId).trim() !== "PASTE_YOUR_LOGO_FILE_ID_HERE") {
       return String(envLogoId).trim();
     }
-  } catch (e) {}
+  } catch (e) { }
   return PRINT.LOGO_ID || "";
 }
 
@@ -864,7 +822,7 @@ function getLogoSafe() {
       _logoMemoryCache = { logoId: logoId, dataUrl: cached };
       return cached;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 3. Fallback: DriveApp fetch
   try {
@@ -879,7 +837,7 @@ function getLogoSafe() {
       if (dataUrl.length < 100000) {
         CacheService.getScriptCache().put("APP_PRINT_LOGO_" + logoId, dataUrl, 21600); // 6 hours
       }
-    } catch (ce) {}
+    } catch (ce) { }
 
     return dataUrl;
   } catch (err) {

@@ -40,8 +40,18 @@ function confirmCleanTest() {
 }
 
 function canEditMaterial(item) {
+  if (!item) return false
   const s = String(item?.status || '').trim()
-  return s === 'Baru Dibuat' || s === 'Belum Berangkat'
+  const isPreDeparture = (
+    s === 'Baru Dibuat' ||
+    s === 'Belum Berangkat' ||
+    s === 'Menunggu Verifikasi Gerbang' ||
+    s === 'Staged'
+  )
+  if (isPreDeparture) return true
+  // Super Admin / IT can edit as long as delivery has not arrived/completed
+  if (props.canOverrideStatus && s !== 'Tiba' && s !== 'Selesai') return true
+  return false
 }
 
 function statusClass(status) {
