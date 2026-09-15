@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import Icon from './Icon.vue'
 
 const props = defineProps({
@@ -11,8 +11,17 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'add-item', 'remove-item', 'save'])
 
+const defaultUoms = ['PCS', 'SET', 'UNIT', 'MTR', 'KG', 'LBR', 'ROLL', 'BTG', 'DUS', 'BOX']
+
+const availableUoms = computed(() => {
+  const base = (props.master?.uoms && props.master.uoms.length > 0)
+    ? props.master.uoms
+    : defaultUoms
+  return base
+})
+
 function handleKeyDown(e) {
-  if (e.key === 'Escape' && props.editingKpm) {
+  if (e.key === 'Escape' && props.editingKpm && !props.busy) {
     emit('close')
   }
 }
@@ -66,7 +75,12 @@ onUnmounted(() => {
               </span>
             </div>
 
-            <TransitionGroup name="list" tag="div" class="space-y-2.5">
+            <div v-if="editItemsList.length === 0" class="py-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+              <p class="font-medium">Belum ada item material.</p>
+              <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">Klik tombol di bawah untuk menambahkan material baru.</p>
+            </div>
+
+            <TransitionGroup v-else name="list" tag="div" class="space-y-2.5">
               <div
                 v-for="(item, idx) in editItemsList"
                 :key="idx"
@@ -93,7 +107,8 @@ onUnmounted(() => {
                   v-model="item.uom"
                   class="w-24 field !py-2 !px-2 !text-xs !mt-0 font-semibold cursor-pointer transition-all duration-200 focus:ring-2 focus:ring-google-blue-500"
                 >
-                  <option v-for="u in master.uoms" :key="u" :value="u">{{ u }}</option>
+                  <option v-for="u in availableUoms" :key="u" :value="u">{{ u }}</option>
+                  <option v-if="item.uom && !availableUoms.includes(item.uom)" :value="item.uom">{{ item.uom }}</option>
                 </select>
                 <button
                   type="button"

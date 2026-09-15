@@ -13,6 +13,7 @@ import MobileBottomNav from './components/MobileBottomNav.vue'
 import BreadcrumbNav from './components/BreadcrumbNav.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import CommandPaletteModal from './components/CommandPaletteModal.vue'
+import MaterialEditorModal from './components/MaterialEditorModal.vue'
 import Icon from './components/Icon.vue'
 
 const router = useRouter()
@@ -379,6 +380,18 @@ onUnmounted(() => {
     @navigate="navigate"
     @toggle-dark="toggleDark"
     @select-kpm="(kpmNo) => { filter = 'Semua'; navigate('monitor') }"
+  />
+
+  <!-- Material Editor Modal -->
+  <MaterialEditorModal
+    :editing-kpm="editingKpm"
+    :edit-items-list="editItemsList"
+    :master="master"
+    :busy="busy"
+    @close="editingKpm = null"
+    @add-item="addEditItem"
+    @remove-item="removeEditItem"
+    @save="saveLatestKpmItems"
   />
 
   <!-- Floating Toast Notifications -->

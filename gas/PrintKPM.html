@@ -438,7 +438,7 @@ var groups = data.groups || [];
 var pageCounter = 0;
 // Keep the row capacity in one place; the calibration script uses the same
 // value when estimating how many pages a generated document will need.
-var pageSize = (data && data.pageSize) ? data.pageSize : 15; // Set kapasitas baris per halaman
+var pageSize = (data && data.pageSize) ? data.pageSize : 20; // Set kapasitas baris per halaman
 var minimumBlankRows = (data && data.isBlank) ? 0 : 5; // Keep up to five writable blank rows on each page
 var rawKpp = (data && data.header && data.header.noRefKpp) || "";
 // A non-empty fallback keeps barcode generation valid for blank-layout tests.
@@ -467,7 +467,7 @@ for(var g = 0; g < groups.length; g++){
       var mulai = p * pageSize;
       var sampai = mulai + pageSize;
       var pageMaterial = material.slice(mulai, sampai);
-      // Preserve the 15-row page capacity while leaving up to five blank rows
+      // Preserve the 20-row page capacity while leaving up to five blank rows
       // for handwritten additions on pages that are not full.
       var blankRows = Math.min(minimumBlankRows, Math.max(0, pageSize - pageMaterial.length));
 ?>

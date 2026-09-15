@@ -364,35 +364,49 @@ export const useKpmStore = defineStore('kpm', () => {
   }
 
   function startEditLatestKpm(item) {
-    if (item.status !== 'Baru Dibuat' && item.status !== 'Belum Berangkat') {
-      error.value = `Material tidak dapat diubah karena KPM ${item.nomor} sudah berstatus '${item.status}'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih 'Belum Berangkat'.`
+    if (!item) return
+    const currentStatus = String(item.status || '').trim()
+    if (currentStatus !== 'Baru Dibuat' && currentStatus !== 'Belum Berangkat') {
+      const msg = `Material tidak dapat diubah karena KPM ${item.nomor} sudah berstatus '${currentStatus}'. Penambahan atau pengurangan material hanya diizinkan saat KPM masih 'Baru Dibuat' atau 'Belum Berangkat'.`
+      error.value = msg
+      uiStore.toast.warning(msg, 'Aksi Tidak Diizinkan')
       return
     }
     editingKpm.value = item
-    editItemsList.value = (item.daftarBarang || []).map(b => ({
+    const rawList = Array.isArray(item.daftarBarang) ? item.daftarBarang : []
+    editItemsList.value = rawList.map(b => ({
       nama: b.nama || b.spek || b.namaBarang || '',
-      qty: b.qty || 1,
-      uom: b.uom || b.satuan || 'PCS'
+      qty: Number(b.qty) || 1,
+      uom: b.uom || b.satuan || (master.value?.uoms && master.value.uoms[0]) || 'PCS'
     }))
     if (editItemsList.value.length === 0) {
-      editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
+      editItemsList.value.push({
+        nama: '',
+        qty: 1,
+        uom: (master.value?.uoms && master.value.uoms[0]) || 'PCS'
+      })
     }
   }
 
   function addEditItem() {
-    editItemsList.value.push({ nama: '', qty: 1, uom: master.value.uoms[0] || 'PCS' })
+    const defaultUom = (master.value?.uoms && master.value.uoms[0]) || 'PCS'
+    editItemsList.value.push({ nama: '', qty: 1, uom: defaultUom })
   }
 
   function removeEditItem(index) {
     if (editItemsList.value.length > 1) {
       editItemsList.value.splice(index, 1)
+    } else {
+      uiStore.toast.warning('KPM harus memiliki minimal 1 item material.', 'Tidak Dapat Dihapus')
     }
   }
 
   async function saveLatestKpmItems() {
     if (!editingKpm.value) return
     if (editItemsList.value.some(i => !(i.nama || i.namaBarang)?.trim() || Number(i.qty) <= 0)) {
-      error.value = 'Semua material harus memiliki nama dan kuantitas positif.'
+      const err = 'Semua material harus memiliki nama dan kuantitas positif.'
+      error.value = err
+      uiStore.toast.error(err, 'Validasi Gagal')
       return
     }
     const kpmNomor = editingKpm.value.nomor
@@ -404,7 +418,6 @@ export const useKpmStore = defineStore('kpm', () => {
       return { nama: n, namaBarang: n, kode: k, kodeBarang: k, qty: q, uom: u }
     })
     const itemsPayload = JSON.stringify(sanitizedEditItems)
-    editingKpm.value = null
     clearNotice()
     busy.value = true
     try {
@@ -414,6 +427,7 @@ export const useKpmStore = defineStore('kpm', () => {
           daftarBarang: itemsPayload
         }
       })
+      editingKpm.value = null
       message.value = res?.message || `Material KPM ${kpmNomor} berhasil diperbarui.`
       uiStore.toast.success(message.value)
       await loadMonitoring(true)

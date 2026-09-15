@@ -22,7 +22,7 @@ var COL_KODE = 2;   // Col B: Kode Material
 var COL_NAMA = 3;   // Col C: Deskripsi Material
 var COL_SATUAN = 5; // Col E: BUn (Base Unit)
 
-var PAGE_SIZE = 15; // Set page break to 15 items per page
+var PAGE_SIZE = 20; // Set page break to 20 items per page
 
 // ============================================
 // DEBUG
@@ -234,11 +234,7 @@ function setupMaterialDatabaseImportRange() {
   } catch (e) {}
 
   // Invalidate memory and script caches to force fresh reload
-  _materialMemoryCache = {};
-  _materialsLoadedInRam = false;
-  try {
-    CacheService.getScriptCache().remove("ALL_MATS_count");
-  } catch (e) {}
+  clearMaterialCache_();
 
   var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet DataBase sel A1!\n\n" +
                  "Formula di A1:\n" +
@@ -261,34 +257,50 @@ function setupMaterialDatabaseImportRange() {
 }
 
 /**
- * Returns the material dictionary map { [KODE_UPPER]: { kode, nama, satuan } }.
+ * Purges material memory cache and ScriptCache keys so dynamic updates reload cleanly.
+ */
+function clearMaterialCache_() {
+  _materialMemoryCache = {};
+  _materialsLoadedInRam = false;
+  try {
+    var cacheService = CacheService.getScriptCache();
+    cacheService.remove("ALL_MATS_count");
+    cacheService.remove("ALL_MATS_V2_count");
+  } catch (e) {}
+}
+
+/**
+ * Returns the material dictionary map { [KODE_UPPER]: { kode, nama, satuan, source } }.
  * Multi-tiered lookup:
  * 1. Fast in-memory RAM cache
- * 2. ScriptCache (chunked for ~8500 items)
- * 3. Local sheet DataBase (populated by IMPORTRANGE)
- * 4. Fallback A: Direct SpreadsheetApp.openById external spreadsheet
- * 5. Fallback B: Public CSV export endpoint via UrlFetchApp & Utilities.parseCsv
+ * 2. ScriptCache (chunked for master catalog)
+ * 3. Primary Source: Local sheet 'DataBase' (populated by IMPORTRANGE) or external fallback A/B
+ * 4. Secondary Source: Local sheet 'Log Kedatangan' (Komat on G3:G*, Deskripsi on H3:H*)
+ *
+ * PRECEDENCE & COLLISION RULE:
+ * The 'DataBase' sheet is the PRIMARY master source. If the same 'Komat' code exists in both
+ * 'DataBase' and 'Log Kedatangan', the 'DataBase' item name and details are STRICTLY preserved.
  */
 function getMaterialDatabaseMap() {
   if (_materialsLoadedInRam && Object.keys(_materialMemoryCache).length > 0) {
     return _materialMemoryCache;
   }
 
-  // 1. Try ScriptCache
+  // 1. Try ScriptCache (Version 2)
   try {
     var cache = CacheService.getScriptCache();
-    var countStr = cache.get("ALL_MATS_count");
+    var countStr = cache.get("ALL_MATS_V2_count");
     if (countStr) {
       var totalChunks = parseInt(countStr, 10);
       if (!isNaN(totalChunks) && totalChunks > 0) {
         var keys = [];
-        for (var k = 0; k < totalChunks; k++) keys.push("ALL_MATS_" + k);
+        for (var k = 0; k < totalChunks; k++) keys.push("ALL_MATS_V2_" + k);
         var chunks = cache.getAll(keys);
         var json = "";
         var complete = true;
         for (var c = 0; c < totalChunks; c++) {
-          if (!chunks["ALL_MATS_" + c]) { complete = false; break; }
-          json += chunks["ALL_MATS_" + c];
+          if (!chunks["ALL_MATS_V2_" + c]) { complete = false; break; }
+          json += chunks["ALL_MATS_V2_" + c];
         }
         if (complete && json) {
           var parsed = JSON.parse(json);
@@ -302,7 +314,7 @@ function getMaterialDatabaseMap() {
     }
   } catch (e) {}
 
-  // 2. Fetch from Local DataBase sheet (Read Cols B to E = 4 columns)
+  // 2. Fetch from PRIMARY SOURCE: Local DataBase sheet (Read Cols B to E = 4 columns, starting row 5)
   var loadedFromLocal = false;
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -330,7 +342,8 @@ function getMaterialDatabaseMap() {
               _materialMemoryCache[kStr] = {
                 kode: rowKode.toString().trim(),
                 nama: data[i][1] ? data[i][1].toString().trim() : "", // Col C
-                satuan: data[i][3] ? data[i][3].toString().trim() : "" // Col E
+                satuan: data[i][3] ? data[i][3].toString().trim() : "", // Col E
+                source: "database"
               };
             }
           }
@@ -344,7 +357,7 @@ function getMaterialDatabaseMap() {
     Logger.log("Local DataBase read note: " + localErr.message);
   }
 
-  // 3. Robust Fallback: If local sheet has no data or IMPORTRANGE waiting for authorization,
+  // 3. Robust Primary Fallback: If local sheet has no data or IMPORTRANGE waiting for authorization,
   // read directly from external master spreadsheet
   if (!loadedFromLocal) {
     var extSpreadsheetId = (typeof WEB_CONFIG !== 'undefined' && WEB_CONFIG.MATERIAL_DB_SPREADSHEET_ID)
@@ -366,7 +379,8 @@ function getMaterialDatabaseMap() {
             _materialMemoryCache[ekStr] = {
               kode: eKode.toString().trim(),
               nama: extData[eIdx][1] ? extData[eIdx][1].toString().trim() : "",
-              satuan: extData[eIdx][3] ? extData[eIdx][3].toString().trim() : ""
+              satuan: extData[eIdx][3] ? extData[eIdx][3].toString().trim() : "",
+              source: "database"
             };
           }
         }
@@ -381,8 +395,6 @@ function getMaterialDatabaseMap() {
         if (resp.getResponseCode() === 200) {
           var csvText = resp.getContentText();
           var csvRows = Utilities.parseCsv(csvText);
-          // CSV row index 4 is line 5 (data starts after header on row 4)
-          // Col index 1 = Kode Material, Col index 2 = Deskripsi Material, Col index 4 = BUn
           for (var c = 4; c < csvRows.length; c++) {
             var cRow = csvRows[c];
             if (cRow && cRow.length > 2 && cRow[1]) {
@@ -392,7 +404,8 @@ function getMaterialDatabaseMap() {
                 _materialMemoryCache[ckStr] = {
                   kode: cKode,
                   nama: cRow[2] ? cRow[2].toString().trim() : "",
-                  satuan: cRow[4] ? cRow[4].toString().trim() : ""
+                  satuan: cRow[4] ? cRow[4].toString().trim() : "",
+                  source: "database"
                 };
               }
             }
@@ -404,6 +417,41 @@ function getMaterialDatabaseMap() {
     }
   }
 
+  // 4. SECONDARY SOURCE: 'Log Kedatangan' Sheet
+  // Komat is in column G starting from row 3 (G3:G*), and description in column H (H3:H*).
+  // RULE: 'DataBase' is the PRIMARY master source. If the same 'Komat' code exists in both,
+  // the 'DataBase' item name/details MUST be preserved and never overwritten.
+  try {
+    var logRows = getAllLogKedatanganRows();
+    if (logRows && logRows.length > 0) {
+      for (var l = 0; l < logRows.length; l++) {
+        var logItem = logRows[l];
+        var logKomat = logItem && logItem.komat ? logItem.komat.toString().trim() : "";
+        if (!logKomat) continue;
+
+        var logKey = logKomat.toUpperCase();
+        // PRIMARY PRECEDENCE CHECK:
+        // If the Komat already exists in _materialMemoryCache (from DataBase or an earlier row),
+        // DO NOT overwrite it. The primary DataBase record stays intact!
+        if (!_materialMemoryCache.hasOwnProperty(logKey)) {
+          _materialMemoryCache[logKey] = {
+            kode: logKomat,
+            nama: logItem.deskripsi ? logItem.deskripsi.toString().trim() : ("Material " + logKomat),
+            satuan: "PCS", // Default to PCS because Log Kedatangan has no UOM column
+            source: "log_kedatangan"
+          };
+        } else if (_materialMemoryCache[logKey].source === "log_kedatangan") {
+          // If previously added from Log Kedatangan without description, update with non-empty description
+          if ((!_materialMemoryCache[logKey].nama || _materialMemoryCache[logKey].nama === ("Material " + logKomat)) && logItem.deskripsi) {
+            _materialMemoryCache[logKey].nama = logItem.deskripsi.toString().trim();
+          }
+        }
+      }
+    }
+  } catch (logErr) {
+    Logger.log("Secondary Log Kedatangan komat merge note: " + logErr.message);
+  }
+
   _materialsLoadedInRam = Object.keys(_materialMemoryCache).length > 0;
 
   // Cache in ScriptCache chunked for up to 6 hours
@@ -413,9 +461,9 @@ function getMaterialDatabaseMap() {
       var fullJson = JSON.stringify(_materialMemoryCache);
       var chunkSize = 90000;
       var count = Math.ceil(fullJson.length / chunkSize);
-      var batch = { "ALL_MATS_count": String(count) };
+      var batch = { "ALL_MATS_V2_count": String(count) };
       for (var j = 0; j < count; j++) {
-        batch["ALL_MATS_" + j] = fullJson.substr(j * chunkSize, chunkSize);
+        batch["ALL_MATS_V2_" + j] = fullJson.substr(j * chunkSize, chunkSize);
       }
       cacheService.putAll(batch, 21600); // 6 hours
     } catch (e) {}
@@ -428,10 +476,6 @@ function getMaterialByKode(kode) {
   if (!kode) return null;
   var kodeTrimmed = kode.toString().trim().toUpperCase();
   if (kodeTrimmed === "") return null;
-
-  if (_materialMemoryCache[kodeTrimmed]) {
-    return _materialMemoryCache[kodeTrimmed];
-  }
 
   var map = getMaterialDatabaseMap();
   return map[kodeTrimmed] || null;
@@ -540,9 +584,10 @@ function setupLogKedatanganImportRange() {
     sheet.setFrozenRows(2);
   } catch (e) {}
 
-  // Invalidate memory caches
+  // Invalidate memory caches (including secondary material database)
   _logKedatanganMemoryCache = null;
   _logKedatanganLoadedInRam = false;
+  clearMaterialCache_();
 
   var alertMsg = "Rumus IMPORTRANGE berhasil dipasang pada sheet '" + LOG_KEDATANGAN_SHEET_NAME + "' sel A1!\n\n" +
                  "Formula di A1:\n" +
