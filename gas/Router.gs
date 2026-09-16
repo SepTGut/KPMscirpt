@@ -91,11 +91,13 @@ function doGet(e) {
 }
 
 /**
- * Handles all POST requests with LockService concurrency protection and token authentication.
+ * Handles all POST requests with token authentication.
+ * LockService concurrency protection is applied ONLY to write/mutation actions.
+ * Read-only actions (getMonitoring, getMasterData, login, search, etc.) execute
+ * without acquiring the lock, preventing reads from blocking behind writes.
  * Returns unified { success, action, data, error } envelope.
  */
 function doPost(e) {
-  var lock = LockService.getScriptLock();
   var params = (e && e.parameter) ? e.parameter : {};
   var action = params.action ? String(params.action).trim() : "";
 
@@ -107,6 +109,17 @@ function doPost(e) {
     else action = "unknown";
   }
 
+  // Actions that write to spreadsheet or modify state require ScriptLock
+  var WRITE_ACTIONS = [
+    "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus",
+    "editLatestKpmItems", "saveUser", "toggleUserStatus",
+    "stageArrival", "confirmArrivalReceipt", "cleanOrphanedAndTestRows",
+    "stageDeparture", "confirmDepartureSecurity", "rejectDepartureSecurity",
+    "setupMaterialDb", "setupLogKedatangan"
+  ];
+  var needsLock = WRITE_ACTIONS.indexOf(action) !== -1;
+
+  var lock = null;
   var lockAcquired = false;
   try {
     if (typeof verifyAppSignature !== 'function' || !verifyAppSignature()) {
@@ -116,9 +129,14 @@ function doPost(e) {
     if (allowedPostActions.indexOf(action) === -1) {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }
-    lockAcquired = lock.tryLock(15000);
-    if (!lockAcquired) {
-      throw { code: "CONCURRENCY_ERROR", message: "Server sedang sibuk memproses permintaan lain. Harap coba beberapa saat lagi." };
+
+    // Only acquire lock for write/mutation actions
+    if (needsLock) {
+      lock = LockService.getScriptLock();
+      lockAcquired = lock.tryLock(15000);
+      if (!lockAcquired) {
+        throw { code: "CONCURRENCY_ERROR", message: "Server sedang sibuk memproses permintaan lain. Harap coba beberapa saat lagi." };
+      }
     }
 
     var authInfo = authenticateRequest(params, action);
@@ -198,7 +216,7 @@ function doPost(e) {
     var msg = (error && error.message) ? error.message : String(error);
     return jsonOutput(createErrorResponse(action, code, msg));
   } finally {
-    if (lockAcquired) {
+    if (lockAcquired && lock) {
       try {
         lock.releaseLock();
       } catch (lockErr) {

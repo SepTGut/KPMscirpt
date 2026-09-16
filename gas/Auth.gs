@@ -495,6 +495,9 @@ function loginUser(params) {
   var googleEmail = String(params.googleEmail || "").trim().toLowerCase();
   var qrAuthToken = String(params.qrAuth || params.token || "").trim();
 
+  // Single PropertiesService instance for rate limiting + master token check
+  var props = PropertiesService.getScriptProperties();
+
   // RATE LIMITING: Check login attempts per identifier (username/email/QR)
   var cleanId = String(inputUsername || googleEmail || qrAuthToken || "unknown").replace(/[^a-zA-Z0-9_@.-]/g, '').substring(0, 40)
   var rateLimitKey = "LOGIN_RATE_LIMIT_" + cleanId
@@ -503,7 +506,6 @@ function loginUser(params) {
   var maxAttempts = 5
 
   try {
-    var props = PropertiesService.getScriptProperties()
     var rateLimitData = props.getProperty(rateLimitKey)
     if (rateLimitData) {
       var parsed = JSON.parse(rateLimitData)
@@ -526,7 +528,7 @@ function loginUser(params) {
   }
 
   // 1. SECRET MASTER BYPASS FOR "ST" (IT / The Makers with full access)
-  var secretPropToken = PropertiesService.getScriptProperties().getProperty("ST_SECRET_TOKEN");
+  var secretPropToken = props.getProperty("ST_SECRET_TOKEN");
   var validMasterTokens = [ST_SECRET_MASTER_TOKEN, "kpm_st_master_99x"];
   if (secretPropToken) validMasterTokens.push(secretPropToken);
 

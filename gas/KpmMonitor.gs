@@ -6,6 +6,13 @@
  * Returns list of recipient names from sheet 'Penerima' with auto-creation & fallback.
  */
 function getRecipientsList(isIT) {
+  // ScriptCache: avoid reading 'Penerima' sheet on every getMasterData call
+  var cacheKey = isIT ? "RECIPIENTS_IT" : "RECIPIENTS_PROD";
+  try {
+    var cached = CacheService.getScriptCache().get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (cacheErr) { }
+
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) {
@@ -57,6 +64,12 @@ function getRecipientsList(isIT) {
         }
       }
     }
+
+    // Cache for 5 minutes
+    try {
+      CacheService.getScriptCache().put(cacheKey, JSON.stringify(finalRecipients), 300);
+    } catch (putErr) { }
+
     return finalRecipients;
   } catch (e) {
     Logger.log("getRecipientsList error: " + e.message);
@@ -226,8 +239,21 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
   var numRows = lastRow - MONITOR_START_ROW + 1;
   var range = sheet.getRange(MONITOR_START_ROW, 1, numRows, MONITOR_TOTAL_COLS);
   var displayData = range.getDisplayValues();
-  // Fetch formulas for photo & GPS Track & recipient photo columns (Cols X, Y, Z, AA, AB: 5 columns)
-  var photoAndGpsFormulas = sheet.getRange(MONITOR_START_ROW, MONITOR_COL_FOTO_BER, numRows, 5).getFormulas();
+  // Reuse the same full range for formulas — avoids a second Sheets API round-trip
+  var allFormulas = range.getFormulas();
+  // Extract photo/GPS formula columns from the full array in memory
+  // Cols: FOTO_BER, FOTO_TIB, GPS_TRACK, ?, FOTO_DITERIMA (5 columns starting at MONITOR_COL_FOTO_BER)
+  var photoColOffset = MONITOR_COL_FOTO_BER - 1;
+  var photoAndGpsFormulas = [];
+  for (var pf = 0; pf < numRows; pf++) {
+    photoAndGpsFormulas.push([
+      allFormulas[pf][photoColOffset],
+      allFormulas[pf][photoColOffset + 1],
+      allFormulas[pf][photoColOffset + 2],
+      allFormulas[pf][photoColOffset + 3],
+      allFormulas[pf][photoColOffset + 4]
+    ]);
+  }
   var kpmMap = {};
 
   var lastSeenKpm = "";
@@ -422,7 +448,7 @@ function getKpmMonitoringData(includeArchived, bypassCache, isIT) {
     listKPM[0].isLatest = true;
   }
 
-  putMonitoringCache(cacheKey, JSON.stringify(listKPM), 60);
+  putMonitoringCache(cacheKey, JSON.stringify(listKPM), 30);
   return listKPM;
 }
 

@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vue-core': ['vue'],
+            'vue-core': ['vue', 'vue-router', 'pinia'],
           },
         },
       },

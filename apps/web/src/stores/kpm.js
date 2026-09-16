@@ -157,6 +157,22 @@ export const useKpmStore = defineStore('kpm', () => {
     }, 1000)
   }
 
+  // Pause polling entirely when tab is hidden; quick catch-up when visible again
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        if (pollingTimer) {
+          clearInterval(pollingTimer)
+          pollingTimer = null
+        }
+      } else {
+        // Tab became visible: quick 3s catch-up refresh then resume normal polling
+        pollingSecondsLeft.value = 3
+        startPollingTimer()
+      }
+    })
+  }
+
   function togglePolling() {
     isPollingActive.value = !isPollingActive.value
     if (isPollingActive.value) {

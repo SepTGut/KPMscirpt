@@ -20,3 +20,11 @@ description: Google Apps Script performance, security, and deployment best pract
 ### 4. Standard Response Envelope
 - Web App API endpoints (`doGet` / `doPost`) must return a consistent JSON envelope:
   `{ success: boolean, action: string, data: any, error: { code: string, message: string } | null }`
+
+### 5. Forbidden External Spreadsheet Scope Escalation
+- **NEVER** use `SpreadsheetApp.openById(externalId)` or `SpreadsheetApp.openByUrl(url)` in code reachable from `doGet`/`doPost` Web App endpoints.
+- These calls trigger Google's OAuth static analyzer to require the broad `https://www.googleapis.com/auth/spreadsheets` scope. If the deploying account hasn't authorized the new scope, Google **silently redirects** all anonymous Web App requests to `accounts.google.com/ServiceLogin`, returning HTML instead of JSON and breaking all API clients.
+- For external spreadsheet data, use one of these scope-safe alternatives:
+  1. **IMPORTRANGE** formula in a local sheet (read via `getActiveSpreadsheet().getSheetByName(...)`)
+  2. **Public CSV export** via `UrlFetchApp.fetch("https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid={GID}")` (requires the source spreadsheet to be shared as "Anyone with the link")
+- After removing `openById`, always redeploy the active deployment and verify with `curl` that the endpoint returns JSON, not HTML.
