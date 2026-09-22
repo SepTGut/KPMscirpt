@@ -81,9 +81,10 @@
 
     .page {
       width: 279.4mm;
-      min-height: 203.2mm;
+      min-height: 195mm;
       margin: 10px auto 20px auto;
       padding: 4mm;
+      padding-bottom: 7mm;
       background: white;
       position: relative;
       page-break-after: always;
@@ -93,7 +94,7 @@
 
     @page {
       size: letter landscape;
-      margin: 8mm;
+      margin: 6mm 8mm;
     }
 
     @media print {
@@ -101,6 +102,8 @@
       html,
       body {
         background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       .toolbar {
@@ -113,16 +116,28 @@
         height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
+        padding-bottom: 6mm !important;
         border: none !important;
         box-shadow: none !important;
+        position: relative !important;
         page-break-after: always;
         break-after: page;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
 
       .page:last-child,
       .page:last-of-type {
         page-break-after: auto !important;
         break-after: auto !important;
+      }
+
+      .doc-footer {
+        position: absolute !important;
+        bottom: 1mm !important;
+        right: 2mm !important;
+        display: block !important;
+        line-height: 1 !important;
       }
 
       .page-last-space {
@@ -323,15 +338,15 @@
     .sign-box {
       border: 1px solid #000;
       background: #ffffff;
-      padding: 6px 8px;
+      padding: 5px 8px;
       display: flex;
       flex-direction: row;
       align-items: stretch;
       justify-content: space-between;
       gap: 10px;
-      height: 104px;
-      min-height: 104px;
-      max-height: 104px;
+      height: 98px;
+      min-height: 98px;
+      max-height: 98px;
       box-sizing: border-box;
     }
 
@@ -390,7 +405,7 @@
 
     .sign-space {
       flex: 1;
-      min-height: 48px;
+      min-height: 44px;
       width: 100%;
     }
 
@@ -405,13 +420,17 @@
     }
 
     .doc-footer {
-      margin-top: 5px;
+      position: absolute;
+      bottom: 2mm;
+      right: 4mm;
       text-align: right;
-      font-size: 9.5px;
-    }
-
-    .page-last-space {
-      height: 2mm;
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #5f6368;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      margin: 0;
+      padding: 0;
     }
   </style>
 </head>
@@ -651,7 +670,6 @@ for(var g = 0; g < groups.length; g++){
     </table>
 
     <div class="doc-footer">FORM-KPM-PPO-000</div>
-    <div class="page-last-space"></div>
   </div>
 
   <?
