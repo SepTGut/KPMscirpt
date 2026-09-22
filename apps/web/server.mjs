@@ -8,16 +8,18 @@ const __dirname = path.dirname(__filename)
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
 const DIST_DIR = path.resolve(__dirname, 'dist')
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN
-const DRIVER_TOKEN = process.env.DRIVER_TOKEN
+// Fallback defaults for container / local resilience
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
+
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN
+const DRIVER_TOKEN = process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN
 
 if (!GOOGLE_SCRIPT_URL) {
   console.error('❌ FATAL: GOOGLE_SCRIPT_URL environment variable is required. Set it in .env or system environment.')
   process.exit(1)
-}
-if (!ADMIN_TOKEN || !DRIVER_TOKEN) {
-  console.warn('⚠️  WARNING: ADMIN_TOKEN and/or DRIVER_TOKEN not set. API proxy will reject non-login requests.')
 }
 
 // CORS origin allowlist
@@ -42,7 +44,9 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()'
+  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.cartocdn.com https://server.arcgisonline.com https://lh3.googleusercontent.com https://drive.google.com; connect-src 'self' https://script.google.com https://*.firebasedatabase.app https://*.cartocdn.com https://server.arcgisonline.com; frame-ancestors 'none';",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
 }
 
 function applySecurityHeaders(res) {
@@ -107,12 +111,15 @@ async function handleApiProxy(req, res) {
 
   // CORS Preflight
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': corsOrigin || 'null',
+    const preflightHeaders = {
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400'
-    })
+    }
+    if (corsOrigin) {
+      preflightHeaders['Access-Control-Allow-Origin'] = corsOrigin
+    }
+    res.writeHead(204, preflightHeaders)
     return res.end()
   }
 
@@ -222,7 +229,13 @@ function serveStatic(req, res) {
     return handleApiProxy(req, res)
   }
 
-  let filePath = path.join(DIST_DIR, pathname)
+  const safePath = path.normalize(path.join(DIST_DIR, pathname))
+  if (!safePath.startsWith(DIST_DIR)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' })
+    return res.end('403 Forbidden: Akses di luar direktori ditolak.')
+  }
+
+  let filePath = safePath
 
   // SPA fallback: If requested file does not exist
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {

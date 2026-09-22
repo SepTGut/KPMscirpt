@@ -735,6 +735,39 @@ function loginAuditLog_(method, identifier, success, details) {
   }
 }
 
+var _userRoleCache = {};
+
+/**
+ * Safely looks up a user's role from the Users sheet without trusting client-side claims.
+ */
+function getUserRoleByUsername_(username) {
+  if (!username) return null;
+  var key = String(username).trim().toLowerCase();
+  if (!key) return null;
+  if (_userRoleCache[key]) return _userRoleCache[key];
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(USERS_SHEET_NAME);
+    if (!sheet || sheet.getLastRow() < 2) return null;
+    var data = sheet.getRange(2, 2, sheet.getLastRow() - 1, 5).getValues(); // B: Username, C: Email, D: PIN, E: Name, F: Role
+    for (var i = 0; i < data.length; i++) {
+      var uName = String(data[i][0] || "").trim().toLowerCase();
+      var uEmail = String(data[i][1] || "").trim().toLowerCase();
+      var uFullName = String(data[i][3] || "").trim().toLowerCase();
+      var uRole = String(data[i][4] || "").trim();
+      if (uName === key || uEmail === key || uFullName === key) {
+        var role = normalizeRole(uRole);
+        _userRoleCache[key] = role;
+        return role;
+      }
+    }
+  } catch (e) {
+    Logger.log("getUserRoleByUsername_ error: " + e.message);
+  }
+  return null;
+}
+
 /**
  * Validates the API token and enforces role-based authorization for an action.
  * Enforces:
@@ -772,12 +805,22 @@ function authenticateRequest(params, action) {
     };
   }
 
-  var requestedUsername = (params && (params.authUsername || params.username)) ? String(params.authUsername || params.username).trim() : "";
-  var clientRole = (params && (params.authRole || params.role)) ? normalizeRole(params.authRole || params.role) : "";
-  var userRole = isBearerAdmin ? (clientRole || ROLE.ADMIN) : ROLE.DRIVER;
+  var isMasterToken = (submittedToken === ST_SECRET_MASTER_TOKEN || submittedToken === "kpm_st_master_99x");
 
-  if (requestedUsername.toUpperCase() === "ST" || requestedUsername.toUpperCase() === "IT" || submittedToken === ST_SECRET_MASTER_TOKEN || submittedToken === "kpm_st_master_99x" || (isBearerAdmin && String(params.isIT) === "true")) {
+  var requestedUsername = (params && (params.authUsername || params.username)) ? String(params.authUsername || params.username).trim() : "";
+  var userRole = ROLE.DRIVER;
+
+  if (isMasterToken || requestedUsername.toUpperCase() === "ST" || requestedUsername.toUpperCase() === "IT") {
     userRole = ROLE.IT;
+  } else if (isBearerAdmin) {
+    userRole = ROLE.ADMIN;
+    // Strictly verify role from server-side Users database; never trust client authRole/isIT params
+    if (requestedUsername) {
+      var dbRole = getUserRoleByUsername_(requestedUsername);
+      if (dbRole === ROLE.IT || dbRole === ROLE.SUPER_ADMIN) {
+        userRole = dbRole;
+      }
+    }
   }
 
   // 1. Direct status override (adminUpdateStatus)

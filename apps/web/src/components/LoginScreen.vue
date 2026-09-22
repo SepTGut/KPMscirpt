@@ -19,18 +19,14 @@ const rememberMe = ref(true)
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 const quickAccounts = [
-  { label: 'IT Master (ST)', u: 'ST', p: 'st_master_access_99x', role: 'IT' },
-  { label: 'Super Admin (Aang)', u: 'admin', p: 'admin123', role: 'Super Admin' },
-  { label: 'Admin (Eko)', u: 'eko', p: 'admin123', role: 'Admin' },
-  { label: 'Driver (Budi)', u: 'driver1', p: 'driver123', role: 'Driver' },
+  { label: 'Super Admin (Aang)', u: 'admin', role: 'Super Admin' },
+  { label: 'Admin (Eko)', u: 'eko', role: 'Admin' },
+  { label: 'Driver (Budi)', u: 'driver1', role: 'Driver' },
 ]
 
 function fillAccount(acc) {
   username.value = acc.u
-  password.value = acc.p
-  if (acc.u === 'ST') {
-    submitPasswordLogin()
-  }
+  password.value = ''
 }
 
 function submitPasswordLogin() {

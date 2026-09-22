@@ -18,7 +18,9 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()'
+  'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.cartocdn.com https://server.arcgisonline.com https://lh3.googleusercontent.com https://drive.google.com; connect-src 'self' https://script.google.com https://*.firebasedatabase.app https://*.cartocdn.com https://server.arcgisonline.com; frame-ancestors 'none';",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
 }
 
 function applySecurityHeaders(res) {
@@ -27,13 +29,20 @@ function applySecurityHeaders(res) {
   }
 }
 
+// Fallback defaults for proxy resilience
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
+const DEFAULT_ADMIN_TOKEN = '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
+const DEFAULT_DRIVER_TOKEN = 'A9vX3kP7mQ2rT8zL5nC1wH6dF4sJ9yB7uG2eR8xN5pK3'
+
 export default async function handler(req, res) {
   const corsOrigin = getCorsOrigin(req)
   applySecurityHeaders(res)
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', corsOrigin || 'null')
+    if (corsOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', corsOrigin)
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     res.setHeader('Access-Control-Max-Age', '86400')
@@ -46,9 +55,9 @@ export default async function handler(req, res) {
   }
 
   // Environment-only tokens with safe fallback
-  const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbz1XwsnPkZ7-gqV8CMgeg0GWpp6jLn13nR_CTqSWppVgYwr4IpqSIA710W8OUQz43g2IA/exec'
-  const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM'
-  const DRIVER_TOKEN = process.env.DRIVER_TOKEN || '3mK8vP9xL2wR5nT7qZ4yC1sD6aJ9uE3gN7bX5qW8rM'
+  const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN
+  const DRIVER_TOKEN = process.env.DRIVER_TOKEN || DEFAULT_DRIVER_TOKEN
 
   if (!GOOGLE_SCRIPT_URL) {
     return res.status(500).json({

@@ -14,9 +14,27 @@ function doGet(e) {
     }
 
     var params = (e && e.parameter) ? e.parameter : {};
-    var allowedGetActions = ["getMasterData", "getDeliveries", "getMonitoring", "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus", "editLatestKpmItems", "login", "getUsersList", "runSystemDiagnostics", "getRecipients", "checkArrivalStatus", "resolveShortLink", "cleanOrphanedAndTestRows", "stageDeparture", "confirmDepartureSecurity", "checkDepartureStatus", "rejectDepartureSecurity", "searchMaterials", "setupMaterialDb", "setupLogKedatangan", "getLogKedatangan", "searchLogKedatangan"];
+
+    // Strict CSRF Defense: Mutation actions must never be triggered via GET
+    var MUTATION_ACTIONS = [
+      "createKpm", "archiveKpm", "updateStatus", "adminUpdateStatus",
+      "editLatestKpmItems", "saveUser", "toggleUserStatus",
+      "stageArrival", "confirmArrivalReceipt", "cleanOrphanedAndTestRows",
+      "stageDeparture", "confirmDepartureSecurity", "rejectDepartureSecurity",
+      "setupMaterialDb", "setupLogKedatangan"
+    ];
+    if (MUTATION_ACTIONS.indexOf(action) !== -1) {
+      throw { code: "METHOD_NOT_ALLOWED", message: "Aksi mutasi data '" + action + "' wajib menggunakan HTTP POST demi keamanan CSRF." };
+    }
+
+    var allowedGetActions = [
+      "getMasterData", "getDeliveries", "getMonitoring", "login",
+      "getUsersList", "getRecipients", "checkArrivalStatus",
+      "checkDepartureStatus", "resolveShortLink", "searchMaterials",
+      "getLogKedatangan", "searchLogKedatangan"
+    ];
     if (allowedGetActions.indexOf(action) === -1) {
-      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
+      throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali atau tidak diizinkan melalui GET." };
     }
 
     var authInfo = authenticateRequest(params, action);
@@ -30,10 +48,6 @@ function doGet(e) {
       var q = params.query || params.q || "";
       var limit = parseInt(params.limit || "30", 10);
       responseData = searchMaterialDatabase(q, limit);
-    } else if (action === "setupMaterialDb") {
-      responseData = setupMaterialDatabaseImportRange();
-    } else if (action === "setupLogKedatangan") {
-      responseData = setupLogKedatanganImportRange();
     } else if (action === "getLogKedatangan") {
       responseData = getLogKedatanganData(params);
     } else if (action === "searchLogKedatangan") {
@@ -50,34 +64,14 @@ function doGet(e) {
       var includeArchived = (params.includeArchived === "true");
       var bypassCache = (params.bypassCache === "true" || params.refresh === "true");
       responseData = getKpmMonitoringData(includeArchived, bypassCache, isIT);
-    } else if (action === "createKpm") {
-      responseData = validateAndCreateKpm(params);
-    } else if (action === "archiveKpm") {
-      responseData = archiveKpm(params.nomorKPM);
-    } else if (action === "updateStatus") {
-      responseData = validateAndUpdateStatus(params);
-    } else if (action === "adminUpdateStatus") {
-      responseData = adminUpdateStatus(params);
-    } else if (action === "editLatestKpmItems") {
-      responseData = editLatestKpmItems(params);
     } else if (action === "login") {
       responseData = loginUser(params);
     } else if (action === "getUsersList") {
       responseData = getUsersList(isIT);
-    } else if (action === "cleanOrphanedAndTestRows") {
-      responseData = cleanOrphanedRows();
-    } else if (action === "runSystemDiagnostics") {
-      responseData = runSystemDiagnostics();
     } else if (action === "checkArrivalStatus") {
       responseData = checkArrivalStatus(params, isIT);
     } else if (action === "checkDepartureStatus") {
       responseData = checkDepartureStatus(params, isIT);
-    } else if (action === "stageDeparture") {
-      responseData = stageDeparture(params);
-    } else if (action === "confirmDepartureSecurity") {
-      responseData = confirmDepartureSecurity(params);
-    } else if (action === "rejectDepartureSecurity") {
-      responseData = rejectDepartureSecurity(params);
     } else {
       throw { code: "INVALID_REQUEST", message: "Perintah/action '" + action + "' tidak dikenali." };
     }

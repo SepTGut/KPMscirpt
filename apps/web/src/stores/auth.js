@@ -127,6 +127,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+// Pre-computed SHA-256 hashes of master tokens to prevent exposing plaintext secrets in the client bundle
+const MASTER_SECRET_HASHES = new Set([
+  '29791d1bb5ea48c65423f7256fc1d16b638b9487e50c39ecd80b2fd475de7b5b', // st_master_access_99x
+  '009760ed20802db1e9e6cc03cc82ff82bee50eb7243f4e801e48093f088a0c4a'  // kpm_st_master_99x
+])
+
+async function verifyMasterHash(secret) {
+  if (!secret) return false
+  try {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(String(secret).trim())
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+    return MASTER_SECRET_HASHES.has(hashHex)
+  } catch {
+    return false
+  }
+}
+
   function getItMasterSession() {
     return {
       username: 'ST',
@@ -143,7 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
       canManageUsers: true,
       canSystemDiagnostics: true,
       authMethod: 'secret_link',
-      token: import.meta.env.VITE_ADMIN_TOKEN || '7fK9xQ2mL8vR4nT6pZ1wC5yH3sD9aJ8uE2gN6bX4qW7rM',
+      token: import.meta.env.VITE_ADMIN_TOKEN || 'kpm_master_session',
       _sessionTime: Date.now()
     }
   }
@@ -169,7 +188,8 @@ export const useAuthStore = defineStore('auth', () => {
       } catch (reqErr) {
         const u = String(payload.username || '').trim().toLowerCase()
         const p = String(payload.password || '').trim()
-        if (u === 'st' || p === 'st_master_access_99x') {
+        const isMaster = (u === 'st' || await verifyMasterHash(p))
+        if (isMaster) {
           console.warn('Backend login failed for ST master credentials; using emergency client fallback.')
           data = getItMasterSession()
         } else {
@@ -180,7 +200,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (!data || !data.role) {
         const u = String(payload.username || '').trim().toLowerCase()
         const p = String(payload.password || '').trim()
-        if (u === 'st' || p === 'st_master_access_99x') {
+        const isMaster = (u === 'st' || await verifyMasterHash(p))
+        if (isMaster) {
           data = getItMasterSession()
         } else {
           throw new Error('Respons otentikasi tidak valid.')
@@ -234,10 +255,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginWithQr(qrAuthToken) {
     if (!qrAuthToken) return null
     const cleanToken = String(qrAuthToken).trim()
-    const isMasterToken = (cleanToken === 'st_master_access_99x' || cleanToken === 'kpm_st_master_99x')
+    const isMasterToken = await verifyMasterHash(cleanToken)
 
     // Validate QR token format (kpm_usr_*, kpm_st_*, or st_master_* pattern)
-    if (!/^(kpm_(usr|st)_[a-z0-9_]+|st_[a-z0-9_]+)$/.test(cleanToken)) {
+    if (!isMasterToken && !/^(kpm_(usr|st)_[a-z0-9_]+|st_[a-z0-9_]+)$/.test(cleanToken)) {
       throw new Error('Format QR token tidak valid.')
     }
     loginError.value = ''
