@@ -2,7 +2,7 @@
 // TEST / CALIBRATION SCRIPT (Test.gs)
 // ============================================
 
-var TEST_ITEM_COUNT = 20;
+var TEST_ITEM_COUNT = 15;
 
 // Valid, real 1x1 pixel JPEG Base64 fixture
 var REAL_1X1_JPEG_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=";

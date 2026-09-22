@@ -22,7 +22,7 @@ var COL_KODE = 2;   // Col B: Kode Material
 var COL_NAMA = 3;   // Col C: Deskripsi Material
 var COL_SATUAN = 5; // Col E: BUn (Base Unit)
 
-var PAGE_SIZE = 20; // Set page break to 20 items per page
+var PAGE_SIZE = 15; // Set page break to 15 items per page (maximizes room for layout, signatures & QR codes)
 
 // ============================================
 // DEBUG

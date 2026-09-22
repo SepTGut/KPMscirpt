@@ -191,10 +191,12 @@ onUnmounted(() => {
             <button
               type="button"
               class="w-full py-3 rounded-2xl border-2 border-dashed border-google-blue-300 dark:border-blue-700/60 hover:border-google-blue-500 dark:hover:border-blue-500 bg-google-blue-50/50 dark:bg-blue-950/20 hover:bg-google-blue-50 dark:hover:bg-blue-950/40 text-google-blue-700 dark:text-blue-300 text-xs font-bold flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] focus-visible:outline-none"
+              :disabled="editItemsList.length >= 15"
+              :class="{ 'opacity-40 cursor-not-allowed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400': editItemsList.length >= 15 }"
               @click="$emit('add-item')"
             >
               <Icon name="plus" className="w-4 h-4" />
-              <span>Tambah Baris Material Baru</span>
+              <span>{{ editItemsList.length >= 15 ? 'Batas Maksimal 15 Material Tercapai' : 'Tambah Baris Material Baru' }}</span>
             </button>
           </div>
 

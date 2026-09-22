@@ -73,7 +73,13 @@ function resetForm() {
   }
 }
 
+const MAX_KPM_ITEMS = 15
+
 function addItem() {
+  if (form.value.items.length >= MAX_KPM_ITEMS) {
+    toast.warning(`Maksimal ${MAX_KPM_ITEMS} material per formulir KPM untuk mengoptimalkan ruang 1 lembar cetak.`)
+    return
+  }
   form.value.items.push({ nama: '', qty: 1, uom: props.master.uoms?.[0] || 'PCS' })
 }
 
@@ -202,13 +208,15 @@ function submit() {
               <Icon name="box" className="w-4 h-4" />
             </div>
             <span>Daftar Material Muatan</span>
-            <span class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">{{ form.items.length }} Item</span>
+            <span class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">{{ form.items.length }} / {{ MAX_KPM_ITEMS }} Item</span>
           </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Spesifikasi barang, jumlah kuantitas, dan satuan ukur.</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Maksimal 15 material untuk optimalisasi 1 lembar dokumen cetak.</p>
         </div>
         <button
           type="button"
           class="btn-secondary !py-2 !px-4 !text-xs !font-bold text-google-blue-700 dark:text-blue-300"
+          :disabled="form.items.length >= MAX_KPM_ITEMS"
+          :class="{ 'opacity-40 cursor-not-allowed': form.items.length >= MAX_KPM_ITEMS }"
           @click="addItem"
         >
           <Icon name="plus" className="w-3.5 h-3.5" />

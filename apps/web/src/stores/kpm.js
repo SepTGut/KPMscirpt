@@ -405,6 +405,10 @@ export const useKpmStore = defineStore('kpm', () => {
   }
 
   function addEditItem() {
+    if (editItemsList.value.length >= 15) {
+      uiStore.toast.warning('Maksimal 15 item material per KPM untuk optimalisasi ruang 1 lembar cetak.', 'Batas Maksimum')
+      return
+    }
     const defaultUom = (master.value?.uoms && master.value.uoms[0]) || 'PCS'
     editItemsList.value.push({ nama: '', qty: 1, uom: defaultUom })
   }

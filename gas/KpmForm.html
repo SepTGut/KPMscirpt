@@ -601,6 +601,11 @@
 
       showAddItemError('');
 
+      if (items.length >= 15) {
+        showAddItemError('Maksimal 15 item material per lembar KPM untuk mengoptimalkan ruang cetak.');
+        return;
+      }
+
       if (!currentMaterial) {
         showAddItemError('Silakan masukkan Kode Material yang valid terlebih dahulu.');
         return;
